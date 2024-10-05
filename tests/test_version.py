@@ -33,9 +33,9 @@ class TestImport:
             log.debug(f"log terrform executable: {terraform.executable}")
             assert terraform.executable
 
-    def test_terrapyne_required_version(self):
+    def test_terrapyne_required_version(self, tf_required_version):
         with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
-            terraform = terrapyne.Terraform(required_version="1.9.7")
+            terraform = terrapyne.Terraform(required_version=tf_required_version)
             assert terraform.version
             log.debug(f"log terrform version: {terraform.version}")
             assert terraform.platform == "{}_{}".format(
@@ -48,11 +48,7 @@ class TestImport:
             with tempfile.TemporaryDirectory() as tmpdir:
                 os.chdir(tmpdir)
                 terraform.make_layout()
-                os.mkdir(
-                    terraform.environment_variables.get(
-                        "TF_PLUGIN_CACHE_DIR", "tf-cache"
-                    )
-                )
+                os.mkdir(terraform.environment_variables.get("TF_PLUGIN_CACHE_DIR", "tf-cache"))
 
                 shutil.copy("terraform.tf", "/tmp/terraform-1.tf")
 
@@ -86,11 +82,7 @@ class TestImport:
             with tempfile.TemporaryDirectory() as tmpdir:
                 os.chdir(tmpdir)
                 terraform.make_layout()
-                os.mkdir(
-                    terraform.environment_variables.get(
-                        "TF_PLUGIN_CACHE_DIR", "tf-cache"
-                    )
-                )
+                os.mkdir(terraform.environment_variables.get("TF_PLUGIN_CACHE_DIR", "tf-cache"))
 
                 _init_out = terraform.init()
                 log.debug(f"init: {_init_out}")
@@ -135,7 +127,7 @@ class TestImport:
 
                 _resources_out = terraform.get_resources()
                 log.debug(f"resources: {_resources_out}")
-                assert _resources_out[0]['instances']
+                assert _resources_out[0]["instances"]
 
                 _destroy_out = terraform.destroy()
                 log.debug(f"destroy: {_destroy_out}")

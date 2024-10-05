@@ -16,9 +16,7 @@ import json
 
 class Terraform:
     def __init__(self, required_version=None):
-        self.executable = which("terraform") or next(
-            Path("~/.local/bin").expanduser().glob("terraform")
-        )
+        self.executable = which("terraform") or next(Path("~/.local/bin").expanduser().glob("terraform"))
 
         self.environment_variables = {
             "TF_IN_AUTOMATION": "1",
@@ -39,26 +37,17 @@ class Terraform:
         log.debug(f"terraform executable: {self.executable}")
         if required_version is not None:
             if self.version != required_version:
-                raise Exception(
-                    f"required version of terraform check failed: {self.version} != {required_version}"
-                )
+                raise Exception(f"required version of terraform check failed: {self.version} != {required_version}")
 
     @cached_property
     def version(self):
         stdout, _, _ = self.exec(
             cmd=["version"],
         )
-        result = (
-            stdout.replace("\n", " ").replace("Terraform ", "").replace(" on ", " ")
-        )
+        result = stdout.replace("\n", " ").replace("Terraform ", "").replace(" on ", " ")
+        log.debug(f"version string: {result}")
 
-        self.version_string = re.sub(
-            "Your version.*latest version is (v?\\d\\S+)\\.\\s.*\\s(\\S+html)",
-            "(v\\1 available from \\2)",
-            result,
-            re.IGNORECASE,
-        )
-        version, self.platform = self.version_string.split(" ")
+        version, self.platform = result.split(" ")[0:2]
         log.debug(f"version string: {version}, platform: {self.platform}")
         return re.sub("^v", "", version)
 
@@ -111,11 +100,11 @@ class Terraform:
 
     def get_resources(self) -> dict[Any, Any]:
         o, _, _ = self.dump()
-        return o['resources']
+        return o["resources"]
 
     def get_outputs(self) -> dict[Any, Any]:
         o, _, _ = self.dump()
-        return o['outputs']
+        return o["outputs"]
 
     def dump(self, args=None) -> Tuple[dict[Any, Any], str, int]:
         o, e, c = self.exec(
