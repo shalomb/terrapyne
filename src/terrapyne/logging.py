@@ -103,15 +103,11 @@ default_formats = {
     #
     logging.INFO: "%(message)s",
     #
-    logging.WARNING: style("WARN ", fg="yellow")
-    + " | "
-    + style("%(message)s", fg="yellow"),
+    logging.WARNING: style("WARN ", fg="yellow") + " | " + style("%(message)s", fg="yellow"),
     #
     logging.ERROR: style("ERROR", fg="red") + " | " + style("%(message)s", fg="red"),
     #
-    logging.CRITICAL: style("FATAL", fg="white", bg="red", bold=True)
-    + " | "
-    + style("%(message)s", fg="red", bold=True),
+    logging.CRITICAL: style("FATAL", fg="white", bg="red", bold=True) + " | " + style("%(message)s", fg="red", bold=True),
 }
 
 
@@ -154,10 +150,7 @@ class MultiFormatter(PrettyExceptionFormatter):
 
         formats = formats or default_formats
 
-        self.formatters = {
-            level: PrettyExceptionFormatter(fmt, **kwargs)
-            for level, fmt in formats.items()
-        }
+        self.formatters = {level: PrettyExceptionFormatter(fmt, **kwargs) for level, fmt in formats.items()}
 
     def format(self, record: logging.LogRecord):
         formatter = self.formatters.get(record.levelno)
@@ -311,11 +304,7 @@ def cli_log_config(
 
     if filename:
         file_handler = logging.FileHandler(filename)
-        file_handler.setFormatter(
-            PrettyExceptionFormatter(
-                "%(levelname)s:%(asctime)s:%(name)s:%(message)s", color=False
-            )
-        )
+        file_handler.setFormatter(PrettyExceptionFormatter("%(levelname)s:%(asctime)s:%(name)s:%(message)s", color=False))
         file_handler.setLevel(file_level)
         contexts.append(LoggingContext(logger=logger, handler=file_handler))
 
