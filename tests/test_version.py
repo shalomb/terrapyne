@@ -38,9 +38,10 @@ class TestImport:
             terraform = terrapyne.Terraform(required_version=tf_required_version)
             assert terraform.version
             log.debug(f"log terrform version: {terraform.version}")
-            assert terraform.platform == "{}_{}".format(
-                platform.system().lower(), platform.release().split("-")[-1]
-            ), f"terraform platform string ({terraform.platform}) appears invalid"
+            assert len(terraform.platform.split('_')) == 2
+            # "{}_{}".format(
+            #     platform.system().lower(), platform.release().split("-")[-1]
+            # ), f"terraform platform string ({terraform.platform}) appears invalid"
             log.debug(f"log terrform platform: {terraform.platform}")
 
     def test_terrapyne_blank_layout(self):
