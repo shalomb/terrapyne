@@ -2,27 +2,40 @@
 
 # -*- coding: utf-8 -*-
 
-from textwrap import dedent
 from functools import cached_property
 from pathlib import Path
 from shutil import which
 from subprocess import Popen, PIPE
-from typing import Tuple, Any
+from textwrap import dedent
+from typing import Tuple, Any, TypeAlias, Union
+import json
 import logging as log
+from benedict import benedict
 import os
 import re
-import json
 
 
 class TerraformException(Exception):
     pass
 
 
+NullableDict: TypeAlias = Union[dict[Any, Any], None]
+NullableList: TypeAlias = Union[list, None]
+NullableStr: TypeAlias = Union[str, None]
+
+
 class Terraform:
-    def __init__(self, required_version=None, environment_variables={}):
+    def __init__(
+        self,
+        required_version: NullableStr = None,
+        tfvars: NullableDict = None,
+        envvars: NullableDict = None,
+    ):
         self.executable = which("terraform") or next(Path("~/.local/bin").expanduser().glob("terraform"))
 
-        self.environment_variables = {
+        self.tfvars = self.benedict(tfvars or {})
+
+        self.envvars = {
             "TF_IN_AUTOMATION": "1",
             "TF_INPUT": "0",
             "NO_COLOR": "1",
@@ -32,13 +45,13 @@ class Terraform:
             "TF_CLI_ARGS_plan": "-input=false -no-color",
             "TF_CLI_ARGS_apply": "-input=false -no-color -auto-approve",
             "TF_CLI_ARGS_destroy": "-input=false -no-color -auto-approve",
-        } | self.generate_environment_variables(environment_variables)
+        } | self.generate_envvars(envvars or {})
+
         # "TF_LOG": "trace",
         # "TF_LOG_PATH": "./terraform.log",
         # "TF_PLUGIN_CACHE_DIR": "./tf-cache",
         self.tfplan_name = "current.tfplan"  # Name by project
 
-        log.debug(f"terraform executable: {self.executable}")
         if required_version is not None:
             if self.version != required_version:
                 raise TerraformException(f"required version of terraform check failed: {self.version} != {required_version}")
@@ -49,59 +62,73 @@ class Terraform:
             cmd=["version"],
         )
         result = stdout.replace("\n", " ").replace("Terraform ", "").replace(" on ", " ")
-        log.debug(f"version string: {result}")
 
         version, self.platform = result.split(" ")[0:2]
-        log.debug(f"version string: {version}, platform: {self.platform}")
         return re.sub("^v", "", version)
 
-    def init(self, args=None) -> Tuple[str, str, int]:
+    def init(self, args: NullableList = None) -> Tuple[str, str, int]:
         return self.exec(
             cmd=["init", *(args or [])],
         )
 
-    def validate(self, args=None) -> Tuple[str, str, int]:
+    def validate(self, args: NullableList = None) -> Tuple[str, str, int]:
         return self.exec(
             cmd=["validate", *(args or [])],
             ignore_exit_code=True,
         )
 
-    def plan(self, args=None, environment_variables={}) -> Tuple[str, str, int]:
+    def plan(
+        self,
+        args: NullableList = None,
+        tfvars: NullableDict = None,
+        envvars: NullableDict = None,
+    ) -> Tuple[str, str, int]:
         return self.exec(
             cmd=["plan", *(args or [])],
-            environment_variables=self.generate_environment_variables(environment_variables),
+            tfvars=self.benedict(tfvars or {}),
+            envvars=self.generate_envvars(envvars or {}),
         )
 
-    def apply(self, args=None, environment_variables={}) -> Tuple[str, str, int]:
+    def apply(
+        self,
+        args: NullableList = None,
+        tfvars: NullableDict = None,
+        envvars: NullableDict = None,
+    ) -> Tuple[str, str, int]:
         if not Path(self.tfplan_name).exists():
             self.init(args=["-backend=false"])
             self.plan(
                 args=[f"-out={self.tfplan_name}"],
-                environment_variables=self.generate_environment_variables(environment_variables),
+                envvars=self.generate_envvars(envvars or {}),
             )
         return self.exec(
             cmd=["apply", *(args or [])],
-            environment_variables=self.generate_environment_variables(environment_variables),
+            tfvars=self.benedict(tfvars or {}),
+            envvars=self.generate_envvars(envvars or {}),
         )
 
-    def output(self, args=None) -> Tuple[Any, str, int]:
-        o, e, c = self.exec(
+    def output(self, args: NullableList = None) -> benedict:
+        o, _, _ = self.exec(
             cmd=["output", *(args or ["-json"])],
         )
-        return json.loads(o), e, c
+        return benedict(json.loads(o), keypath_separator="¬")
 
-    def state(self, args=None) -> Tuple[str, str, int]:
+    def state(self, args: NullableList = None) -> Tuple[str, str, int]:
         return self.exec(
             cmd=["state", *(args or [""])],
         )
 
-    def dump(self, args=None) -> Tuple[dict[Any, Any], str, int]:
+    def dump(self, args: NullableList = None) -> Tuple[dict[Any, Any], str, int]:
         o, e, c = self.exec(
             cmd=["state", "pull", *(args or [""])],
         )
         return json.loads(o), e, c
 
-    def destroy(self, args=None) -> Tuple[str, str, int]:
+    def tfstate(self) -> benedict:
+        o, _, _ = self.dump()
+        return benedict(o, keypath_separator="¬")
+
+    def destroy(self, args: NullableList = None) -> Tuple[str, str, int]:
         return self.exec(cmd=["destroy", *(args or [])])
 
     def fmt(self) -> Tuple[str, str, int]:
@@ -109,15 +136,13 @@ class Terraform:
             cmd=["fmt", "-recursive"],
         )
 
-    def get_resources(self) -> dict[Any, Any]:
-        o, _, _ = self.dump()
-        return o["resources"]
+    def get_resources(self) -> benedict:
+        return self.tfstate().resources
 
-    def get_outputs(self) -> dict[Any, Any]:
-        o, _, _ = self.dump()
-        return o["outputs"]
+    def get_outputs(self) -> benedict:
+        return self.tfstate().outputs
 
-    def generate_environment_variables(self, in_vars) -> dict[str, str]:
+    def generate_envvars(self, in_vars) -> dict[str, str]:
         updated = {}
         for key in in_vars:
             newkey = key
@@ -125,6 +150,9 @@ class Terraform:
                 newkey = re.sub("^TF_VAR_", "", key)
             updated[f"TF_VAR_{newkey}"] = in_vars[key]
         return updated
+
+    def benedict(self, d: dict) -> benedict:
+        return benedict(d, keypath_separator="¬")
 
     def make_layout(self) -> None:
         for tf_file in [
@@ -164,10 +192,15 @@ class Terraform:
         input="",
         expect_exit_code=0,
         ignore_exit_code=False,
-        environment_variables={},
+        envvars: NullableDict = None,
+        tfvars: NullableDict = None,
     ) -> Tuple[str, str, int]:
         cmd.insert(0, self.executable)
         log.debug(f"terraform.exec({cmd}) with {self.executable}")
+
+        tfvars = self.benedict(self.tfvars | (tfvars or {}))
+        with open("terrapyne.auto.tfvars.json", "w") as f:
+            f.write(json.dumps(tfvars))
 
         process_env_vars = {}
         for key in os.environ:
@@ -179,7 +212,7 @@ class Terraform:
             stdout=PIPE,
             stdin=PIPE,
             stderr=PIPE,
-            env=(self.environment_variables | process_env_vars | environment_variables),
+            env=self.benedict(self.envvars | process_env_vars | (envvars or {})),
         )
 
         stdout, stderr = p.communicate(input=input.encode())

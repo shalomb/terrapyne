@@ -5,16 +5,13 @@
 """ """
 
 from pathlib import Path
-import shutil
 import sys
 import os
 import tempfile
-import platform
-import json
 from decouple import config
 from unittest import mock
 
-sys.path.append(Path(__file__ + "/../src").resolve())
+sys.path.append(Path(f"{__file__}/../src").resolve())
 
 import terrapyne
 import terrapyne.logging
@@ -28,53 +25,44 @@ VERBOSITY = 5 if DEBUG != 0 else VERBOSE or VERBOSITY
 
 
 class TestImport:
-    def test_terrapyne_import(self):
+    def test_terrapyne_import(self) -> None:
         with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
             assert terraform
             assert terraform.version
             assert terraform.executable
 
-    def test_terrapyne_required_version(self, tf_required_version):
+    def test_terrapyne_required_version(self, tf_required_version) -> None:
         with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
             terraform = terrapyne.Terraform(required_version=tf_required_version)
             assert terraform.version
             assert len(terraform.platform.split("_")) == 2
 
-    def test_terrapyne_blank_layout(self):
+    def test_terrapyne_blank_layout(self) -> None:
         with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
             with tempfile.TemporaryDirectory() as tmpdir:
                 os.chdir(tmpdir)
                 terraform.make_layout()
-                # Path(terraform.environment_variables.get("TF_PLUGIN_CACHE_DIR", "tf-cache")).mkdir()
+                # Path(terraform.envvars.get("TF_PLUGIN_CACHE_DIR", "tf-cache")).mkdir()
 
-                shutil.copy("terraform.tf", "/tmp/terraform-1.tf")
-
-                _fmt_out = terraform.fmt()
-
-                shutil.copy("terraform.tf", "/tmp/terraform-2.tf")
-
-                _init_out = terraform.init()
-
-                _validate_out = terraform.validate()
-
-                _plan_out = terraform.plan()
-
+                _ = terraform.fmt()
+                _ = terraform.init()
+                _ = terraform.validate()
+                _ = terraform.plan()
                 _apply_out = terraform.apply()
-
-                _destroy_out = terraform.destroy()
+                _ = terraform.destroy()
 
                 assert "0 added" in _apply_out[0]
                 assert "0 changed" in _apply_out[0]
                 assert "0 destroyed" in _apply_out[0]
 
-    def test_terrapyne_minimal_layout(self):
+    def test_terrapyne_minimal_layout(self) -> None:
         with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
             with tempfile.TemporaryDirectory() as tmpdir:
                 os.chdir(tmpdir)
                 terraform.make_layout()
-                # Path(terraform.environment_variables.get("TF_PLUGIN_CACHE_DIR", "tf-cache")).mkdir()
+                # Path(terraform.envvars.get("TF_PLUGIN_CACHE_DIR", "tf-cache")).mkdir()
 
-                _init_out = terraform.init()
+                _ = terraform.init()
 
                 with open("outputs.tf", "a") as f:
                     f.write(
@@ -102,14 +90,16 @@ class TestImport:
                 assert "0 destroyed" in _apply_out[0]
 
                 _output_out = terraform.output()
-                assert _output_out[0]["foo"]["value"] == "bar"
+                assert _output_out.foo.value == "bar"
 
                 _outputs_out = terraform.get_outputs()
-                assert _outputs_out["example"]["value"]["content"] == "foo!"
+                # assert _outputs_out["example"]["value"]["content"] == "foo!"
+                assert _outputs_out
+                assert _outputs_out.example.value.content == "foo!"
 
                 _resources_out = terraform.get_resources()
-                assert _resources_out[0]["instances"][0]["attributes"]["content"] == "foo!"
-                assert _resources_out[0]["instances"][0]["attributes"]["filename"] == "./foo.bar"
+                assert _resources_out[0].instances[0].attributes.content == "foo!"
+                assert _resources_out[0].instances[0].attributes.filename == "./foo.bar"
 
                 Path("./foo.bar").unlink()
                 _apply_out = terraform.apply()
@@ -119,10 +109,10 @@ class TestImport:
                 _destroy_out = terraform.destroy()
                 assert "1 destroyed" in _destroy_out[0]
 
-    def test_terrapyne_env_vars(self, capsys):
+    def test_terrapyne_env_vars(self) -> None:
         with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
             envvars = {"TF_LOG": "trace", "TF_LOG_PATH": "tf-log.log", "foo": "nbar"}
-            terraform = terrapyne.Terraform(environment_variables=envvars)
+            terraform = terrapyne.Terraform(envvars=envvars)
             with tempfile.TemporaryDirectory() as tmpdir:
                 os.chdir(tmpdir)
                 terraform.make_layout()
@@ -130,35 +120,69 @@ class TestImport:
                 with open("outputs.tf", "a") as f:
                     f.write(
                         """
-                        variable "foo" {
-                        type = string
-                        }
-                        output "foo" {
-                        value = var.foo
-                        }
+                        variable "foo" { type = string }
+                        output "foo" { value = var.foo }
                     """
                     )
 
                 # default env vars
-                _apply_out = terraform.apply()
+                _ = terraform.apply()
                 _output_out = terraform.output()
-                assert _output_out[0]["foo"]["value"] == "nbar"
+                assert _output_out.foo.value == envvars["foo"]
 
                 # per apply env vars
-                _apply_out = terraform.apply(environment_variables={"foo": "env_bar"})
+                localvars = {"foo": "env_bar"}
+                _ = terraform.apply(envvars=localvars)
                 _output_out = terraform.output()
-                assert _output_out[0]["foo"]["value"] == "env_bar"
+                assert _output_out.foo.value == localvars["foo"]
 
                 # external env vars
-                with mock.patch.dict('os.environ', {'TF_VAR_foo': 'external_bar'}, clear=True):
-                    _apply_out = terraform.apply()
+                localvars = {"TF_VAR_foo": "external_bar"}
+                with mock.patch.dict("os.environ", localvars, clear=True):
+                    _ = terraform.apply()
                     _output_out = terraform.output()
-                    assert _output_out[0]["foo"]["value"] == "external_bar"
+                    assert _output_out.foo.value == localvars["TF_VAR_foo"]
 
-                # different env vars per apply
-                _apply_out = terraform.apply()
+                # different env vars per apply for the same workspace
+                # env vars must not be persisted across runs
+                _ = terraform.apply()
                 _output_out = terraform.output()
-                assert _output_out[0]["foo"]["value"] == "nbar"
+                assert _output_out.foo.value == envvars["foo"]
+
+    def test_terrapyne_tf_tfvars(self) -> None:
+        with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
+            tfvars = {
+                "foo": "tfvars_bar",
+                "bar": True,
+                "baz": [1, 2],
+                "moo": {"foo": "bar", "baz": "moo"},
+            }
+            terraform = terrapyne.Terraform(tfvars=tfvars)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                os.chdir(tmpdir)
+
+                with open("outputs.tf", "a") as f:
+                    f.write(
+                        """
+                        variable "foo" { }
+                        output "foo" { value = var.foo }
+                        variable "bar" { }
+                        output "bar" { value = var.bar }
+                        variable "baz" { }
+                        output "baz" { value = var.baz }
+                        variable "moo" { }
+                        output "moo" { value = var.moo }
+                    """
+                    )
+
+                # round-trip tests
+                _ = terraform.apply()
+                _output_out = terraform.output()
+                assert _output_out.foo.value == tfvars["foo"]
+                assert _output_out.bar.value is tfvars["bar"]
+                assert sorted(_output_out.baz.value) == sorted(tfvars["baz"])
+                assert _output_out.moo.value.foo == tfvars["moo"]["foo"]
+                assert _output_out.moo.value.baz == tfvars["moo"]["baz"]
 
 
 if __name__ == "__main__":
