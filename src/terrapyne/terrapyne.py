@@ -14,30 +14,34 @@ import re
 import json
 
 
+class TerraformException(Exception):
+    pass
+
+
 class Terraform:
-    def __init__(self, required_version=None):
+    def __init__(self, required_version=None, environment_variables={}):
         self.executable = which("terraform") or next(Path("~/.local/bin").expanduser().glob("terraform"))
 
         self.environment_variables = {
             "TF_IN_AUTOMATION": "1",
-            "TF_LOG": "trace",
-            "TF_LOG_PATH": "./terraform.log",
             "TF_INPUT": "0",
+            "NO_COLOR": "1",
             "TF_CLI_ARGS": "-no-color",
             "TF_CLI_ARGS_init": "-input=false -no-color",
             "TF_CLI_ARGS_validate": "-no-color",
             "TF_CLI_ARGS_plan": "-input=false -no-color",
             "TF_CLI_ARGS_apply": "-input=false -no-color -auto-approve",
             "TF_CLI_ARGS_destroy": "-input=false -no-color -auto-approve",
-            "NO_COLOR": "1",
-        }
+        } | self.generate_environment_variables(environment_variables)
+        # "TF_LOG": "trace",
+        # "TF_LOG_PATH": "./terraform.log",
         # "TF_PLUGIN_CACHE_DIR": "./tf-cache",
         self.tfplan_name = "current.tfplan"  # Name by project
 
         log.debug(f"terraform executable: {self.executable}")
         if required_version is not None:
             if self.version != required_version:
-                raise Exception(f"required version of terraform check failed: {self.version} != {required_version}")
+                raise TerraformException(f"required version of terraform check failed: {self.version} != {required_version}")
 
     @cached_property
     def version(self):
@@ -54,37 +58,33 @@ class Terraform:
     def init(self, args=None) -> Tuple[str, str, int]:
         return self.exec(
             cmd=["init", *(args or [])],
-            expect_stdout=["Terraform has been successfully initialized!"],
         )
 
     def validate(self, args=None) -> Tuple[str, str, int]:
         return self.exec(
             cmd=["validate", *(args or [])],
             ignore_exit_code=True,
-            expect_stdout=["Success! The configuration is valid."],
         )
 
-    def plan(self, args=None) -> Tuple[str, str, int]:
+    def plan(self, args=None, environment_variables={}) -> Tuple[str, str, int]:
         return self.exec(
             cmd=["plan", *(args or [])],
-            # expect_stdout=[
-            #     "No changes. Your infrastructure matches the configuration."
-            # ],
+            environment_variables=self.generate_environment_variables(environment_variables),
         )
 
-    def apply(self, args=None) -> Tuple[str, str, int]:
-        if not os.path.exists(self.tfplan_name):
+    def apply(self, args=None, environment_variables={}) -> Tuple[str, str, int]:
+        if not Path(self.tfplan_name).exists():
             self.init(args=["-backend=false"])
-            self.plan(args=[f"-out={self.tfplan_name}"])
+            self.plan(
+                args=[f"-out={self.tfplan_name}"],
+                environment_variables=self.generate_environment_variables(environment_variables),
+            )
         return self.exec(
             cmd=["apply", *(args or [])],
-            # expect_stdout=[
-            #     "Apply complete!",
-            #     "No changes. Your infrastructure matches the configuration.",
-            # ],
+            environment_variables=self.generate_environment_variables(environment_variables),
         )
 
-    def output(self, args=None) -> Tuple[str, str, int]:
+    def output(self, args=None) -> Tuple[Any, str, int]:
         o, e, c = self.exec(
             cmd=["output", *(args or ["-json"])],
         )
@@ -93,9 +93,20 @@ class Terraform:
     def state(self, args=None) -> Tuple[str, str, int]:
         return self.exec(
             cmd=["state", *(args or [""])],
-            # expect_stdout=[
-            #     "No changes. Your infrastructure matches the configuration."
-            # ],
+        )
+
+    def dump(self, args=None) -> Tuple[dict[Any, Any], str, int]:
+        o, e, c = self.exec(
+            cmd=["state", "pull", *(args or [""])],
+        )
+        return json.loads(o), e, c
+
+    def destroy(self, args=None) -> Tuple[str, str, int]:
+        return self.exec(cmd=["destroy", *(args or [])])
+
+    def fmt(self) -> Tuple[str, str, int]:
+        return self.exec(
+            cmd=["fmt", "-recursive"],
         )
 
     def get_resources(self) -> dict[Any, Any]:
@@ -106,25 +117,14 @@ class Terraform:
         o, _, _ = self.dump()
         return o["outputs"]
 
-    def dump(self, args=None) -> Tuple[dict[Any, Any], str, int]:
-        o, e, c = self.exec(
-            cmd=["state", "pull", *(args or [""])],
-        )
-        return json.loads(o), e, c
-
-    def destroy(self, args=None) -> Tuple[str, str, int]:
-        return self.exec(
-            cmd=["destroy", *(args or [])]
-            # expect_stdout=[
-            #     "Apply complete!",
-            #     "No changes. Your infrastructure matches the configuration.",
-            # ],
-        )
-
-    def fmt(self) -> Tuple[str, str, int]:
-        return self.exec(
-            cmd=["fmt", "-recursive"],
-        )
+    def generate_environment_variables(self, in_vars) -> dict[str, str]:
+        updated = {}
+        for key in in_vars:
+            newkey = key
+            if key.startswith("TF_VAR"):
+                newkey = re.sub("^TF_VAR_", "", key)
+            updated[f"TF_VAR_{newkey}"] = in_vars[key]
+        return updated
 
     def make_layout(self) -> None:
         for tf_file in [
@@ -164,41 +164,40 @@ class Terraform:
         input="",
         expect_exit_code=0,
         ignore_exit_code=False,
-        expect_stdout=None,
-        expect_stderr=None,
+        environment_variables={},
     ) -> Tuple[str, str, int]:
-        log.debug(f"terraform.exec({cmd}) with {self.executable}")
         cmd.insert(0, self.executable)
-        log.debug(f"terraform.exec({cmd})")
+        log.debug(f"terraform.exec({cmd}) with {self.executable}")
 
-        os.environ.update(self.environment_variables)
+        process_env_vars = {}
+        for key in os.environ:
+            if key.startswith("TF_VAR_"):
+                process_env_vars[key] = os.environ[key]
 
         p = Popen(
             cmd or ["terraform", "version"],
             stdout=PIPE,
             stdin=PIPE,
             stderr=PIPE,
+            env=(self.environment_variables | process_env_vars | environment_variables),
         )
 
         stdout, stderr = p.communicate(input=input.encode())
         stdout = stdout.decode().strip()
         stderr = stderr.decode().strip()
         exit_code = p.returncode
-        log.debug(f"stdout: {stdout}")
-        log.debug(f"stderr: {stderr}")
-        log.debug(f"exit_code: {exit_code}")
+        logmsg = " ".join(
+            [
+                "terraform.exec:",
+                f"exit_code:[{exit_code}]",
+                f"stdout:[{stdout}]",
+                f"stderr:[{stderr}]",
+                f"cwd:[{os.getcwd()}]",
+            ]
+        )
+        log.debug(logmsg)
 
         if ignore_exit_code is not True and exit_code != expect_exit_code:
-            raise Exception(f"[Error]: exit_code {exit_code} running '{cmd}': {stderr}")
-
-        if expect_stdout is not None:
-            for string in expect_stdout:
-                if string not in stdout:
-                    raise Exception(f"stdout did not contain expected string: {string}")
-
-        if expect_stderr is not None:
-            for string in expect_stderr:
-                if string not in stderr:
-                    raise Exception(f"stderr did not contain expected string: {string}")
+            raise TerraformException(f"[Error]: exit_code {exit_code} running '{cmd}': {stderr}")
 
         return stdout, stderr, exit_code

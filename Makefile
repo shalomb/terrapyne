@@ -25,12 +25,14 @@ YQ                := $(PWD)/venv/bin/yq -y
 PIPREQS           := $(PWD)/venv/bin/pipreqs
 BLACK             := $(PWD)/venv/bin/black
 
+num_cpus  = $(shell lscpu | awk '/^CPU.s/{ print $$2 }')
+
 DEBUG ?= 0
 ifeq ($(DEBUG), 1)
-    PYTESTFLAGS  =-rA
+	PYTESTFLAGS  =-rA --log-cli-level=DEBUG
 	VERBOSITY=5
 else
-    PYTESTFLAGS =""
+	PYTESTFLAGS =--log-cli-level=CRITICAL
 	VERBOSITY=0
 endif
 
@@ -44,14 +46,15 @@ lint:
 	poetry run black -q --check --exclude venv/ --color --diff .
 
 test:
-	VERBOSE=$(VERBOSITY) py.test $(PYTESTFLAGS) -rA -vvvv tests/ \
-		--log-format="%(asctime)s %(levelname)s %(message)s" \
-		--log-date-format="%Y-%m-%d %H:%M:%S" \
-		--show-capture=all
+	VERBOSE=$(VERBOSITY) $(PYTEST) -n $(num_cpus) $(PYTESTFLAGS) -vvvv tests/
+	# VERBOSE=$(VERBOSITY) $(PYTEST) -n $(num_cpus) $(PYTESTFLAGS) -rA -vvvv tests/ \
+	# 	--log-format="%(asctime)s %(levelname)s %(message)s" \
+	# 	--log-date-format="%Y-%m-%d %H:%M:%S" \
+	# 	--show-capture=all
 
 venv:
 	pip3 install -U pip --break-system-packages
-	pip3 install -U virtualenv --break-system-packages
+		# --show-capture=all
 	python3 -mvenv venv/
 
 requirements:
