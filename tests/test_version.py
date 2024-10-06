@@ -10,6 +10,7 @@ import os
 import tempfile
 from decouple import config
 from unittest import mock
+import shutil
 
 sys.path.append(Path(f"{__file__}/../src").resolve())
 
@@ -17,7 +18,6 @@ import terrapyne
 import terrapyne.logging
 import logging as log
 
-terraform = terrapyne.Terraform()
 VERBOSITY = int(config("VERBOSITY", 0))
 VERBOSE = int(config("VERBOSE", 0))
 DEBUG = int(config("DEBUG", 0))
@@ -27,20 +27,26 @@ VERBOSITY = 5 if DEBUG != 0 else VERBOSE or VERBOSITY
 class TestImport:
     def test_terrapyne_import(self) -> None:
         with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
-            assert terraform
-            assert terraform.version
-            assert terraform.executable
+            with tempfile.TemporaryDirectory() as tmpdir:
+                os.chdir(tmpdir)
+                terraform = terrapyne.Terraform(workspace_directory=tmpdir)
+                assert terraform
+                assert terraform.version
+                assert terraform.executable
 
     def test_terrapyne_required_version(self, tf_required_version) -> None:
         with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
-            terraform = terrapyne.Terraform(required_version=tf_required_version)
-            assert terraform.version
-            assert len(terraform.platform.split("_")) == 2
+            with tempfile.TemporaryDirectory() as tmpdir:
+                os.chdir(tmpdir)
+                terraform = terrapyne.Terraform(workspace_directory=tmpdir, required_version=tf_required_version)
+                assert terraform.version
+                assert len(terraform.platform.split("_")) == 2
 
     def test_terrapyne_blank_layout(self) -> None:
         with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
             with tempfile.TemporaryDirectory() as tmpdir:
                 os.chdir(tmpdir)
+                terraform = terrapyne.Terraform(workspace_directory=tmpdir)
                 terraform.make_layout()
                 # Path(terraform.envvars.get("TF_PLUGIN_CACHE_DIR", "tf-cache")).mkdir()
 
@@ -59,6 +65,7 @@ class TestImport:
         with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
             with tempfile.TemporaryDirectory() as tmpdir:
                 os.chdir(tmpdir)
+                terraform = terrapyne.Terraform(workspace_directory=tmpdir)
                 terraform.make_layout()
                 # Path(terraform.envvars.get("TF_PLUGIN_CACHE_DIR", "tf-cache")).mkdir()
 
@@ -112,9 +119,9 @@ class TestImport:
     def test_terrapyne_env_vars(self) -> None:
         with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
             envvars = {"TF_LOG": "trace", "TF_LOG_PATH": "tf-log.log", "foo": "nbar"}
-            terraform = terrapyne.Terraform(envvars=envvars)
             with tempfile.TemporaryDirectory() as tmpdir:
                 os.chdir(tmpdir)
+                terraform = terrapyne.Terraform(workspace_directory=tmpdir, envvars=envvars)
                 terraform.make_layout()
 
                 with open("outputs.tf", "a") as f:
@@ -157,9 +164,9 @@ class TestImport:
                 "baz": [1, 2],
                 "moo": {"foo": "bar", "baz": "moo"},
             }
-            terraform = terrapyne.Terraform(tfvars=tfvars)
             with tempfile.TemporaryDirectory() as tmpdir:
                 os.chdir(tmpdir)
+                terraform = terrapyne.Terraform(workspace_directory=tmpdir, tfvars=tfvars)
 
                 with open("outputs.tf", "a") as f:
                     f.write(
@@ -175,7 +182,7 @@ class TestImport:
                     """
                     )
 
-                # round-trip tests
+                # round-trip tests ensuring data types are preserved
                 _ = terraform.apply()
                 _output_out = terraform.output()
                 assert _output_out.foo.value == tfvars["foo"]
@@ -183,6 +190,75 @@ class TestImport:
                 assert sorted(_output_out.baz.value) == sorted(tfvars["baz"])
                 assert _output_out.moo.value.foo == tfvars["moo"]["foo"]
                 assert _output_out.moo.value.baz == tfvars["moo"]["baz"]
+
+    def test_terrapyne_providers(self) -> None:
+        with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
+            with tempfile.TemporaryDirectory() as tmpdir:
+                os.chdir(tmpdir)
+                terraform = terrapyne.Terraform(workspace_directory=tmpdir)
+
+                with open("outputs.tf", "a") as f:
+                    f.write(
+                        """
+                        terraform {
+                          required_providers {
+                            jq = {
+                              source = "massdriver-cloud/jq"
+                              version = "0.2.1"
+                            }
+                          }
+                        }
+                        provider "jq" {}
+
+                        data "jq_query" "example" {
+                            data = jsonencode({a = "b"})
+                            query = ".a"
+                        }
+
+                        output "example" {
+                            value = jsondecode(data.jq_query.example.result)
+                        }
+                        module "helloworld" {
+                          source = "./helloworld"
+                        }
+                        output "helloworld" {
+                          value = module.helloworld
+                        }
+                        """
+                    )
+
+                d = Path("./helloworld/").resolve()
+                d.mkdir()
+                with open(Path(f"{d}/main.tf"), "w") as f:
+                    f.write(
+                        """
+                    output "reply" { value = "heya!" }
+                    """
+                    )
+
+                log.debug(f'git:{shutil.which("git")}')
+
+                _ = terraform.apply()
+                _output_out = terraform.output()
+                assert _output_out.example.value == "b"
+
+                v = terraform.validate()
+                assert v
+                assert v.valid is True
+                assert v.valid is True
+
+                p = terraform.provider_schema()
+                for provider in terraform.provider_selections.keys():
+                    assert p.provider_schemas[provider]
+
+                m = terraform.modules()
+                assert m
+                assert m.Modules
+                assert len(m.Modules) == 2
+                assert False
+
+                # from distutils.dir_util import copy_tree
+                # copy_tree(".", "/tmp/snapshot")
 
 
 if __name__ == "__main__":

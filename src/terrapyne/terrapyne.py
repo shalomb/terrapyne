@@ -14,6 +14,8 @@ from benedict import benedict
 import os
 import re
 
+from .utils import change_directory
+
 
 class TerraformException(Exception):
     pass
@@ -27,12 +29,13 @@ NullableStr: TypeAlias = Union[str, None]
 class Terraform:
     def __init__(
         self,
+        workspace_directory: str,
         required_version: NullableStr = None,
         tfvars: NullableDict = None,
         envvars: NullableDict = None,
     ):
         self.executable = which("terraform") or next(Path("~/.local/bin").expanduser().glob("terraform"))
-
+        self.workspace_directory = workspace_directory
         self.tfvars = self.benedict(tfvars or {})
 
         self.envvars = {
@@ -52,30 +55,36 @@ class Terraform:
         # "TF_PLUGIN_CACHE_DIR": "./tf-cache",
         self.tfplan_name = "current.tfplan"  # Name by project
 
+        assert self.version
         if required_version is not None:
             if self.version != required_version:
                 raise TerraformException(f"required version of terraform check failed: {self.version} != {required_version}")
 
-    @cached_property
-    def version(self):
+    @property
+    def version(self) -> str:
         stdout, _, _ = self.exec(
-            cmd=["version"],
+            cmd=["version", "-json"],
         )
-        result = stdout.replace("\n", " ").replace("Terraform ", "").replace(" on ", " ")
+        self._version_info = self.benedict(json.loads(stdout))
+        return self._version_info.terraform_version
 
-        version, self.platform = result.split(" ")[0:2]
-        return re.sub("^v", "", version)
+    @property
+    def platform(self) -> str:
+        return self._version_info.platform
 
     def init(self, args: NullableList = None) -> Tuple[str, str, int]:
         return self.exec(
             cmd=["init", *(args or [])],
         )
 
-    def validate(self, args: NullableList = None) -> Tuple[str, str, int]:
-        return self.exec(
-            cmd=["validate", *(args or [])],
+    def validate(self, args: NullableList = None) -> benedict:
+        o, e, c = self.exec(
+            cmd=["validate", *(args or ["-json"])],
             ignore_exit_code=True,
         )
+        if c != 0:
+            raise TerraformException(f"terraform validate failed: {c} {e}")
+        return self.objectify(o)
 
     def plan(
         self,
@@ -154,6 +163,25 @@ class Terraform:
     def benedict(self, d: dict) -> benedict:
         return benedict(d, keypath_separator="¬")
 
+    def objectify(self, string: str) -> benedict:
+        return self.benedict(json.loads(string))
+
+    @property
+    def provider_selections(self) -> dict:
+        return self._version_info.provider_selections
+
+    def provider_schema(self) -> benedict:
+        o, _, _ = self.exec(cmd=["providers", "schema", "-json"])
+        return self.objectify(o)
+
+    def modules(self) -> benedict:
+        if modinfo := Path(".terraform/modules/modules.json").resolve():
+            with open(modinfo, "r") as f:
+                r = f.read()
+                log.debug(f"R:{r} // f:{modinfo}")
+                return self.objectify(r)
+        return self.benedict({"Modules": []})
+
     def make_layout(self) -> None:
         for tf_file in [
             "main.tf",
@@ -195,42 +223,44 @@ class Terraform:
         envvars: NullableDict = None,
         tfvars: NullableDict = None,
     ) -> Tuple[str, str, int]:
-        cmd.insert(0, self.executable)
-        log.debug(f"terraform.exec({cmd}) with {self.executable}")
+        with change_directory(self.workspace_directory):
+            cmd.insert(0, self.executable)
+            log.debug(f"terraform.exec({cmd}) with {self.executable}")
 
-        tfvars = self.benedict(self.tfvars | (tfvars or {}))
-        with open("terrapyne.auto.tfvars.json", "w") as f:
-            f.write(json.dumps(tfvars))
+            tfvars = self.benedict(self.tfvars | (tfvars or {}))
+            with open("terrapyne.auto.tfvars.json", "w") as f:
+                f.write(json.dumps(tfvars))
 
-        process_env_vars = {}
-        for key in os.environ:
-            if key.startswith("TF_VAR_"):
-                process_env_vars[key] = os.environ[key]
+            process_env_vars = {}
+            for key in os.environ:
+                if key.startswith("TF_VAR_"):
+                    process_env_vars[key] = os.environ[key]
 
-        p = Popen(
-            cmd or ["terraform", "version"],
-            stdout=PIPE,
-            stdin=PIPE,
-            stderr=PIPE,
-            env=self.benedict(self.envvars | process_env_vars | (envvars or {})),
-        )
+            p = Popen(
+                cmd or ["terraform", "version"],
+                cwd=self.workspace_directory,
+                stdout=PIPE,
+                stdin=PIPE,
+                stderr=PIPE,
+                env=self.benedict(self.envvars | process_env_vars | (envvars or {})),
+            )
 
-        stdout, stderr = p.communicate(input=input.encode())
-        stdout = stdout.decode().strip()
-        stderr = stderr.decode().strip()
-        exit_code = p.returncode
-        logmsg = " ".join(
-            [
-                "terraform.exec:",
-                f"exit_code:[{exit_code}]",
-                f"stdout:[{stdout}]",
-                f"stderr:[{stderr}]",
-                f"cwd:[{os.getcwd()}]",
-            ]
-        )
-        log.debug(logmsg)
+            stdout, stderr = p.communicate(input=input.encode())
+            stdout = stdout.decode().strip()
+            stderr = stderr.decode().strip()
+            exit_code = p.returncode
+            logmsg = " ".join(
+                [
+                    "terraform.exec:",
+                    f"exit_code:[{exit_code}]",
+                    f"stdout:[{stdout}]",
+                    f"stderr:[{stderr}]",
+                    f"cwd:[{os.getcwd()}]",
+                ]
+            )
+            log.debug(logmsg)
 
-        if ignore_exit_code is not True and exit_code != expect_exit_code:
-            raise TerraformException(f"[Error]: exit_code {exit_code} running '{cmd}': {stderr}")
+            if ignore_exit_code is not True and exit_code != expect_exit_code:
+                raise TerraformException(f"[Error]: exit_code {exit_code} running '{cmd}': {stderr}")
 
-        return stdout, stderr, exit_code
+            return stdout, stderr, exit_code
