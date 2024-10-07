@@ -1,0 +1,64 @@
+---
+
+name: Pytest tests
+
+on:
+  - pull_request
+  - push
+
+# permission can be added at job level or workflow level
+permissions:
+  id-token: write   # This is required for requesting the JWT
+  contents: write   # This is required for actions/checkout
+  pull-requests: write
+
+env:
+  VERBOSITY: 4
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./
+    steps:
+    - uses: actions/checkout@master
+
+    - uses: awalsh128/cache-apt-pkgs-action@latest
+      with:
+        packages: make
+        version: 1.0
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: pip
+
+    - name: Restore cached virtualenv
+      uses: actions/cache/restore@v4
+      with:
+        key: venv-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}
+        path: venv
+
+    - name: Install dependencies
+      run: |
+        make init
+        echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
+        echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
+
+    - name: Run tests
+      run: |
+          DEBUG=1 make test
+
+    - name: Saved cached virtualenv
+      if: always()
+      uses: actions/cache/save@v4
+      with:
+        key: venv-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}
+        path: venv
+
+# https://adamj.eu/tech/2023/11/02/github-actions-faster-python-virtual-environments/
