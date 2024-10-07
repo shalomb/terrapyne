@@ -6,10 +6,11 @@
 
 import pytest
 import subprocess
+import re
 
 
 @pytest.fixture()
 def tf_required_version():
     out = subprocess.run(["terraform", "version"], capture_output=True, shell=False)
-    req = out.stdout.decode().strip().split("\n")[0].split(" ")[1].replace("v", "")
-    return req
+    if m := re.search('\\d\\.\\d[^ \n]+', out.stdout.decode()):
+        return m.group(0)

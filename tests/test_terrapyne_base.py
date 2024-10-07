@@ -4,19 +4,20 @@
 
 """ """
 
-from pathlib import Path
-import sys
-import os
-import tempfile
 from decouple import config
+from pathlib import Path
 from unittest import mock
+import logging as log
+import os
+import pytest
 import shutil
+import sys
+import tempfile
 
 sys.path.append(Path(f"{__file__}/../src").resolve())
 
 import terrapyne
 import terrapyne.logging
-import logging as log
 
 VERBOSITY = int(config("VERBOSITY", 0))
 VERBOSE = int(config("VERBOSE", 0))
@@ -24,8 +25,8 @@ DEBUG = int(config("DEBUG", 0))
 VERBOSITY = 5 if DEBUG != 0 else VERBOSE or VERBOSITY
 
 
-class TestImport:
-    def test_terrapyne_import(self) -> None:
+class TestTerrapyneBase:
+    def test_import(self) -> None:
         with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
             with tempfile.TemporaryDirectory() as tmpdir:
                 os.chdir(tmpdir)
@@ -34,7 +35,7 @@ class TestImport:
                 assert terraform.version
                 assert terraform.executable
 
-    def test_terrapyne_required_version(self, tf_required_version) -> None:
+    def test_required_version(self, tf_required_version) -> None:
         with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
             with tempfile.TemporaryDirectory() as tmpdir:
                 os.chdir(tmpdir)
@@ -42,7 +43,24 @@ class TestImport:
                 assert terraform.version
                 assert len(terraform.platform.split("_")) == 2
 
-    def test_terrapyne_blank_layout(self) -> None:
+    def test_invalid_version(self) -> None:
+        with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
+            with tempfile.TemporaryDirectory() as tmpdir:
+                # expected failures in running terraform
+                with pytest.raises(terrapyne.terrapyne.exceptions.TerraformVersionException):
+                    os.chdir(tmpdir)
+                    terraform = terrapyne.Terraform(workspace_directory=tmpdir, required_version='999')
+
+                    with open("main.tf", "a") as f:
+                        f.write(
+                            """
+                            variable "foo" { }
+                        """
+                        )
+
+                    _ = terraform.apply()
+
+    def test_blank_layout(self) -> None:
         with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
             with tempfile.TemporaryDirectory() as tmpdir:
                 os.chdir(tmpdir)
@@ -61,7 +79,7 @@ class TestImport:
                 assert "0 changed" in _apply_out[0]
                 assert "0 destroyed" in _apply_out[0]
 
-    def test_terrapyne_minimal_layout(self) -> None:
+    def test_minimal_layout(self) -> None:
         with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
             with tempfile.TemporaryDirectory() as tmpdir:
                 os.chdir(tmpdir)
@@ -116,7 +134,7 @@ class TestImport:
                 _destroy_out = terraform.destroy()
                 assert "1 destroyed" in _destroy_out[0]
 
-    def test_terrapyne_env_vars(self) -> None:
+    def test_env_vars(self) -> None:
         with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
             envvars = {"TF_LOG": "trace", "TF_LOG_PATH": "tf-log.log", "foo": "nbar"}
             with tempfile.TemporaryDirectory() as tmpdir:
@@ -156,7 +174,7 @@ class TestImport:
                 _output_out = terraform.output()
                 assert _output_out.foo.value == envvars["foo"]
 
-    def test_terrapyne_tf_tfvars(self) -> None:
+    def test_tfvars(self) -> None:
         with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
             tfvars = {
                 "foo": "tfvars_bar",
@@ -191,7 +209,7 @@ class TestImport:
                 assert _output_out.moo.value.foo == tfvars["moo"]["foo"]
                 assert _output_out.moo.value.baz == tfvars["moo"]["baz"]
 
-    def test_terrapyne_providers(self) -> None:
+    def test_providers(self) -> None:
         with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
             with tempfile.TemporaryDirectory() as tmpdir:
                 os.chdir(tmpdir)
@@ -255,16 +273,32 @@ class TestImport:
                 assert m
                 assert m.Modules
                 assert len(m.Modules) == 2
-                assert False
 
                 # from distutils.dir_util import copy_tree
                 # copy_tree(".", "/tmp/snapshot")
+
+    def test_failures(self) -> None:
+        with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
+            with tempfile.TemporaryDirectory() as tmpdir:
+                # expected failures in running terraform
+                with pytest.raises(terrapyne.terrapyne.exceptions.TerraformApplyException):
+                    os.chdir(tmpdir)
+                    terraform = terrapyne.Terraform(workspace_directory=tmpdir)
+
+                    with open("main.tf", "a") as f:
+                        f.write(
+                            """
+                            variable "foo" { }
+                        """
+                        )
+
+                    _ = terraform.apply()
 
 
 if __name__ == "__main__":
     with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
         log.info("Starting tests manually")
-        TestImport().test_terrapyne_import()
-        TestImport().test_terrapyne_required_version("1.9.7")
-        TestImport().test_terrapyne_blank_layout()
-        TestImport().test_terrapyne_minimal_layout()
+        TestTerrapyneBase().test_import()
+        TestTerrapyneBase().test_required_version("1.9.7")
+        TestTerrapyneBase().test_blank_layout()
+        TestTerrapyneBase().test_minimal_layout()

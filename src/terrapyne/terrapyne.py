@@ -15,10 +15,7 @@ import os
 import re
 
 from .utils import change_directory
-
-
-class TerraformException(Exception):
-    pass
+from . import exceptions
 
 
 NullableDict: TypeAlias = Union[dict[Any, Any], None]
@@ -34,7 +31,9 @@ class Terraform:
         tfvars: NullableDict = None,
         envvars: NullableDict = None,
     ):
-        self.executable = which("terraform") or next(Path("~/.local/bin").expanduser().glob("terraform"))
+        self.executable = which("terraform") or next(
+            Path("~/.local/bin").expanduser().glob("terraform")
+        )
         self.workspace_directory = workspace_directory
         self.tfvars = self.benedict(tfvars or {})
 
@@ -58,7 +57,9 @@ class Terraform:
         assert self.version
         if required_version is not None:
             if self.version != required_version:
-                raise TerraformException(f"required version of terraform check failed: {self.version} != {required_version}")
+                raise exceptions.TerraformVersionException(
+                    f"required version of terraform check failed: {self.version} != {required_version}"
+                )
 
     @property
     def version(self) -> str:
@@ -83,7 +84,7 @@ class Terraform:
             ignore_exit_code=True,
         )
         if c != 0:
-            raise TerraformException(f"terraform validate failed: {c} {e}")
+            raise exceptions.TerraformException(f"terraform validate failed: {c} {e}")
         return self.objectify(o)
 
     def plan(
@@ -175,6 +176,9 @@ class Terraform:
         return self.objectify(o)
 
     def modules(self) -> benedict:
+        """
+        Modules: [ {Key, Source, Dir} ]
+        """
         if modinfo := Path(".terraform/modules/modules.json").resolve():
             with open(modinfo, "r") as f:
                 r = f.read()
@@ -261,6 +265,13 @@ class Terraform:
             log.debug(logmsg)
 
             if ignore_exit_code is not True and exit_code != expect_exit_code:
-                raise TerraformException(f"[Error]: exit_code {exit_code} running '{cmd}': {stderr}")
+                raise exceptions.TerraformApplyException(
+                    message="Failure in running 'terraform apply'",
+                    exit_code=exit_code,
+                    expect_exit_code=expect_exit_code,
+                    stdout=stdout,
+                    stderr=stderr,
+                    pwd=os.getcwd(),
+                )
 
             return stdout, stderr, exit_code
