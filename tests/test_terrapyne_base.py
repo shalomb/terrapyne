@@ -14,7 +14,7 @@ import shutil
 import sys
 import tempfile
 
-sys.path.append(Path(f"{__file__}/../src").resolve())
+sys.path.append(str(Path(f"{__file__}/../src").resolve()))
 
 import terrapyne
 import terrapyne.logging
@@ -49,7 +49,7 @@ class TestTerrapyneBase:
                 # expected failures in running terraform
                 with pytest.raises(terrapyne.terrapyne.exceptions.TerraformVersionException):
                     os.chdir(tmpdir)
-                    terraform = terrapyne.Terraform(workspace_directory=tmpdir, required_version='999')
+                    terraform = terrapyne.Terraform(workspace_directory=tmpdir, required_version="999")
 
                     with open("main.tf", "a") as f:
                         f.write(
