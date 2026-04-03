@@ -1,2 +1,2 @@
-from .terrapyne import Terraform
-from . import logging
+from . import logging as logging
+from .terrapyne import Terraform as Terraform

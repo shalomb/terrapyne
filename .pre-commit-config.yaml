@@ -1,0 +1,27 @@
+repos:
+  # --- Pre-commit (inner loop: every commit) ---
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.8
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: uv run mypy src/
+        language: system
+        pass_filenames: false
+        types: [python]
+
+  # --- Pre-push (outer loop: every push) ---
+  - repo: local
+    hooks:
+      - id: test-ci
+        name: test-ci (outer loop)
+        entry: make test-ci
+        language: system
+        pass_filenames: false
+        stages: [pre-push]

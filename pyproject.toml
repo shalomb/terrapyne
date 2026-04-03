@@ -1,14 +1,14 @@
-[tool.poetry]
+[project]
 name = "terrapyne"
 version = "0.0.1"
 description = "Wrapper around terraform"
-authors = []
-license = "Apache License Version 2.0"
 readme = "README.md"
-homepage = "https://github.com/shalomb/terrapyne"
+requires-python = ">=3.12,<4.0"
+authors = []
+license = { text = "Apache License Version 2.0" }
+
 keywords = ["terraform", "wrapper"]
 
-# For reference, see https://pypi.org/pypi?%3Aaction=list_classifiers
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Developers",
@@ -16,74 +16,96 @@ classifiers = [
   "Intended Audience :: System Administrators",
   "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Topic :: System :: Systems Administration",
   "Topic :: Utilities",
 ]
 
-[tool.poetry.dependencies]
-python = ">=3.11.1,<4.0"
-colorlog = ">=5.0.1,<7.0.0"
-jinja2 = "^3.0.1"
-pretty_traceback = "*"
-python-decouple = "^3.8"
-python-benedict = {extras = ["all"], version = "^0.33.2"}
+dependencies = [
+    "typer>=0.12.0",
+    "rich>=13.7.0",
+    "httpx>=0.27.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0",
+    "python-hcl2>=4.3.0",
+    "tenacity>=8.2.0",
+    "python-benedict>=0.33.2",
+]
 
-[tool.poetry.group.test.dependencies]
-black = "*"
-coverage = "*"
-flake8 = ">=6.0.0"
-flake8-docstrings = "*"
-flake8-pyproject = "*"
-md-toc = "*"
-mock = "*"
-pook = ">=1.0.2"
-pre-commit = "*"
-pytest = "*"
-pytest-mock = "*"
-requests-mock = "*"
-toml = "*"
-tox = ">=4"
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-bdd>=6.1.0",
+    "pytest-cov>=4.1.0",
+    "pytest-httpx>=0.30.0",
+    "pytest-xdist>=3.8.0",
+    "ruff>=0.3.0",
+    "mypy>=1.9.0",
+    "pre-commit>=3.6.0",
+    "types-requests",
+    "python-decouple>=3.8",
+    "pretty-traceback>=0.5",
+    "pip-audit>=2.10.0",
+]
 
-
-[tool.poetry.group.dev.dependencies]
-pytest-xdist = "^3.6.1"
-
-[tool.poetry.scripts]
-tfwrapper = 'terrapyne:main'
+[project.scripts]
+terrapyne = "terrapyne.cli.main:app"
+tfc = "terrapyne.cli.main:app"
 
 [build-system]
-requires = ["poetry-core>=1.1.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
-log_cli = true
-log_cli_level = "INFO"
-log_cli_format = "%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"
-log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+markers = [
+    "fast: Fast unit tests (< 100ms)",
+    "slow: Slow tests (> 1s)",
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "e2e: End-to-end tests",
+    "pre_merge: Pre-merge quality gate",
+    "expensive: Expensive tests (>5s)",
+]
+addopts = [
+    "-v",
+    "--tb=short",
+    "-n",
+    "auto",
+    "--cov=src",
+    "--cov-fail-under=80",
+    "-m",
+    "not e2e and not integration",
+]
 
-[tool.black]
-# Make sure to match flake8's max-line-length.
-line-length = 130 # black's default
-target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
-exclude = '''
-/(
-  \.git
-  | \.pytest_cache
-  | \.tox
-  | \.venv
-)/
-'''
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["scratch/*", "tests/*"]
 
-[tool.flake8]
-verbose = 3
-max-line-length = 130
-per-file-ignores = ['tests/*.py:D103']
-exclude = ['.git', '.tox', '.venv', '.virtualenv', '__pycache__']
-# See https://black.readthedocs.io/en/stable/faq.html#why-are-flake8-s-e203-and-w503-violated
-ignore = ['E203', 'W503']
-enable-extensions = ['W504']
+[tool.ruff.lint]
+select = ["F", "E", "W", "I", "N", "UP", "B", "A", "C4", "SIM"]
+ignore = ["E501", "UP046", "UP047"]  # UP046/UP047: PEP 695 type params — mypy doesn't support yet
+
+[tool.ruff.lint.per-file-ignores]
+# Legacy files — will be fixed in the core API PR
+"src/terrapyne/exceptions.py" = ["N818"]
+"src/terrapyne/logging.py" = ["N802", "UP007"]
+"src/terrapyne/terrapyne.py" = ["A002"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = false
+warn_return_any = false
+disallow_untyped_defs = false
+ignore_missing_imports = true
+namespace_packages = true
+
+# Check only src, exclude legacy files pending refactor
+files = ["src"]
+exclude = ["src/terrapyne/logging.py", "src/terrapyne/terrapyne.py"]
+
