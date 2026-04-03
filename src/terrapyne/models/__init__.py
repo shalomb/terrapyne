@@ -4,6 +4,7 @@ from .apply import Apply
 from .plan import Plan
 from .project import Project
 from .run import Run, RunStatus
+from .state_version import StateVersion, StateVersionOutput
 from .team import Team
 from .team_access import TeamProjectAccess
 from .variable import WorkspaceVariable
@@ -16,6 +17,8 @@ __all__ = [
     "Project",
     "Run",
     "RunStatus",
+    "StateVersion",
+    "StateVersionOutput",
     "Team",
     "TeamProjectAccess",
     "WorkspaceVariable",
