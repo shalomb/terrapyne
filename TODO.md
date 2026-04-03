@@ -1,40 +1,62 @@
-# Fix TODO — fix/cli-parser-bugs
+# TODO — Exploratory Testing Findings
 
-Bugs identified in FEEDBACK.md, implemented via red-green TDD + ACP.
+Bugs and improvements found during exploratory testing against live TFC.
 
-## Tasks
+## Priority Matrix
 
-- [x] **T1** `fix(parser): json stdout via console.print corrupts embedded newlines`
-  Use `print()` instead of `console.print()` for JSON output in `run_parse_plan`.
-  Acceptance: `tfc run parse-plan fixture --format json` pipes cleanly through `json.loads`.
+Effort: S (< 30min), M (1-2h), L (half day+)
+Impact: 🔴 High (broken/unusable), 🟡 Medium (annoying), 🟢 Low (nice-to-have)
 
-- [x] **T2** `fix(parser): add stdin support — accept `-` as plan file argument`
-  When `PLAN_FILE` is `-`, read from `sys.stdin`.
-  Acceptance: `echo "$plan" | tfc run parse-plan -` works end-to-end.
+| # | Finding | Impact | Effort | Score | Status |
+|---|---|---|---|---|---|
+| 7 | `tfc project find` takes 1m38s — client-side filtering instead of server-side `filter[names]` | 🔴 | S | 🏆 | TODO |
+| 3 | `tfc state outputs 'workspace-name'` errors — positional arg treated as state version ID | 🔴 | S | 🏆 | TODO |
+| 4 | `tfc state outputs 'ws-ID'` errors — same arg ambiguity | 🔴 | S | 🏆 | TODO |
+| 5 | `tfc state show` without args should default to `--latest` | 🟡 | S | ⭐ | TODO |
+| 2 | `tfc state outputs` without workspace should auto-detect from context | 🟡 | S | ⭐ | TODO |
+| 1 | `tfc project show` without args should resolve project from current workspace | 🟡 | M | ⭐ | TODO |
+| 1b | `tfc workspace show` could include project name, last run, health summary | 🟢 | M | 💡 | TODO |
+| 6 | `--debug` flag for API call tracing (URLs, response codes, timing) | 🟡 | M | 💡 | TODO |
+| 8 | Local file-based response cache with TTL for expensive API calls | 🟢 | L | 💡 | TODO |
 
-- [x] **T3** `fix(parser): detect TFC 1.12+ structured JSON log and warn`
-  When input is all-JSON structured log (no plain-text section), emit a clear
-  warning rather than silently returning empty resource_changes.
-  Acceptance: structured-log input produces `plan_status: "structured_log"` and a
-  warning message; resource_changes is empty but a diagnostic is present.
+Score: 🏆 = do first (high impact, low effort), ⭐ = do next, 💡 = backlog
 
-- [x] **T4** `fix(workspace): context auto-detection — resolved ws discarded in 4 commands`
-  `workspace show`, `variables`, `vcs`, `health` all do `org, _ = validate_context()`
-  then pass `workspace or ""` downstream. Fix: capture resolved name and use it.
-  Acceptance: `tfc workspace show` (no args) from inside a terraform dir returns the
-  workspace detail without crashing.
+## Details
 
-- [x] **T5** `fix(runs): run ID column truncated in table output`
-  Rich table truncates run IDs with `…`. Fix: `no_wrap=True` + `min_width=22` on
-  the Run ID column in `render_runs`.
-  Acceptance: `tfc run list` output contains full run IDs passable directly to
-  `tfc run show`.
+### 7. Project find performance (🏆)
+`tfc project find 93126-MAN` takes 1m38s. The `ProjectAPI.list()` uses `q=` (substring search)
+which still paginates many results. The TFC API supports `filter[names]` for exact name matching.
+The `find` command should use `filter[names]` when the pattern has no wildcards, and `q=` only
+for substring/wildcard searches.
 
-- [x] **T6** `test(parser): expand fixture-based test suite from 4 → 30 cases`
-  Import the 30 sanitized fixtures into `tests/fixtures/plan_outputs/` and add a
-  parametrized test covering every fixture file.
-  Acceptance: `pytest tests/unit/test_plan_parser.py` runs 30+ cases, all green.
+### 3/4. State outputs arg ambiguity (🏆)
+`tfc state outputs` takes a positional arg that's defined as `state_version_id` but users
+naturally pass a workspace name or workspace ID. The fix: detect the arg prefix — `sv-` is a
+state version ID, `ws-` is a workspace ID, anything else is a workspace name. Or: make the
+positional arg the workspace and use `--version` for the state version ID.
 
-- [x] **T7** `fix(models): Pydantic V2 deprecation — StateVersion class Config`
-  Replace `class Config` with `model_config = ConfigDict(...)`.
-  Acceptance: `pytest` produces 0 PydanticDeprecatedSince20 warnings.
+### 5. State show default to latest (⭐)
+`tfc state show` without args or `--latest` errors. Should default to showing the latest
+state version for the auto-detected workspace, same as `tfc state pull` does.
+
+### 2. State outputs auto-detect workspace (⭐)
+`tfc state outputs` requires an explicit workspace or state version ID. Should auto-detect
+workspace from context (terraform.tf / tfstate) like every other workspace-scoped command.
+
+### 1. Project show from context (⭐)
+`tfc project show` without args should resolve: context → workspace → project_id → project.
+Requires one extra API call (get workspace, read project_id relationship).
+
+### 1b. Workspace show enrichment (💡)
+`tfc workspace show` could include the project name, last run status/age, and a health
+summary — similar to `tfc workspace health` but inline in the show output.
+
+### 6. Debug flag (💡)
+A `--debug` or `-v` flag that logs API calls (URL, method, status code, timing) to stderr.
+Could use Python's `logging` module with `httpx`'s event hooks. Useful for diagnosing
+slow commands and understanding what the tool is doing.
+
+### 8. Response caching (💡)
+Cache expensive API responses (workspace list, project list, team list) in
+`~/.cache/terrapyne/` with a configurable TTL (default 5min). Invalidate on any write
+operation. Would make repeated `tfc project show` or `tfc workspace list` near-instant.
