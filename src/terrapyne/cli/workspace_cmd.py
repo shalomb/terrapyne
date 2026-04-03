@@ -98,10 +98,10 @@ def workspace_show(
         # Show workspace in specific organization
         terrapyne workspace show my-app-dev --organization Takeda
     """
-    org, _ = validate_context(organization, workspace, require_workspace=True)
+    org, ws_name = validate_context(organization, workspace, require_workspace=True)
 
     with TFCClient(organization=org) as client:
-        ws = client.workspaces.get(workspace or "")
+        ws = client.workspaces.get(ws_name or "")
 
         # Render workspace details
         render_workspace_detail(ws)
@@ -141,10 +141,10 @@ def workspace_vcs(
         # Show VCS config for specific workspace
         terrapyne workspace vcs my-app-dev
     """
-    org, _ = validate_context(organization, workspace, require_workspace=True)
+    org, ws_name = validate_context(organization, workspace, require_workspace=True)
 
     with TFCClient(organization=org) as client:
-        ws = client.workspaces.get(workspace or "")
+        ws = client.workspaces.get(ws_name or "")
 
         if not ws.vcs_repo:
             console.print(f"[yellow]Workspace '{workspace}' has no VCS connection.[/yellow]")
@@ -196,10 +196,10 @@ def workspace_variables(
         # List variables in specific organization
         terrapyne workspace variables my-app-dev --organization Takeda
     """
-    org, _ = validate_context(organization, workspace, require_workspace=True)
+    org, ws_name = validate_context(organization, workspace, require_workspace=True)
 
     with TFCClient(organization=org) as client:
-        ws = client.workspaces.get(workspace or "")
+        ws = client.workspaces.get(ws_name or "")
         variables = client.workspaces.get_variables(ws.id)
 
         if not variables:
@@ -262,7 +262,7 @@ def workspace_var_set(
         # Import from .env file
         terrapyne workspace var-set --from-env-file .env.prod --sensitive
     """
-    org, _ = validate_context(organization, workspace, require_workspace=True)
+    org, ws_name = validate_context(organization, workspace, require_workspace=True)
 
     # 1. Collect variables to set
     to_set: dict[str, str] = {}
@@ -303,7 +303,7 @@ def workspace_var_set(
         raise typer.Exit(1)
 
     with TFCClient(organization=org) as client:
-        ws = client.workspaces.get(workspace or "")
+        ws = client.workspaces.get(ws_name or "")
         existing_variables: list[WorkspaceVariable] = client.workspaces.get_variables(ws.id)
 
         results = []
