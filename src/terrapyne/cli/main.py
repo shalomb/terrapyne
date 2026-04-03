@@ -16,7 +16,6 @@ from terrapyne.cli import (
 app = typer.Typer(
     name="terrapyne",
     help="Terraform Cloud CLI orchestrator for DevOps engineers",
-    no_args_is_help=True,
 )
 console = Console()
 
@@ -49,8 +48,9 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def main(
+    ctx: typer.Context,
     version: bool | None = typer.Option(
         None,
         "--version",
@@ -63,4 +63,5 @@ def main(
 
     Context-aware commands that auto-detect workspace and organization from terraform.tf.
     """
-    pass
+    if ctx.invoked_subcommand is None:
+        console.print(ctx.get_help())
