@@ -159,3 +159,25 @@ Plan: 1 to add, 0 to change, 0 to destroy.
         # tags value contains embedded newlines — must survive round-trip
         after = parsed["resource_changes"][0]["change"]["after"]
         assert "tags" in after
+
+    def test_stdin_dash_reads_from_stdin(self):
+        """Passing `-` as plan file reads plan from stdin."""
+        import json
+
+        result = self._run_cli(
+            ["run", "parse-plan", "-", "--format", "json"],
+            stdin=self.BASIC_CREATE,
+        )
+        assert result.returncode == 0, f"stderr: {result.stderr}\nstdout: {result.stdout}"
+        parsed = json.loads(result.stdout)
+        assert len(parsed["resource_changes"]) == 1
+        assert parsed["resource_changes"][0]["change"]["actions"] == ["create"]
+
+    def test_stdin_dash_human_format(self):
+        """Stdin with human format produces readable summary."""
+        result = self._run_cli(
+            ["run", "parse-plan", "-"],
+            stdin=self.BASIC_CREATE,
+        )
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        assert "aws_instance.web" in result.stdout

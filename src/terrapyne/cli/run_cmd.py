@@ -675,7 +675,10 @@ def run_watch(
 @app.command("parse-plan")
 @handle_cli_errors
 def run_parse_plan(
-    plan_file: Annotated[Path, typer.Argument(help="Path to terraform plan output file")],
+    plan_file: Annotated[
+        Path | None,
+        typer.Argument(help="Path to terraform plan output file, or - to read from stdin"),
+    ] = None,
     output_format: Annotated[
         str, typer.Option("--format", "-f", help="Output format: human, json")
     ] = "human",
@@ -693,19 +696,26 @@ def run_parse_plan(
         # Parse plan and show summary
         terrapyne run parse-plan plan.txt
 
+        # Read from stdin (pipe-friendly)
+        terraform plan 2>&1 | terrapyne run parse-plan -
+
         # Output as JSON
         terrapyne run parse-plan plan.txt --format json
 
         # Save to file
         terrapyne run parse-plan plan.txt --output parsed.json
     """
-    if not plan_file.exists():
+    import sys
+
+    # Read plan from stdin or file
+    if plan_file is None or str(plan_file) == "-":
+        plan_text = sys.stdin.read()
+    elif not plan_file.exists():
         console.print(f"[red]❌ Plan file not found:[/red] {plan_file}")
         raise typer.Exit(1)
-
-    # Read plan
-    with open(plan_file) as f:
-        plan_text = f.read()
+    else:
+        with open(plan_file) as f:
+            plan_text = f.read()
 
     # Parse it
     tf = Terraform(".")
