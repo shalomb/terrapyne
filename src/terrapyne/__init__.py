@@ -15,9 +15,11 @@ from .api.projects import ProjectAPI
 from .api.runs import RunsAPI
 from .api.teams import TeamsAPI
 from .api.vcs import VCSAPI
+from .api.workspace_clone import CloneWorkspaceAPI
 from .api.workspaces import WorkspaceAPI
 from .core.backend import RemoteBackend
 from .core.credentials import TerraformCredentials
+from .core.plan_parser import TerraformPlainTextPlanParser as PlanParser
 from .models.plan import Plan
 from .models.project import Project
 from .models.run import Run
@@ -36,6 +38,8 @@ __all__ = [
     "ProjectAPI",
     "TeamsAPI",
     "VCSAPI",
+    "CloneWorkspaceAPI",
+    "PlanParser",
     "Plan",
     "Project",
     "Run",
