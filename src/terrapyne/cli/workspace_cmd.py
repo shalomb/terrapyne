@@ -67,6 +67,9 @@ def workspace_list(
 
         render_workspaces(workspaces, total_count=total_count)
 
+        if not search:
+            console.print("[dim]Tip: Use --search to narrow results (e.g. --search 'prod-*')[/dim]")
+
 
 @app.command("show")
 @handle_cli_errors

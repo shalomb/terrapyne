@@ -21,6 +21,9 @@ def team_list(
         help="TFC organization (auto-detected from context if available)",
     ),
     limit: int = typer.Option(100, "--limit", "-n", help="Maximum number of teams to display"),
+    search: str | None = typer.Option(
+        None, "--search", "-s", help="Search teams by name (substring match)"
+    ),
 ):
     """List teams in an organization.
 
@@ -30,16 +33,16 @@ def team_list(
         # List all teams in organization
         terrapyne team list
 
+        # Search for teams by name
+        terrapyne team list --search platform
+
         # List teams in specific organization
         terrapyne team list --organization my-org
-
-        # List with limit
-        terrapyne team list --limit 50
     """
     org, _ = validate_context(organization)
 
     with TFCClient(organization=org) as client:
-        teams_iter, total_count = client.teams.list_teams(organization=org)
+        teams_iter, total_count = client.teams.list_teams(organization=org, search=search)
         teams = [t for i, t in enumerate(teams_iter) if i < limit]
 
         if not teams:

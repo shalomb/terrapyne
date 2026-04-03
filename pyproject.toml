@@ -70,6 +70,7 @@ markers = [
     "e2e: End-to-end tests",
     "pre_merge: Pre-merge quality gate",
     "expensive: Expensive tests (>5s)",
+    "uat: UAT tests against real TFC API (needs credentials)",
 ]
 addopts = [
     "-v",
@@ -79,7 +80,7 @@ addopts = [
     "--cov=src",
     "--cov-fail-under=80",
     "-m",
-    "not e2e and not integration",
+    "not e2e and not integration and not uat",
 ]
 
 [tool.ruff]
