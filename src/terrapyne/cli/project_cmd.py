@@ -110,7 +110,7 @@ def find_projects(
         sys.exit(0)
 
     # Get actual workspace counts
-    workspace_counts = project_api.get_workspace_counts(org)
+    workspace_counts: dict[str, int] = {}  # skip expensive count for find results
 
     render_projects(
         projects,

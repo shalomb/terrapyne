@@ -60,3 +60,6 @@ slow commands and understanding what the tool is doing.
 Cache expensive API responses (workspace list, project list, team list) in
 `~/.cache/terrapyne/` with a configurable TTL (default 5min). Invalidate on any write
 operation. Would make repeated `tfc project show` or `tfc workspace list` near-instant.
+
+Other Findings
+- `terraform workspace show` - could show the project, last run status, health status
