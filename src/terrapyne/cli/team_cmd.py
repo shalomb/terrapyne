@@ -7,8 +7,14 @@ from rich.table import Table
 from terrapyne.api.client import TFCClient
 from terrapyne.cli.utils import handle_cli_errors, validate_context
 
-app = typer.Typer(help="Team management commands", no_args_is_help=True)
+app = typer.Typer(help="Team management commands")
 console = Console()
+
+
+@app.callback(invoke_without_command=True)
+def _show_help(ctx: typer.Context):
+    if ctx.invoked_subcommand is None:
+        console.print(ctx.get_help())
 
 
 @app.command("list")
