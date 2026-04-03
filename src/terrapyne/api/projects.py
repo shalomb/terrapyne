@@ -41,9 +41,12 @@ class ProjectAPI:
 
         params = {}
         if search:
-            # Strip wildcards for API - TFC uses 'q' for substring search
-            search_term = search.replace("*", "")
-            params["q"] = search_term
+            if "*" in search:
+                # Wildcard → substring search (strip wildcards for API)
+                params["q"] = search.replace("*", "")
+            else:
+                # Exact name → use filter[names] for fast server-side match
+                params["filter[names]"] = search
 
         items_iterator, total_count = self.client.paginate_with_meta(path, params=params)
 
