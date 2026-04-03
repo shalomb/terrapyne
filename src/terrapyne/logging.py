@@ -4,6 +4,8 @@
 
 """ """
 
+# ruff: noqa: UP038,N815,N802
+
 import logging
 import typing as t
 from textwrap import indent
@@ -31,7 +33,7 @@ _ansi_colors = {
 }
 _ansi_reset_all = "\033[0m"
 
-Color = t.Union[int, tuple[int, int, int], str]
+Color = int | tuple[int, int, int] | str
 
 
 def _interpret_color(color: Color, offset: int = 0) -> str:
@@ -120,9 +122,13 @@ class PrettyExceptionFormatter(logging.Formatter):
         super().__init__(*args, **kwargs)
         self.color = color
 
-    def formatException(self, ei):
+    def format_exception(self, ei):
+        """Lowercase alias to format exception (linters prefer snake_case)."""
         _, exc_value, traceback = ei
         return exc_to_traceback_str(exc_value, traceback, color=self.color)
+
+    # Maintain logging.Formatter API
+    formatException = format_exception
 
     def format(self, record: logging.LogRecord):
         record.message = record.getMessage()
@@ -146,7 +152,7 @@ class PrettyExceptionFormatter(logging.Formatter):
 class MultiFormatter(PrettyExceptionFormatter):
     """Format log messages differently for each log level"""
 
-    def __init__(self, formats: dict[int, str] = None, **kwargs):
+    def __init__(self, formats: dict[int, str] | None = None, **kwargs) -> None:
         base_format = kwargs.pop("fmt", None)
         super().__init__(base_format, **kwargs)
 
@@ -168,11 +174,11 @@ class MultiFormatter(PrettyExceptionFormatter):
 class LoggingContext:
     def __init__(
         self,
-        logger: logging.Logger = None,
-        level: int = None,
-        handler: logging.Handler = None,
+        logger: logging.Logger | None = None,
+        level: int | None = None,
+        handler: logging.Handler | None = None,
         close: bool = True,
-    ):
+    ) -> None:
         self.logger = logger or logging.root
         self.level = level
         self.handler = handler
@@ -212,11 +218,11 @@ class MultiContext:
 
 
 def cli_log_config(
-    logger: logging.Logger = None,
+    logger: logging.Logger | None = None,
     verbose: int = 2,
-    filename: str = None,
-    file_verbose: int = None,
-):
+    filename: str | None = None,
+    file_verbose: int | None = None,
+) -> MultiContext:
     """
     Use a logging configuration for a CLI application.
     This will prettify log messages for the console, and show more info in a log file.

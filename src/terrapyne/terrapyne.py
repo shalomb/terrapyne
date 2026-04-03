@@ -12,14 +12,15 @@ from subprocess import PIPE, Popen
 from textwrap import dedent
 from typing import Any
 
+# Use `type` aliases for readability
 from benedict import benedict
 
 from . import exceptions
 from .utils import change_directory
 
-type NullableDict = dict[Any, Any] | None
-type NullableList = list | None
-type NullableStr = str | None
+NullableDict = dict[Any, Any] | None
+NullableList = list | None
+NullableStr = str | None
 
 
 class Terraform:
@@ -30,9 +31,10 @@ class Terraform:
         tfvars: NullableDict = None,
         envvars: NullableDict = None,
     ):
-        self.executable = which("terraform") or next(
-            Path("~/.local/bin").expanduser().glob("terraform")
-        )
+        local_bin = next(Path("~/.local/bin").expanduser().glob("terraform"), None)
+        self.executable = which("terraform") or (str(local_bin) if local_bin else None)
+        if not self.executable:
+            raise FileNotFoundError("terraform executable not found in PATH or ~/.local/bin")
         self.workspace_directory = workspace_directory
         self.tfvars = self.benedict(tfvars or {})
 
@@ -55,7 +57,7 @@ class Terraform:
 
         assert self.version
         if required_version is not None and self.version != required_version:
-            raise exceptions.TerraformVersionException(
+            raise exceptions.TerraformVersionError(
                 f"required version of terraform check failed: {self.version} != {required_version}"
             )
 
@@ -82,7 +84,7 @@ class Terraform:
             ignore_exit_code=True,
         )
         if c != 0:
-            raise exceptions.TerraformException(f"terraform validate failed: {c} {e}")
+            raise exceptions.TerraformError(f"terraform validate failed: {c} {e}")
         return self.objectify(o)
 
     def plan(
@@ -139,15 +141,32 @@ class Terraform:
     def destroy(self, args: NullableList = None) -> tuple[str, str, int]:
         return self.exec(cmd=["destroy", *(args or [])])
 
+    def parse_plain_text_plan(self, plan_text: str) -> dict[str, Any]:
+        """Parse plain text terraform plan output.
+
+        Use when terraform plan -json is not available (e.g., TFC remote backend).
+        Handles ANSI escape codes and extracts resource changes, plan summary, and errors.
+
+        Args:
+            plan_text: Plain text terraform plan output (may contain ANSI codes)
+
+        Returns:
+            Dictionary with resource changes, plan summary, and diagnostics.
+        """
+        from terrapyne.core.plan_parser import TerraformPlainTextPlanParser
+
+        parser = TerraformPlainTextPlanParser(plan_text)
+        return parser.parse()
+
     def fmt(self) -> tuple[str, str, int]:
         return self.exec(
             cmd=["fmt", "-recursive"],
         )
 
-    def get_resources(self) -> benedict:
+    def get_resources(self) -> Any:
         return self.tfstate().resources
 
-    def get_outputs(self) -> benedict:
+    def get_outputs(self) -> Any:
         return self.tfstate().outputs
 
     def generate_envvars(self, in_vars) -> dict[str, str]:
@@ -159,21 +178,21 @@ class Terraform:
             updated[f"TF_VAR_{newkey}"] = in_vars[key]
         return updated
 
-    def benedict(self, d: dict) -> benedict:
+    def benedict(self, d: dict) -> Any:
         return benedict(d, keypath_separator="¬")
 
-    def objectify(self, string: str) -> benedict:
+    def objectify(self, string: str) -> Any:
         return self.benedict(json.loads(string))
 
     @property
     def provider_selections(self) -> dict:
         return self._version_info.provider_selections
 
-    def provider_schema(self) -> benedict:
+    def provider_schema(self) -> Any:
         o, _, _ = self.exec(cmd=["providers", "schema", "-json"])
         return self.objectify(o)
 
-    def modules(self) -> benedict:
+    def modules(self) -> Any:
         """
         Modules: [ {Key, Source, Dir} ]
         """
@@ -219,7 +238,7 @@ class Terraform:
     def exec(
         self,
         cmd,
-        input="",
+        input_data: str = "",
         expect_exit_code=0,
         ignore_exit_code=False,
         envvars: NullableDict = None,
@@ -247,9 +266,10 @@ class Terraform:
                 env=self.benedict(self.envvars | process_env_vars | (envvars or {})),
             )
 
-            stdout, stderr = p.communicate(input=input.encode())
-            stdout = stdout.decode().strip()
-            stderr = stderr.decode().strip()
+            stdout_bytes, stderr_bytes = p.communicate(input=input_data.encode())
+            # Ensure we decode bytes returned by Popen.communicate
+            stdout = stdout_bytes.decode(errors="replace").strip()
+            stderr = stderr_bytes.decode(errors="replace").strip()
             exit_code = p.returncode
             logmsg = " ".join(
                 [
@@ -263,7 +283,7 @@ class Terraform:
             log.debug(logmsg)
 
             if ignore_exit_code is not True and exit_code != expect_exit_code:
-                raise exceptions.TerraformApplyException(
+                raise exceptions.TerraformApplyError(
                     message="Failure in running 'terraform apply'",
                     exit_code=exit_code,
                     expect_exit_code=expect_exit_code,

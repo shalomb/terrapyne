@@ -1,8 +1,4 @@
-#!/usr/bin/env python3
-
-# -*- coding: utf-8 -*-
-
-""" """
+"""Utility modules."""
 
 import contextlib
 import os
@@ -12,6 +8,7 @@ from collections.abc import Iterator
 # https://stackoverflow.com/a/75049063/742600
 @contextlib.contextmanager
 def change_directory(new_dir: str | os.PathLike[str]) -> Iterator[None]:
+    """Change directory context manager."""
     old_dir = os.getcwd()
 
     # This could raise an exception, but it's probably
