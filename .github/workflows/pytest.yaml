@@ -26,28 +26,28 @@ jobs:
       run:
         working-directory: ./
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v4
 
-    - uses: awalsh128/cache-apt-pkgs-action@latest
+    - uses: awalsh128/cache-apt-pkgs-action@v1.6.0
       with:
         packages: make
         version: 1.0
 
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: '3.12'
 
     - name: Restore cached virtualenv
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       with:
         key: venv-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('pyproject.toml','uv.lock') }}
         path: venv
 
     - name: Install uv (astral action)
-      uses: astral-sh/setup-uv@v1
+      uses: astral-sh/setup-uv@v8
 
     - name: Install Terraform
-      uses: hashicorp/setup-terraform@v3
+      uses: hashicorp/setup-terraform@v4
       with:
         terraform_wrapper: false
 
@@ -70,7 +70,7 @@ jobs:
 
     - name: Saved cached virtualenv
       if: always()
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v5
       with:
         key: venv-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('pyproject.toml','uv.lock') }}
         path: venv
