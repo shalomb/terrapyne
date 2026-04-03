@@ -7,8 +7,14 @@ from rich.table import Table
 from terrapyne.api.client import TFCClient
 from terrapyne.cli.utils import handle_cli_errors, validate_context
 
-app = typer.Typer(help="Team management commands", no_args_is_help=True)
+app = typer.Typer(help="Team management commands")
 console = Console()
+
+
+@app.callback(invoke_without_command=True)
+def _show_help(ctx: typer.Context):
+    if ctx.invoked_subcommand is None:
+        console.print(ctx.get_help())
 
 
 @app.command("list")
@@ -24,6 +30,7 @@ def team_list(
     search: str | None = typer.Option(
         None, "--search", "-s", help="Search teams by name (substring match)"
     ),
+    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ):
     """List teams in an organization.
 
@@ -47,6 +54,12 @@ def team_list(
 
         if not teams:
             console.print("[yellow]No teams found.[/yellow]")
+            return
+
+        if output_format == "json":
+            from terrapyne.cli.utils import emit_json
+
+            emit_json([{"id": t.id, "name": t.name, "created_at": t.created_at} for t in teams])
             return
 
         # Render teams table

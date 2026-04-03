@@ -19,8 +19,14 @@ from terrapyne.utils.rich_tables import (
     render_workspaces,
 )
 
-app = typer.Typer(help="Workspace management commands", no_args_is_help=True)
+app = typer.Typer(help="Workspace management commands")
 console = Console()
+
+
+@app.callback(invoke_without_command=True)
+def _show_help(ctx: typer.Context):
+    if ctx.invoked_subcommand is None:
+        console.print(ctx.get_help())
 
 
 @app.command("list")
@@ -37,6 +43,7 @@ def workspace_list(
     ),
     project: str | None = typer.Option(None, "--project", "-p", help="Filter by project name"),
     limit: int = typer.Option(100, "--limit", "-n", help="Maximum number of workspaces to display"),
+    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ):
     """List workspaces in an organization.
 
@@ -65,6 +72,27 @@ def workspace_list(
             console.print("[yellow]No workspaces found.[/yellow]")
             return
 
+        if output_format == "json":
+            from terrapyne.cli.utils import emit_json
+
+            emit_json(
+                [
+                    {
+                        "id": ws.id,
+                        "name": ws.name,
+                        "terraform_version": ws.terraform_version,
+                        "execution_mode": ws.execution_mode,
+                        "locked": ws.locked,
+                        "auto_apply": ws.auto_apply,
+                        "environment": ws.environment,
+                        "vcs_branch": ws.vcs_branch,
+                        "vcs_identifier": ws.vcs_identifier,
+                    }
+                    for ws in workspaces
+                ]
+            )
+            return
+
         render_workspaces(workspaces, total_count=total_count)
 
         if not search:
@@ -83,6 +111,7 @@ def workspace_show(
         "-o",
         help="TFC organization (auto-detected from context if available)",
     ),
+    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ):
     """Show detailed workspace information.
 
@@ -102,6 +131,28 @@ def workspace_show(
 
     with TFCClient(organization=org) as client:
         ws = client.workspaces.get(ws_name or "")
+
+        if output_format == "json":
+            from terrapyne.cli.utils import emit_json
+
+            emit_json(
+                {
+                    "id": ws.id,
+                    "name": ws.name,
+                    "terraform_version": ws.terraform_version,
+                    "execution_mode": ws.execution_mode,
+                    "locked": ws.locked,
+                    "auto_apply": ws.auto_apply,
+                    "environment": ws.environment,
+                    "vcs_branch": ws.vcs_branch,
+                    "vcs_identifier": ws.vcs_identifier,
+                    "created_at": ws.created_at,
+                    "updated_at": ws.updated_at,
+                    "project_id": ws.project_id,
+                    "tag_names": ws.tag_names,
+                }
+            )
+            return
 
         # Render workspace details
         render_workspace_detail(ws)

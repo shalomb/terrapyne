@@ -3,8 +3,14 @@
 import typer
 from rich.console import Console
 
-app = typer.Typer(help="Troubleshooting and debugging commands", no_args_is_help=True)
+app = typer.Typer(help="Troubleshooting and debugging commands")
 console = Console()
+
+
+@app.callback(invoke_without_command=True)
+def _show_help(ctx: typer.Context):
+    if ctx.invoked_subcommand is None:
+        console.print(ctx.get_help())
 
 
 @app.command("run")

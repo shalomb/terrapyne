@@ -13,8 +13,14 @@ from terrapyne.models.run import Run
 from terrapyne.terrapyne import Terraform
 from terrapyne.utils.rich_tables import render_run_detail, render_runs
 
-app = typer.Typer(help="Run management commands", no_args_is_help=True)
+app = typer.Typer(help="Run management commands")
 console = Console()
+
+
+@app.callback(invoke_without_command=True)
+def _show_help(ctx: typer.Context):
+    if ctx.invoked_subcommand is None:
+        console.print(ctx.get_help())
 
 
 @app.command("list")
@@ -36,6 +42,7 @@ def run_list(
     status: str | None = typer.Option(
         None, "--status", "-s", help="Filter by run status (e.g., applied, errored)"
     ),
+    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ):
     """List runs for a workspace.
 
@@ -71,6 +78,25 @@ def run_list(
             )
             return
 
+        if output_format == "json":
+            from terrapyne.cli.utils import emit_json
+
+            emit_json(
+                [
+                    {
+                        "id": r.id,
+                        "status": r.status.value,
+                        "message": r.message,
+                        "created_at": r.created_at,
+                        "resource_additions": r.resource_additions,
+                        "resource_changes": r.resource_changes,
+                        "resource_destructions": r.resource_destructions,
+                    }
+                    for r in runs
+                ]
+            )
+            return
+
         # Render runs table
         title = f"Runs for {workspace_name}"
         if status:
@@ -94,6 +120,7 @@ def run_show(
         "-o",
         help="TFC organization (auto-detected from context if available)",
     ),
+    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ):
     """Show detailed information about a run.
 
@@ -131,11 +158,30 @@ def run_show(
             with suppress(Exception):
                 plan = client.runs.get_plan(run.plan_id)
 
+        if output_format == "json":
+            from terrapyne.cli.utils import emit_json
+
+            emit_json(
+                {
+                    "id": run.id,
+                    "status": run.status.value,
+                    "message": run.message,
+                    "created_at": run.created_at,
+                    "workspace_id": run.workspace_id,
+                    "plan_id": run.plan_id,
+                    "resource_additions": run.resource_additions,
+                    "resource_changes": run.resource_changes,
+                    "resource_destructions": run.resource_destructions,
+                    "is_destroy": run.is_destroy,
+                    "auto_apply": run.auto_apply,
+                }
+            )
+            return
+
         # Render run details with URL and plan
         render_run_detail(run, workspace_name=workspace, organization=org, plan=plan)
 
 
-@app.command("plan")
 @handle_cli_errors
 def run_plan(
     workspace: str | None = typer.Option(

@@ -1,6 +1,8 @@
 """CLI utilities for shared error handling and context resolution."""
 
+import json
 from collections.abc import Callable
+from datetime import datetime
 from functools import wraps
 from typing import Any, TypeVar
 
@@ -11,6 +13,21 @@ from terrapyne.utils.context import resolve_organization, resolve_workspace
 
 F = TypeVar("F", bound=Callable[..., Any])
 console = Console()
+
+
+def emit_json(data: Any) -> None:
+    """Print data as JSON to stdout. Handles Pydantic models and datetimes."""
+
+    def _default(obj: Any) -> Any:
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if hasattr(obj, "model_dump"):
+            return obj.model_dump()
+        if hasattr(obj, "__dict__"):
+            return {k: v for k, v in obj.__dict__.items() if not k.startswith("_")}
+        return str(obj)
+
+    print(json.dumps(data, indent=2, default=_default))
 
 
 def handle_cli_errors(func: F) -> F:
