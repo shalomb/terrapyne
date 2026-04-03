@@ -10,7 +10,11 @@ from rich.console import Console
 from terrapyne.api.client import TFCClient
 from terrapyne.api.projects import ProjectAPI
 from terrapyne.api.workspaces import WorkspaceAPI
-from terrapyne.cli.utils import handle_cli_errors, validate_context
+from terrapyne.cli.utils import (
+    handle_cli_errors,
+    resolve_project_context,
+    validate_context,
+)
 from terrapyne.utils.rich_tables import (
     render_project_detail,
     render_project_team_access,
@@ -123,30 +127,33 @@ def find_projects(
 @app.command(name="show")
 @handle_cli_errors
 def show_project(
-    project_name: str = typer.Argument(..., help="Project name"),
+    project_name: str | None = typer.Argument(
+        None, help="Project name (auto-detected from context if available)"
+    ),
     organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
 ) -> None:
     """Show project details and workspaces."""
     org, _ = validate_context(organization)
 
-    client = TFCClient(organization=org)
-    project_api = ProjectAPI(client)
-    workspace_api = WorkspaceAPI(client)
+    with TFCClient(organization=org) as client:
+        # Resolve project from name or context
+        org, project = resolve_project_context(client, org, project_name)
 
-    # Get project
-    project = project_api.get_by_name(project_name, org)
+        workspace_api = WorkspaceAPI(client)
 
-    # Get workspaces in project
-    workspaces_iter, _ = workspace_api.list(org, project_id=project.id)
-    workspaces = list(workspaces_iter)
+        # Get workspaces in project
+        workspaces_iter, _ = workspace_api.list(org, project_id=project.id)
+        workspaces = list(workspaces_iter)
 
-    render_project_detail(project, workspaces)
+        render_project_detail(project, workspaces)
 
 
 @app.command(name="teams")
 @handle_cli_errors
 def list_project_teams(
-    project_name: str = typer.Argument(..., help="Project name"),
+    project_name: str | None = typer.Argument(
+        None, help="Project name (auto-detected from context if available)"
+    ),
     organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
 ) -> None:
     """List team access for a project.
@@ -156,16 +163,18 @@ def list_project_teams(
     Examples:
         terrapyne project teams 92813-MAN
         terrapyne project teams myproject -o my-org
+        # Show teams for current workspace's project
+        terrapyne project teams
     """
     org, _ = validate_context(organization)
 
-    client = TFCClient(organization=org)
-    project_api = ProjectAPI(client)
+    with TFCClient(organization=org) as client:
+        # Resolve project from name or context
+        org, project = resolve_project_context(client, org, project_name)
 
-    # Get project to retrieve project ID
-    project = project_api.get_by_name(project_name, org)
+        project_api = ProjectAPI(client)
 
-    # List team access
-    team_access_list = project_api.list_team_access(project.id)
+        # List team access
+        team_access_list = project_api.list_team_access(project.id)
 
-    render_project_team_access(team_access_list, project.name)
+        render_project_team_access(team_access_list, project.name)

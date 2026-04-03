@@ -38,6 +38,7 @@ class Workspace(BaseModel):
 
     # Project relationship
     project_id: str | None = None
+    project_name: str | None = None
 
     # Tags
     tag_names: list[str] = Field(default_factory=list, alias="tag-names")
@@ -48,11 +49,14 @@ class Workspace(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     @classmethod
-    def from_api_response(cls, data: dict[str, Any]) -> "Workspace":
+    def from_api_response(
+        cls, data: dict[str, Any], included: list[dict[str, Any]] | None = None
+    ) -> "Workspace":
         """Create workspace from TFC API response.
 
         Args:
             data: API response data dict (should contain 'id', 'type', 'attributes', 'relationships')
+            included: Optional list of included resources from the API response
 
         Returns:
             Workspace instance
@@ -67,9 +71,17 @@ class Workspace(BaseModel):
 
         # Extract project ID from relationships
         project_id = None
+        project_name = None
         relationships = data.get("relationships", {})
         if relationships.get("project", {}).get("data"):
             project_id = relationships["project"]["data"].get("id")
+
+        # Try to find project name in included data
+        if included and project_id:
+            for item in included:
+                if item.get("type") == "projects" and item.get("id") == project_id:
+                    project_name = item.get("attributes", {}).get("name")
+                    break
 
         # Detect environment from workspace name
         environment = cls._detect_environment(attrs.get("name", ""))
@@ -86,6 +98,7 @@ class Workspace(BaseModel):
             locked=attrs.get("locked", False),
             vcs_repo=vcs_repo,
             project_id=project_id,
+            project_name=project_name,
             tag_names=attrs.get("tag-names", []),
             environment=environment,
         )

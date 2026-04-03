@@ -108,3 +108,53 @@ def emit_json(data):
         return str(obj)
 
     print(json.dumps(data, indent=2, default=_default))
+
+
+def resolve_project_context(
+    client: Any,
+    organization: str | None = None,
+    project_name: str | None = None,
+) -> tuple[str, Any]:
+    """Resolve organization and project from arguments or workspace context.
+
+    Args:
+        client: Authenticated TFCClient instance
+        organization: Optional organization name
+        project_name: Optional project name. If None, falls back to workspace context.
+
+    Returns:
+        Tuple of (organization_name, Project model instance)
+
+    Raises:
+        ValueError: If project_name is None and workspace context cannot be resolved.
+    """
+    from terrapyne.api.projects import ProjectAPI
+    from terrapyne.api.workspaces import WorkspaceAPI
+
+    org, _ = validate_context(organization)
+    project_api = ProjectAPI(client)
+
+    if project_name:
+        return org, project_api.get_by_name(project_name, org)
+
+    # Fallback: derive project from current workspace context
+    try:
+        org, ws_name = validate_context(organization, require_workspace=True)
+    except ValueError:
+        raise ValueError(
+            "No project specified and could not detect from workspace context. "
+            "Specify a PROJECT_NAME or run in a terraform directory."
+        ) from None
+
+    workspace_api = WorkspaceAPI(client)
+    try:
+        ws = workspace_api.get(ws_name, org)  # type: ignore[arg-type]
+    except Exception as e:
+        raise ValueError(
+            f"Failed to fetch workspace '{ws_name}' to resolve project context: {e}"
+        ) from e
+
+    if not ws.project_id:
+        raise ValueError(f"Workspace '{ws_name}' is not assigned to a project.")
+
+    return org, project_api.get_by_id(ws.project_id)
