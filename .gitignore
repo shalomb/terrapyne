@@ -267,3 +267,6 @@ terraform.rc
 
 # Codemap
 .codemap/
+
+# Git worktrees
+.worktrees/
