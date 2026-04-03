@@ -4,15 +4,16 @@
 
 """ """
 
-from decouple import config
-from pathlib import Path
-from unittest import mock
 import logging as log
 import os
-import pytest
 import shutil
 import sys
 import tempfile
+from pathlib import Path
+from unittest import mock
+
+import pytest
+from decouple import config
 
 sys.path.append(str(Path(f"{__file__}/../src").resolve()))
 
@@ -39,7 +40,9 @@ class TestTerrapyneBase:
         with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
             with tempfile.TemporaryDirectory() as tmpdir:
                 os.chdir(tmpdir)
-                terraform = terrapyne.Terraform(workspace_directory=tmpdir, required_version=tf_required_version)
+                terraform = terrapyne.Terraform(
+                    workspace_directory=tmpdir, required_version=tf_required_version
+                )
                 assert terraform.version
                 assert len(terraform.platform.split("_")) == 2
 
@@ -49,7 +52,9 @@ class TestTerrapyneBase:
                 # expected failures in running terraform
                 with pytest.raises(terrapyne.terrapyne.exceptions.TerraformVersionException):
                     os.chdir(tmpdir)
-                    terraform = terrapyne.Terraform(workspace_directory=tmpdir, required_version="999")
+                    terraform = terrapyne.Terraform(
+                        workspace_directory=tmpdir, required_version="999"
+                    )
 
                     with open("main.tf", "a") as f:
                         f.write(
