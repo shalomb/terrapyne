@@ -1,0 +1,285 @@
+"""Runs API methods."""
+
+from __future__ import annotations
+
+import builtins
+import time
+from collections.abc import Callable
+from typing import Any
+
+from terrapyne.api.client import TFCClient
+from terrapyne.models.apply import Apply
+from terrapyne.models.plan import Plan
+from terrapyne.models.run import Run
+
+
+class RunsAPI:
+    """Run API operations."""
+
+    def __init__(self, client: TFCClient):
+        """Initialize runs API.
+
+        Args:
+            client: TFC API client
+        """
+        self.client = client
+
+    def list(  # noqa: A003
+        self,
+        workspace_id: str,
+        limit: int = 20,
+        status: str | None = None,
+    ) -> tuple[builtins.list[Run], int | None]:
+        """List runs for a workspace.
+
+        Args:
+            workspace_id: Workspace ID
+            limit: Maximum number of runs to return
+            status: Filter by run status (e.g., "applied", "errored")
+
+        Returns:
+            Tuple of (list of Run instances (most recent first), total count or None)
+        """
+        path = f"/workspaces/{workspace_id}/runs"
+
+        params = {}
+        if status:
+            params["filter[status]"] = status
+
+        items_iterator, total_count = self.client.paginate_with_meta(
+            path, params=params, page_size=min(limit, 100)
+        )
+
+        runs = []
+        for item in items_iterator:
+            runs.append(Run.from_api_response(item))
+            if len(runs) >= limit:
+                break
+
+        return runs, total_count
+
+    def get(self, run_id: str) -> Run:
+        """Get run by ID.
+
+        Args:
+            run_id: Run ID
+
+        Returns:
+            Run instance
+
+        Raises:
+            httpx.HTTPStatusError: If run not found
+        """
+        path = f"/runs/{run_id}"
+
+        response = self.client.get(path)
+        return Run.from_api_response(response["data"])
+
+    def create(
+        self,
+        workspace_id: str,
+        message: str | None = None,
+        auto_apply: bool = False,
+        is_destroy: bool = False,
+        target_addrs: builtins.list[str] | None = None,
+        replace_addrs: builtins.list[str] | None = None,
+        refresh_only: bool = False,
+    ) -> Run:
+        """Create a new run (plan).
+
+        Args:
+            workspace_id: Workspace ID
+            message: Run message/description
+            auto_apply: Auto-apply after plan succeeds
+            is_destroy: Create destroy run
+            target_addrs: List of resource addresses to target
+            replace_addrs: List of resource addresses to replace (force recreation)
+            refresh_only: Create refresh-only run
+
+        Returns:
+            Created Run instance
+
+        Raises:
+            httpx.HTTPStatusError: If creation fails (workspace locked, etc.)
+        """
+        path = "/runs"
+
+        payload: dict[str, Any] = {
+            "data": {
+                "type": "runs",
+                "attributes": {
+                    "auto-apply": auto_apply,
+                    "is-destroy": is_destroy,
+                    "refresh-only": refresh_only,
+                },
+                "relationships": {
+                    "workspace": {"data": {"type": "workspaces", "id": workspace_id}}
+                },
+            }
+        }
+
+        if message:
+            payload["data"]["attributes"]["message"] = message
+
+        if target_addrs:
+            payload["data"]["attributes"]["target-addresses"] = target_addrs
+
+        if replace_addrs:
+            payload["data"]["attributes"]["replace-addrs"] = replace_addrs
+
+        response = self.client.post(path, json_data=payload)
+        return Run.from_api_response(response["data"])
+
+    def apply(self, run_id: str, comment: str | None = None) -> Run:
+        """Apply a run.
+
+        Args:
+            run_id: Run ID
+            comment: Apply comment/reason
+
+        Returns:
+            Updated Run instance
+
+        Raises:
+            httpx.HTTPStatusError: If apply fails (already applied, etc.)
+        """
+        path = f"/runs/{run_id}/actions/apply"
+
+        payload: dict = {"comment": comment} if comment else {}
+
+        response = self.client.post(path, json_data=payload)
+        return Run.from_api_response(response["data"])
+
+    def get_plan_logs(self, plan_id: str) -> str:
+        """Get plan logs.
+
+        Args:
+            plan_id: Plan ID
+
+        Returns:
+            Plan log content as string
+
+        Raises:
+            httpx.HTTPStatusError: If logs not available
+        """
+        path = f"/plans/{plan_id}/logs"
+
+        # Note: TFC log API returns plain text, not JSON
+        response = self.client.client.get(f"{self.client.base_url}{path}")
+        response.raise_for_status()
+        return response.text
+
+    def get_apply_logs(self, apply_id: str) -> str:
+        """Get apply logs.
+
+        Args:
+            apply_id: Apply ID
+
+        Returns:
+            Apply log content as string
+
+        Raises:
+            httpx.HTTPStatusError: If logs not available
+        """
+        path = f"/applies/{apply_id}/logs"
+
+        # Note: TFC log API returns plain text, not JSON
+        response = self.client.client.get(f"{self.client.base_url}{path}")
+        response.raise_for_status()
+        return response.text
+
+    def get_plan(self, plan_id: str) -> Plan:
+        """Get plan details.
+
+        Args:
+            plan_id: Plan ID
+
+        Returns:
+            Plan instance
+
+        Raises:
+            httpx.HTTPStatusError: If plan not found
+        """
+        path = f"/plans/{plan_id}"
+
+        response = self.client.get(path)
+        return Plan.from_api_response(response["data"])
+
+    def get_apply(self, apply_id: str) -> Apply:
+        """Get apply details.
+
+        Args:
+            apply_id: Apply ID
+
+        Returns:
+            Apply instance
+
+        Raises:
+            httpx.HTTPStatusError: If apply not found
+        """
+        path = f"/applies/{apply_id}"
+
+        response = self.client.get(path)
+
+        return Apply.from_api_response(response["data"])
+
+    def stream_logs(self, url: str) -> builtins.list[str]:
+        """Fetch logs from a read URL.
+
+        Note: TFC log URLs often point to S3.
+        This is a simple version that returns all lines.
+        A future version will support real-time streaming.
+        """
+        response = self.client.client.get(url)
+        response.raise_for_status()
+        return response.text.splitlines()
+
+    def poll_until_complete(
+        self,
+        run_id: str,
+        callback: Callable[[Run], None] | None = None,
+        max_wait: float = 1800.0,  # 30 minutes
+    ) -> Run:
+        """Poll run status until it reaches a terminal state.
+
+        Args:
+            run_id: Run ID to poll
+            callback: Optional callback function called on each poll (receives Run)
+            max_wait: Maximum time to wait in seconds
+
+        Returns:
+            Final Run instance in terminal state
+
+        Raises:
+            TimeoutError: If max_wait exceeded
+            httpx.HTTPStatusError: If API errors occur
+        """
+        # Exponential backoff intervals (seconds)
+        intervals = [2, 2, 3, 5, 5, 10, 10, 15, 30]
+        interval_index = 0
+
+        start_time = time.time()
+
+        while True:
+            run = self.get(run_id)
+
+            # Call callback if provided
+            if callback:
+                callback(run)
+
+            # Check if terminal
+            if run.status.is_terminal:
+                return run
+
+            # Check timeout
+            elapsed = time.time() - start_time
+            if elapsed >= max_wait:
+                raise TimeoutError(
+                    f"Run {run_id} did not complete within {max_wait}s "
+                    f"(current status: {run.status.value})"
+                )
+
+            # Wait before next poll
+            interval = intervals[min(interval_index, len(intervals) - 1)]
+            time.sleep(interval)
+            interval_index += 1
