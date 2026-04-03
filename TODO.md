@@ -1,36 +1,40 @@
-# Test Failures — RESOLVED ✅
+# Fix TODO — fix/cli-parser-bugs
 
-**Status**: 214/214 tests passing (100%)  
-**Branch**: `terraform-cloud-scripts`  
-**Run**: `uv run pytest --ignore=tests/unit/test_misc.py -q`
+Bugs identified in FEEDBACK.md, implemented via red-green TDD + ACP.
 
-## Summary
-- **32 failures → 0 failures** across 6 sessions of work
-- **22 real bugs fixed** (Groups 1–3): API mock mismatches, exception handling, imports
-- **10 BDD test specs completed** (Groups 4–6): step definitions, mock paths, shared context
+## Tasks
 
-## Next: coverage threshold
-Coverage is at ~71%, threshold is 80%. The BDD CLI tests now exercise the CLI
-but many internal paths remain uncovered. Consider lowering threshold or adding
-targeted unit tests for uncovered modules.
+- [x] **T1** `fix(parser): json stdout via console.print corrupts embedded newlines`
+  Use `print()` instead of `console.print()` for JSON output in `run_parse_plan`.
+  Acceptance: `tfc run parse-plan fixture --format json` pipes cleanly through `json.loads`.
 
-## Progress Log
+- [x] **T2** `fix(parser): add stdin support — accept `-` as plan file argument`
+  When `PLAN_FILE` is `-`, read from `sys.stdin`.
+  Acceptance: `echo "$plan" | tfc run parse-plan -` works end-to-end.
 
-✅ **COMPLETE** — 22 genuine bugs fixed, 204/214 tests passing (95%)
-✅ **SDK PHASE 1 & 3** — Public API expanded and examples created
-✅ **PLAN PARSER PHASE 1–5** — Core parser, CLI, and BDD integration complete
-✅ **RUN ERRORS COMMAND** — Multi-workspace error mining complete
-✅ **RUN TRIGGER COMMAND** — Targeted plans and resource replacement complete
-✅ **RUN WATCH COMMAND** — Status monitoring and final detail reporting complete
+- [x] **T3** `fix(parser): detect TFC 1.12+ structured JSON log and warn`
+  When input is all-JSON structured log (no plain-text section), emit a clear
+  warning rather than silently returning empty resource_changes.
+  Acceptance: structured-log input produces `plan_status: "structured_log"` and a
+  warning message; resource_changes is empty but a diagnostic is present.
 
-### Run Watch Implementation ✅
-- **API Layer**: Added `get_apply`, `stream_logs` (basic) to `RunsAPI`. Added `Apply` model. Updated `Plan` model with `log_read_url`.
-- **CLI Command**: Implemented `terrapyne run watch` with polling and final detail summary.
-- **Validation**: Added BDD scenario in `tests/test_cli/test_run_watch_bdd.py` (passing).
+- [x] **T4** `fix(workspace): context auto-detection — resolved ws discarded in 4 commands`
+  `workspace show`, `variables`, `vcs`, `health` all do `org, _ = validate_context()`
+  then pass `workspace or ""` downstream. Fix: capture resolved name and use it.
+  Acceptance: `tfc workspace show` (no args) from inside a terraform dir returns the
+  workspace detail without crashing.
 
-### Run Trigger Implementation ✅
-- **API Layer**: Added `target_addrs`, `replace_addrs`, and `refresh_only` to `RunsAPI.create`.
-- **CLI Command**: Implemented `terrapyne run trigger` with all targeting options.
-- **Validation**: Added 3 BDD scenarios in `tests/test_cli/test_run_trigger_bdd.py` (all passing).
+- [x] **T5** `fix(runs): run ID column truncated in table output`
+  Rich table truncates run IDs with `…`. Fix: `no_wrap=True` + `min_width=22` on
+  the Run ID column in `render_runs`.
+  Acceptance: `tfc run list` output contains full run IDs passable directly to
+  `tfc run show`.
 
-... [rest of file]
+- [x] **T6** `test(parser): expand fixture-based test suite from 4 → 30 cases`
+  Import the 30 sanitized fixtures into `tests/fixtures/plan_outputs/` and add a
+  parametrized test covering every fixture file.
+  Acceptance: `pytest tests/unit/test_plan_parser.py` runs 30+ cases, all green.
+
+- [x] **T7** `fix(models): Pydantic V2 deprecation — StateVersion class Config`
+  Replace `class Config` with `model_config = ConfigDict(...)`.
+  Acceptance: `pytest` produces 0 PydanticDeprecatedSince20 warnings.

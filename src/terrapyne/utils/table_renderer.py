@@ -48,6 +48,11 @@ class TableRenderer(ABC, Generic[T]):
         """Return list of values for a single entity."""
         pass
 
+    def add_columns(self, table: Table) -> None:  # type: ignore[name-defined]
+        """Add columns to table. Override to customise width/wrap per column."""
+        for column in self.get_columns():
+            table.add_column(column, style="cyan", no_wrap=False)
+
     def render(
         self,
         entities: Sequence[T],
@@ -69,9 +74,8 @@ class TableRenderer(ABC, Generic[T]):
             header_style="bold magenta",
         )
 
-        # Add columns
-        for column in self.get_columns():
-            table.add_column(column, style="cyan", no_wrap=False)
+        # Add columns — subclasses may override add_columns() for custom widths
+        self.add_columns(table)
 
         # Add rows
         for entity in entities:
@@ -208,6 +212,15 @@ class RunTableRenderer(TableRenderer["Run"]):  # type: ignore
 
     def get_columns(self) -> list[str]:
         return ["Run ID", "Status", "Created", "Changes", "Created By"]
+
+    def add_columns(self, table: Table) -> None:  # type: ignore[override]
+        """Add columns with Run ID forced to no_wrap so IDs are never truncated."""
+        # Run ID: fixed width, no wrapping — must be copy-pasteable
+        table.add_column("Run ID", style="cyan", no_wrap=True, min_width=22)
+        table.add_column("Status", style="cyan", no_wrap=False)
+        table.add_column("Created", style="cyan", no_wrap=False)
+        table.add_column("Changes", style="cyan", no_wrap=False)
+        table.add_column("Created By", style="cyan", no_wrap=False)
 
     def get_row(self, entity: Run) -> list[str]:  # type: ignore
         from terrapyne.models.run import Run

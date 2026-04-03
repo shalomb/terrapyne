@@ -1,0 +1,41 @@
+{"@level":"info","@message":"Terraform 1.9.8","@module":"terraform.ui","@timestamp":"2025-11-22T08:20:03.770057+01:00","terraform":"1.9.8","type":"version","ui":"1.2"}
+Running plan in the remote backend. Output will stream here. Pressing Ctrl-C
+will stop streaming the logs, but will not stop the plan running remotely.
+
+Preparing the remote plan...
+
+The remote workspace is configured to work with configuration at
+examples/import relative to the target repository.
+
+Terraform will upload the contents of the following directory,
+excluding files or directories as defined by a .terraformignore file
+at /home/unop/oneExampleOrg/terraform-aws-RDS/.terraformignore (if it is present),
+in order to capture the filesystem context the remote workspace expects:
+    /home/unop/oneExampleOrg/terraform-aws-RDS
+
+To view this run in a browser, visit:
+https://app.terraform.io/app/ExampleOrg/tec-man-eng-dev-93400-iacrevengsail/runs/run-KayJAgvzP6Mf2KaE
+
+Waiting for the plan to start...
+
+Terraform v1.9.8
+on linux_amd64
+Initializing plugins and modules...
+data.vault_aws_access_credentials.creds: Reading...
+data.vault_aws_access_credentials.creds: Read complete after 0s [id=aws/sts/tec-man-eng-dev-TerraformIaC/CDpKWBM4xsA3lcBsu8CuCPHf.jcPpB]
+
+╷
+│ Error: Invalid value for variable
+│
+│   on main.tf line 25, in module "rds":
+│   25:   engine         = each.value.engine
+│     ├────────────────
+│     │ var.engine is "oracle-ee"
+│
+│ Not a valid RDS engine supported by the RDS Provisioning Standard!
+│
+│ This was checked by the validation rule at
+│ .terraform/modules/rds/variables.tf:10,3-13.
+╵
+
+Operation failed: failed running terraform plan (exit 1)

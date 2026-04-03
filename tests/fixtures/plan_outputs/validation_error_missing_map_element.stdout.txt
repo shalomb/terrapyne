@@ -1,0 +1,18 @@
+Terraform v1.9.8
+on linux_amd64
+
+Initializing plugins and modules...
+Initializing the backend...
+
+╷
+│ Error: Missing map element
+│
+│   on .terraform/modules/resource_tag_validator/validator/variables.tf line 72, in variable "shared_tags":
+│   72:     error_message = "Invalid value ('${var.shared_tags.version}') for shared_tags.version. Refer to https://myexample-org.sharepoint.com/sites/AIDE/SitePages/Tagging-Standard.aspx for valid version"
+│     ├────────────────
+│     │ var.shared_tags is map of string with 19 elements
+│
+│ This map does not have an element with the key "version".
+╵
+
+Operation failed: failed running terraform plan (exit 1)

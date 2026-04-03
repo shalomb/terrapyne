@@ -1,0 +1,21 @@
+Terraform v1.9.8
+on linux_amd64
+
+Initializing plugins and modules...
+Initializing the backend...
+
+╷
+│ Error: Invalid value for variable
+│
+│   on main.tf line 25, in module "rds":
+│   25:   engine         = each.value.engine
+│     ├────────────────
+│     │ var.engine is "oracle-ee"
+│
+│ Not a valid RDS engine supported by the RDS Provisioning Standard!
+│
+│ This was checked by the validation rule at
+│ .terraform/modules/rds/variables.tf:10,3-13.
+╵
+
+Operation failed: failed running terraform plan (exit 1)
