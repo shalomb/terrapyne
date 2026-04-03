@@ -14,8 +14,14 @@ from terrapyne.api.workspaces import WorkspaceAPI
 from terrapyne.cli.utils import handle_cli_errors, validate_context
 from terrapyne.utils.rich_tables import render_vcs_detail, render_vcs_repos
 
-app = typer.Typer(help="VCS operations (repository, branch management)", no_args_is_help=True)
+app = typer.Typer(help="VCS operations (repository, branch management)")
 console = Console()
+
+
+@app.callback(invoke_without_command=True)
+def _show_help(ctx: typer.Context):
+    if ctx.invoked_subcommand is None:
+        console.print(ctx.get_help())
 
 
 @app.command(name="show")

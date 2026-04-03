@@ -20,8 +20,14 @@ from terrapyne.core.state_diff import (
     parse_state_resources,
 )
 
-app = typer.Typer(help="State version commands", no_args_is_help=True)
+app = typer.Typer(help="State version commands")
 console = Console()
+
+
+@app.callback(invoke_without_command=True)
+def _show_help(ctx: typer.Context):
+    if ctx.invoked_subcommand is None:
+        console.print(ctx.get_help())
 
 
 def _parse_since(since: str) -> datetime:
