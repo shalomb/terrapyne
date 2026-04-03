@@ -725,7 +725,11 @@ def run_parse_plan(
             f.write(output_text)
         console.print(f"[green]✅ Parsed plan saved to[/green] {output}")
     else:
-        console.print(output_text)
+        # Use print() for JSON to avoid Rich mangling embedded newlines/control chars
+        if output_format == "json":
+            print(output_text)
+        else:
+            console.print(output_text)
 
 
 def _format_plan_output_human(result: dict[str, Any], verbose: bool = False) -> str:

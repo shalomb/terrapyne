@@ -97,3 +97,65 @@ class TestPlanParser:
         assert summary["add"] == 1
         assert summary["change"] == 0
         assert summary["destroy"] == 0
+
+
+class TestParsePlanCLIOutput:
+    """Tests for parse-plan CLI JSON output correctness."""
+
+    BASIC_CREATE = """\
+Terraform will perform the following actions:
+
+  # aws_instance.web will be created
+  + resource "aws_instance" "web" {
+      + ami           = "ami-12345678"
+      + instance_type = "t2.micro"
+      + tags          = {
+          + "Name" = "web-server"
+        }
+    }
+
+Plan: 1 to add, 0 to change, 0 to destroy.
+"""
+
+    def _run_cli(self, args: list, tmp_path=None, stdin=None) -> "subprocess.CompletedProcess":
+        """Run terrapyne CLI from the worktree source via subprocess."""
+        import os
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        src_root = str(Path(__file__).parent.parent.parent / "src")
+        env = {**os.environ, "PYTHONPATH": src_root}
+        return subprocess.run(
+            [sys.executable, "-m", "terrapyne"] + args,
+            capture_output=True, text=True, env=env,
+            input=stdin,
+        )
+
+    def test_json_stdout_is_valid_json(self, tmp_path):
+        """JSON output via CLI stdout must be valid JSON (no Rich control chars)."""
+        import json
+
+        plan_file = tmp_path / "plan.txt"
+        plan_file.write_text(self.BASIC_CREATE)
+
+        result = self._run_cli(["run", "parse-plan", str(plan_file), "--format", "json"])
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        # Must parse cleanly — this is the regression
+        parsed = json.loads(result.stdout)
+        assert len(parsed["resource_changes"]) == 1
+        assert parsed["resource_changes"][0]["address"] == "aws_instance.web"
+
+    def test_json_stdout_multiline_values_survive(self, tmp_path):
+        """Multi-line attribute values (tags) must not corrupt JSON stdout."""
+        import json
+
+        plan_file = tmp_path / "plan.txt"
+        plan_file.write_text(self.BASIC_CREATE)
+
+        result = self._run_cli(["run", "parse-plan", str(plan_file), "--format", "json"])
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        parsed = json.loads(result.stdout)
+        # tags value contains embedded newlines — must survive round-trip
+        after = parsed["resource_changes"][0]["change"]["after"]
+        assert "tags" in after
