@@ -98,6 +98,7 @@ class Run(BaseModel):
     auto_apply: bool | None = Field(None, alias="auto-apply")
     is_destroy: bool = Field(False, alias="is-destroy")
     refresh: bool = True
+    cost_estimate: dict[str, Any] | None = None
     refresh_only: bool = Field(False, alias="refresh-only")
     replace_addrs: list[str] = Field(default_factory=list, alias="replace-addrs")
     target_addrs: list[str] = Field(default_factory=list, alias="target-addrs")
