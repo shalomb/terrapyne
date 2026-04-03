@@ -33,6 +33,7 @@ def list_projects(
     organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
     search: str | None = typer.Option(None, "--search", "-s", help="Search projects by name"),
     limit: int = typer.Option(100, "--limit", "-n", help="Maximum number of projects to display"),
+    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ) -> None:
     """List all projects in organization."""
     org, _ = validate_context(organization)
@@ -49,6 +50,23 @@ def list_projects(
 
     # Get actual workspace counts
     workspace_counts = {} if search else project_api.get_workspace_counts(org)
+
+    if output_format == "json":
+        from terrapyne.cli.utils import emit_json
+
+        emit_json(
+            [
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "description": p.description,
+                    "created_at": p.created_at,
+                    "resource_count": p.resource_count,
+                }
+                for p in projects
+            ]
+        )
+        return
 
     render_projects(
         projects,

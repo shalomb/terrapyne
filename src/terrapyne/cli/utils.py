@@ -91,3 +91,20 @@ def validate_context(
         return org, ws  # type: ignore[return-value]
 
     return org, None
+
+
+def emit_json(data: Any) -> None:
+    """Print data as JSON to stdout. Handles Pydantic models and datetimes."""
+    import json
+    from datetime import datetime
+
+    def _default(obj: Any) -> Any:
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if hasattr(obj, "model_dump"):
+            return obj.model_dump()
+        if hasattr(obj, "__dict__"):
+            return {k: v for k, v in obj.__dict__.items() if not k.startswith("_")}
+        return str(obj)
+
+    print(json.dumps(data, indent=2, default=_default))

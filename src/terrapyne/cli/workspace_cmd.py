@@ -43,6 +43,7 @@ def workspace_list(
     ),
     project: str | None = typer.Option(None, "--project", "-p", help="Filter by project name"),
     limit: int = typer.Option(100, "--limit", "-n", help="Maximum number of workspaces to display"),
+    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ):
     """List workspaces in an organization.
 
@@ -71,6 +72,24 @@ def workspace_list(
             console.print("[yellow]No workspaces found.[/yellow]")
             return
 
+        if output_format == "json":
+            from terrapyne.cli.utils import emit_json
+
+            emit_json(
+                [
+                    {
+                        "id": ws.id,
+                        "name": ws.name,
+                        "terraform_version": ws.terraform_version,
+                        "execution_mode": ws.execution_mode,
+                        "locked": ws.locked,
+                        "auto_apply": ws.auto_apply,
+                    }
+                    for ws in workspaces
+                ]
+            )
+            return
+
         render_workspaces(workspaces, total_count=total_count)
 
         if not search:
@@ -89,6 +108,7 @@ def workspace_show(
         "-o",
         help="TFC organization (auto-detected from context if available)",
     ),
+    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ):
     """Show detailed workspace information.
 
@@ -108,6 +128,25 @@ def workspace_show(
 
     with TFCClient(organization=org) as client:
         ws = client.workspaces.get(cast(str, ws_name), org)
+
+        if output_format == "json":
+            from terrapyne.cli.utils import emit_json
+
+            emit_json(
+                {
+                    "id": ws.id,
+                    "name": ws.name,
+                    "terraform_version": ws.terraform_version,
+                    "execution_mode": ws.execution_mode,
+                    "locked": ws.locked,
+                    "auto_apply": ws.auto_apply,
+                    "created_at": ws.created_at,
+                    "project_id": ws.project_id,
+                    "tag_names": ws.tag_names,
+                }
+            )
+            return
+
         # Render workspace details
         render_workspace_detail(ws)
 
