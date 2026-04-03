@@ -1,0 +1,52 @@
+Terraform v1.9.8
+on linux_amd64
+
+Initializing plugins and modules...
+Initializing the backend...
+
+╷
+│ Error: Invalid value for variable
+│
+│   on main.tf line 25, in module "rds":
+│   25:   engine         = each.value.engine
+│     ├────────────────
+│     │ var.engine is "oracle-ee"
+│
+│ Not a valid RDS engine supported by the RDS Provisioning Standard!
+│
+│ This was checked by the validation rule at
+│ .terraform/modules/rds/variables.tf:10,3-13.
+╵
+
+╷
+│ Error: Unsupported attribute
+│
+│   on main.tf line 26, in module "rds":
+│   26:   engine_version = each.value.engine_version
+│     ├────────────────
+│     │ each.value is object with 23 attributes
+│
+│ This object does not have an attribute named "engine_version".
+╵
+
+╷
+│ Error: no matching RDS DB Subnet Group found
+│
+│   with module.rds["usvgarorapms-90186-sbx"].data.aws_db_subnet_group.rds[0],
+│   on .terraform/modules/rds/data-sources.tf line 43, in data "aws_db_subnet_group" "rds":
+│   43: data "aws_db_subnet_group" "rds" {
+│
+╵
+
+╷
+│ Error: Missing map element
+│
+│   on .terraform/modules/resource_tag_validator/validator/variables.tf line 72, in variable "shared_tags":
+│   72:     error_message = "Invalid value ('${var.shared_tags.version}') for shared_tags.version. Refer to https://myexample-org.sharepoint.com/sites/AIDE/SitePages/Tagging-Standard.aspx for valid version"
+│     ├────────────────
+│     │ var.shared_tags is map of string with 19 elements
+│
+│ This map does not have an element with the key "version".
+╵
+
+Operation failed: failed running terraform plan (exit 1)

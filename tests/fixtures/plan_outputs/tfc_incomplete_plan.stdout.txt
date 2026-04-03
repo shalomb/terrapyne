@@ -1,0 +1,22 @@
+{"@level":"info","@message":"Terraform 1.5.0","@module":"terraform.ui","@timestamp":"2024-01-15T10:30:00Z","type":"version","terraform_version":"1.5.0","ui":"json"}
+
+[0m[1mRefreshing Terraform state in-memory prior to plan...[0m
+[0m
+
+[31m[1mError:[0m[0m [0mInvalid value for variable[0m
+
+[0m  on main.tf line 10, in module "rds":
+[0m  10:   engine = "oracle-ee"
+[0m
+[0mThe RDS module does not support engine "oracle-ee". Supported engines are:
+[0mpostgres, mysql, mariadb, sqlserver.
+
+[0m[31m[1m[0m[0m
+
+[0m[31m[1m[0m[0m[0m[31m[1mError:[0m[0m [0mInvalid value for variable[0m
+
+[0m  on main.tf line 10, in module "rds":
+[0m  10:   engine = "oracle-ee"
+[0m
+[0mThe RDS module does not support engine "oracle-ee". Supported engines are:
+[0mpostgres, mysql, mariadb, sqlserver.

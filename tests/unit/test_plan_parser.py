@@ -242,3 +242,50 @@ Plan: 1 to add, 0 to change, 0 to destroy.
         result = TerraformPlainTextPlanParser(plain).parse()
         assert result["plan_status"] != "structured_log"
         assert len(result["resource_changes"]) == 1
+
+
+import os
+from pathlib import Path
+
+FIXTURE_DIR = Path(__file__).parent.parent / "fixtures" / "plan_outputs"
+FIXTURE_FILES = sorted(FIXTURE_DIR.glob("*.txt")) if FIXTURE_DIR.exists() else []
+
+
+@pytest.mark.parametrize("fixture_file", FIXTURE_FILES, ids=[f.stem for f in FIXTURE_FILES])
+def test_fixture_parses_to_valid_structure(fixture_file):
+    """Every fixture must parse without raising and return a valid plan structure."""
+    text = fixture_file.read_text()
+    result = TerraformPlainTextPlanParser(text).parse()
+
+    # Must always return these keys
+    assert "resource_changes" in result
+    assert "format_version" in result
+    assert isinstance(result["resource_changes"], list)
+    assert result["format_version"] == "1.0"
+
+    # Each resource change must have required fields
+    for rc in result["resource_changes"]:
+        assert "address" in rc, f"Missing 'address' in {rc}"
+        assert "change" in rc, f"Missing 'change' in {rc}"
+        assert "actions" in rc["change"], f"Missing 'actions' in change: {rc}"
+        assert isinstance(rc["change"]["actions"], list)
+
+
+@pytest.mark.parametrize("fixture_file", FIXTURE_FILES, ids=[f.stem for f in FIXTURE_FILES])
+def test_fixture_json_output_is_valid(fixture_file, tmp_path):
+    """Every fixture's JSON output must be valid JSON (no control chars)."""
+    import json
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    src_root = str(Path(__file__).parent.parent.parent / "src")
+    env = {**os.environ, "PYTHONPATH": src_root}
+    result = subprocess.run(
+        [sys.executable, "-m", "terrapyne", "run", "parse-plan",
+         str(fixture_file), "--format", "json"],
+        capture_output=True, text=True, env=env,
+    )
+    assert result.returncode == 0, f"exit={result.returncode}\nstderr: {result.stderr}"
+    parsed = json.loads(result.stdout)  # raises on invalid JSON
+    assert "resource_changes" in parsed

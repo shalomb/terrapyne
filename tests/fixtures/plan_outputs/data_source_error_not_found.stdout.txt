@@ -1,0 +1,16 @@
+Terraform v1.9.8
+on linux_amd64
+
+Initializing plugins and modules...
+Initializing the backend...
+
+╷
+│ Error: no matching RDS DB Subnet Group found
+│
+│   with module.rds["usvgarorapms-90186-sbx"].data.aws_db_subnet_group.rds[0],
+│   on .terraform/modules/rds/data-sources.tf line 43, in data "aws_db_subnet_group" "rds":
+│   43: data "aws_db_subnet_group" "rds" {
+│
+╵
+
+Operation failed: failed running terraform plan (exit 1)

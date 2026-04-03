@@ -1,0 +1,18 @@
+Terraform v1.9.8
+on linux_amd64
+
+Initializing plugins and modules...
+Initializing the backend...
+
+╷
+│ Error: Unsupported attribute
+│
+│   on main.tf line 26, in module "rds":
+│   26:   engine_version = each.value.engine_version
+│     ├────────────────
+│     │ each.value is object with 23 attributes
+│
+│ This object does not have an attribute named "engine_version".
+╵
+
+Operation failed: failed running terraform plan (exit 1)
