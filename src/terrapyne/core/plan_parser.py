@@ -775,6 +775,29 @@ class TerraformPlainTextPlanParser:
         # Strip ANSI codes from entire plan text
         cleaned_text = self.strip_ansi_codes(self.plan_text)
 
+        # Detect TFC 1.12+ structured JSON log format early — every non-empty,
+        # non-header line starts with '{'.  These logs have no plain-text plan
+        # section so resource-level parsing is not possible.
+        if self._is_structured_json_log(cleaned_text):
+            plan_summary = self._parse_plan_summary_from_json_log(cleaned_text)
+            diagnostic = {
+                "severity": "warning",
+                "summary": "Structured JSON log format detected",
+                "detail": (
+                    "This input is a TFC structured JSON log (Terraform 1.12+). "
+                    "Resource-level parsing is not available for this format — "
+                    "only the plan summary counts are extracted. "
+                    "Use terraform plan -json (outside TFC) for full resource details."
+                ),
+            }
+            return PlanIR(
+                resource_changes=[],
+                format_version="1.0",
+                plan_summary=plan_summary,
+                diagnostics=[diagnostic],
+                plan_status="structured_log",
+            )
+
         # Extract plain text portion (skip JSON version messages from TFC)
         plain_text = self._extract_plain_text(cleaned_text)
 
@@ -1561,3 +1584,65 @@ class TerraformPlainTextPlanParser:
 
         # Default to incomplete if we can't determine
         return "incomplete"
+
+    def _is_structured_json_log(self, text: str) -> bool:
+        """Detect TFC 1.12+ structured JSON log format.
+
+        In this format every content line (after the header) is a JSON object
+        with '@level', '@message', and 'type' keys.  Plain-text plan output
+        always contains lines that do NOT start with '{'.
+        """
+        import json
+
+        non_empty = [l for l in text.splitlines() if l.strip()]
+        if not non_empty:
+            return False
+        json_lines = 0
+        for line in non_empty:
+            stripped = line.strip()
+            if not stripped.startswith("{"):
+                return False  # Found a non-JSON line — not structured log
+            try:
+                obj = json.loads(stripped)
+                if "@level" in obj or "@message" in obj or "type" in obj:
+                    json_lines += 1
+            except (json.JSONDecodeError, ValueError):
+                return False
+        return json_lines > 0
+
+    def _parse_plan_summary_from_json_log(self, text: str) -> dict[str, int] | None:
+        """Extract plan summary counts from TFC structured JSON log.
+
+        Looks for a line with type='change_summary' or a message matching
+        the Plan: N to add... pattern embedded in @message fields.
+        """
+        import json
+
+        for line in text.splitlines():
+            stripped = line.strip()
+            if not stripped.startswith("{"):
+                continue
+            try:
+                obj = json.loads(stripped)
+            except (json.JSONDecodeError, ValueError):
+                continue
+            # Prefer the structured change_summary type
+            if obj.get("type") == "change_summary" and "changes" in obj:
+                ch = obj["changes"]
+                return {
+                    "add": ch.get("add", 0),
+                    "change": ch.get("change", 0),
+                    "destroy": ch.get("remove", 0),
+                    "import": ch.get("import", 0),
+                }
+            # Fallback: parse Plan: N to add... from @message
+            msg = obj.get("@message", "")
+            match = self.PLAN_SUMMARY_PATTERN.search(msg)
+            if match:
+                return {
+                    "add": int(match.group(2) or 0),
+                    "change": int(match.group(3) or 0),
+                    "destroy": int(match.group(4) or 0),
+                    "import": int(match.group(1) or match.group(5) or 0),
+                }
+        return None

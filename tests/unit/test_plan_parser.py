@@ -181,3 +181,64 @@ Plan: 1 to add, 0 to change, 0 to destroy.
         )
         assert result.returncode == 0, f"stderr: {result.stderr}"
         assert "aws_instance.web" in result.stdout
+
+
+class TestStructuredLogDetection:
+    """Parser warns clearly on TFC 1.12+ JSON structured log input."""
+
+    # Minimal TFC 1.12+ structured log (no plain-text plan section)
+    STRUCTURED_LOG = """\
+{"@level":"info","@message":"Terraform 1.12.2","type":"version","terraform":"1.12.2"}
+{"@level":"info","@message":"data.vault_aws_access_credentials.creds: Refreshing...","type":"apply_start"}
+{"@level":"info","@message":"Plan: 2 to add, 0 to change, 0 to destroy.","type":"change_summary","changes":{"add":2,"change":0,"remove":0}}
+{"@level":"info","@message":"Apply complete! Resources: 2 added, 0 changed, 0 destroyed.","type":"apply_complete"}
+"""
+
+    def test_structured_log_plan_status_is_structured_log(self):
+        """Structured log input yields plan_status='structured_log', not 'success'."""
+        from terrapyne.core.plan_parser import TerraformPlainTextPlanParser
+
+        result = TerraformPlainTextPlanParser(self.STRUCTURED_LOG).parse()
+        assert result["plan_status"] == "structured_log"
+
+    def test_structured_log_has_diagnostic_warning(self):
+        """Structured log input includes a diagnostic explaining the limitation."""
+        from terrapyne.core.plan_parser import TerraformPlainTextPlanParser
+
+        result = TerraformPlainTextPlanParser(self.STRUCTURED_LOG).parse()
+        diagnostics = result.get("diagnostics", [])
+        assert any("structured" in str(d).lower() or "json" in str(d).lower()
+                   for d in diagnostics), f"No structured-log diagnostic in: {diagnostics}"
+
+    def test_structured_log_resource_changes_empty(self):
+        """Structured log input cannot yield resource_changes — must be empty list."""
+        from terrapyne.core.plan_parser import TerraformPlainTextPlanParser
+
+        result = TerraformPlainTextPlanParser(self.STRUCTURED_LOG).parse()
+        assert result["resource_changes"] == []
+
+    def test_structured_log_plan_summary_extracted(self):
+        """Plan summary counts are still extracted from the JSON change_summary line."""
+        from terrapyne.core.plan_parser import TerraformPlainTextPlanParser
+
+        result = TerraformPlainTextPlanParser(self.STRUCTURED_LOG).parse()
+        summary = result.get("plan_summary", {})
+        assert summary.get("add") == 2
+
+    def test_plain_text_plan_unaffected(self):
+        """Normal plain-text plan is not mis-detected as structured log."""
+        from terrapyne.core.plan_parser import TerraformPlainTextPlanParser
+
+        plain = """\
+Terraform will perform the following actions:
+
+  # aws_instance.web will be created
+  + resource "aws_instance" "web" {
+      + ami = "ami-12345678"
+    }
+
+Plan: 1 to add, 0 to change, 0 to destroy.
+"""
+        result = TerraformPlainTextPlanParser(plain).parse()
+        assert result["plan_status"] != "structured_log"
+        assert len(result["resource_changes"]) == 1
