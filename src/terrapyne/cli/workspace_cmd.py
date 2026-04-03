@@ -735,3 +735,43 @@ def workspace_clone(
         else:
             console.print(f"\n[red]Error:[/red] {result.get('error', 'Unknown error')}\n")
             raise typer.Exit(1)
+
+
+@app.command("costs")
+@handle_cli_errors
+def workspace_costs(
+    workspace: str | None = typer.Argument(
+        None, help="Workspace name (auto-detected from terraform.tf if in terraform directory)"
+    ),
+    organization: str | None = typer.Option(
+        None,
+        "--organization",
+        "-o",
+        help="TFC organization (auto-detected from context if available)",
+    ),
+):
+    """Show cost estimates for the latest plan."""
+    org, ws_name = validate_context(organization, workspace, require_workspace=True)
+
+    with TFCClient(organization=org) as client:
+        ws = client.workspaces.get(cast(str, ws_name), org)
+        runs, _ = client.runs.list(ws.id, limit=1)
+        if not runs or not runs[0].cost_estimate:
+            console.print("[yellow]No cost estimates available for the latest run.[/yellow]")
+            return
+
+        cost_estimate = runs[0].cost_estimate
+        monthly = cost_estimate.get("proposed_monthly_cost", "0.0")
+        delta = cost_estimate.get("delta_monthly_cost", "0.0")
+
+        # Add + sign if positive
+        if delta and not delta.startswith("-") and float(delta) > 0:
+            delta_prefix = "+$"
+        elif delta.startswith("-"):
+            delta_prefix = "-$"
+            delta = delta[1:]
+        else:
+            delta_prefix = "$"
+
+        console.print(f"Estimated monthly cost: ${monthly}")
+        console.print(f"Cost delta: {delta_prefix}{delta}")

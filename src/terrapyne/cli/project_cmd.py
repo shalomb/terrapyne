@@ -169,3 +169,32 @@ def list_project_teams(
     team_access_list = project_api.list_team_access(project.id)
 
     render_project_team_access(team_access_list, project.name)
+
+
+@app.command("costs")
+@handle_cli_errors
+def project_costs(
+    project_name: str = typer.Argument(..., help="Project name"),
+    organization: str | None = typer.Option(
+        None,
+        "--organization",
+        "-o",
+        help="TFC organization (auto-detected from context if available)",
+    ),
+):
+    """Aggregate cost estimates across a project."""
+    org, _ = validate_context(organization)
+
+    with TFCClient(organization=org) as client:
+        project = client.projects.get_by_name(project_name, org)
+        workspaces, _ = client.workspaces.list(org, project_id=project.id)
+
+        total_monthly = 0.0
+
+        for ws in workspaces:
+            runs, _ = client.runs.list(ws.id, limit=1)
+            if runs and runs[0].cost_estimate:
+                cost = runs[0].cost_estimate.get("proposed_monthly_cost", "0.0")
+                total_monthly += float(cost)
+
+        console.print(f"Total project estimated monthly cost: ${total_monthly:.2f}")
