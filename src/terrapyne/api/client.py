@@ -11,6 +11,7 @@ from terrapyne.core.credentials import TerraformCredentials
 if TYPE_CHECKING:
     from terrapyne.api.projects import ProjectAPI
     from terrapyne.api.runs import RunsAPI
+    from terrapyne.api.state_versions import StateVersionsAPI
     from terrapyne.api.teams import TeamsAPI
     from terrapyne.api.workspaces import WorkspaceAPI
 
@@ -80,6 +81,13 @@ class TFCClient:
         from terrapyne.api.teams import TeamsAPI
 
         return TeamsAPI(self)
+
+    @property
+    def state_versions(self) -> "StateVersionsAPI":
+        """Get state versions API instance."""
+        from terrapyne.api.state_versions import StateVersionsAPI
+
+        return StateVersionsAPI(self)
 
     @retry(
         stop=stop_after_attempt(3),

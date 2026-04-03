@@ -3,7 +3,15 @@
 import typer
 from rich.console import Console
 
-from terrapyne.cli import debug_cmd, project_cmd, run_cmd, team_cmd, vcs_cmd, workspace_cmd
+from terrapyne.cli import (
+    debug_cmd,
+    project_cmd,
+    run_cmd,
+    state_cmd,
+    team_cmd,
+    vcs_cmd,
+    workspace_cmd,
+)
 
 app = typer.Typer(
     name="terrapyne",
@@ -29,6 +37,9 @@ app.add_typer(debug_cmd.app, name="debug")
 
 # Add project commands (placeholder)
 app.add_typer(project_cmd.app, name="project")
+
+# Add state commands
+app.add_typer(state_cmd.app, name="state")
 
 
 def version_callback(value: bool) -> None:
