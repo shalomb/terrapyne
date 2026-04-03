@@ -3,7 +3,7 @@
 import builtins
 from datetime import UTC
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, cast
 
 import typer
 from rich.console import Console
@@ -107,8 +107,7 @@ def workspace_show(
     org, ws_name = validate_context(organization, workspace, require_workspace=True)
 
     with TFCClient(organization=org) as client:
-        ws = client.workspaces.get(ws_name or "")
-
+        ws = client.workspaces.get(cast(str, ws_name), org)
         # Render workspace details
         render_workspace_detail(ws)
 
@@ -150,10 +149,9 @@ def workspace_vcs(
     org, ws_name = validate_context(organization, workspace, require_workspace=True)
 
     with TFCClient(organization=org) as client:
-        ws = client.workspaces.get(ws_name or "")
-
+        ws = client.workspaces.get(cast(str, ws_name), org)
         if not ws.vcs_repo:
-            console.print(f"[yellow]Workspace '{workspace}' has no VCS connection.[/yellow]")
+            console.print(f"[yellow]Workspace '{ws_name}' has no VCS connection.[/yellow]")
             return
 
         # Display VCS info in a focused way
@@ -205,8 +203,7 @@ def workspace_variables(
     org, ws_name = validate_context(organization, workspace, require_workspace=True)
 
     with TFCClient(organization=org) as client:
-        ws = client.workspaces.get(ws_name or "")
-        variables = client.workspaces.get_variables(ws.id)
+        ws = client.workspaces.get(cast(str, ws_name), org)
 
         if not variables:
             console.print("[yellow]No variables configured in this workspace.[/yellow]")
@@ -309,8 +306,7 @@ def workspace_var_set(
         raise typer.Exit(1)
 
     with TFCClient(organization=org) as client:
-        ws = client.workspaces.get(ws_name or "")
-        existing_variables: list[WorkspaceVariable] = client.workspaces.get_variables(ws.id)
+        ws = client.workspaces.get(cast(str, ws_name), org)
 
         results = []
         for k, v in to_set.items():
