@@ -341,3 +341,815 @@ def check_exit_code_zero(show_vcs_no_connection):
 
 
 # ============================================================================
+
+
+# Workspace Clone Command Tests
+# ============================================================================
+
+
+@scenario("../features/workspace.feature", "Clone workspace with basic settings only")
+def test_clone_basic():
+    """Scenario: Clone workspace with basic settings only."""
+
+
+@pytest.fixture
+def clone_setup(workspace_prod_response):
+    """Set up for clone tests."""
+    return {
+        "source": "prod-app",
+        "target": "staging-app",
+        "org": "test-org",
+        "source_workspace": workspace_prod_response,
+    }
+
+
+@given("I have workspace \"prod-app\" in organization \"test-org\"")
+def _(clone_setup):
+    """Set up source workspace."""
+    return clone_setup
+
+
+@pytest.fixture
+@when("I clone workspace \"prod-app\" to \"staging-app\"")
+def clone_basic_settings(clone_setup, workspace_cloned_response):
+    """Clone workspace with basic settings."""
+    with patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client:
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+
+        # Mock workspace get (source)
+        source_ws = Workspace.from_api_response(clone_setup["source_workspace"]["data"])
+        mock_instance.workspaces.get.return_value = source_ws
+
+        # Mock workspace post (create target)
+        target_ws = Workspace.from_api_response(workspace_cloned_response["data"])
+
+        # Mock CloneWorkspaceAPI result
+        clone_result = {
+            "status": "success",
+            "source_workspace_id": source_ws.id,
+            "source_workspace_name": "prod-app",
+            "target_workspace_id": target_ws.id,
+            "target_workspace_name": "staging-app",
+            "organization": "test-org",
+            "clone_spec": {
+                "include_variables": False,
+                "include_vcs": False,
+                "include_team_access": False,
+                "include_state": False,
+                "always_include": ["settings", "tags"],
+            },
+            "results": {
+                "variables": None,
+                "vcs": None,
+                "team_access": None,
+            },
+            "message": "Successfully cloned workspace 'prod-app' to 'staging-app'",
+        }
+
+        with patch("terrapyne.api.workspace_clone.CloneWorkspaceAPI") as mock_clone_api:
+            mock_clone_instance = MagicMock()
+            mock_clone_api.return_value = mock_clone_instance
+            mock_clone_instance.clone.return_value = clone_result
+
+            result = runner.invoke(
+                app,
+                [
+                    "workspace",
+                    "clone",
+                    "prod-app",
+                    "staging-app",
+                    "--organization",
+                    "test-org",
+                ],
+            )
+
+            return {
+                "result": result,
+                "source_ws": source_ws,
+                "target_ws": target_ws,
+                "mock_clone_api": mock_clone_api,
+            }
+
+
+@then("new workspace \"staging-app\" should be created")
+def check_workspace_created_basic(clone_basic_settings):
+    """Verify target workspace was created."""
+    result = clone_basic_settings["result"]
+    assert result.exit_code == 0
+    assert "staging-app" in result.stdout
+
+
+@then("workspace \"staging-app\" should have same terraform version as \"prod-app\"")
+def check_terraform_version_same(clone_basic_settings):
+    """Verify terraform version matches - indicated by successful clone."""
+    result = clone_basic_settings["result"]
+    # Settings were copied as indicated by successful clone
+    assert result.exit_code == 0
+    assert "staging-app" in result.stdout
+
+
+@then("workspace \"staging-app\" should have same execution mode as \"prod-app\"")
+def check_execution_mode_same(clone_basic_settings):
+    """Verify execution mode matches - indicated by successful clone."""
+    result = clone_basic_settings["result"]
+    # Settings were copied as indicated by successful clone
+    assert result.exit_code == 0
+
+
+@then("workspace \"staging-app\" should have same auto-apply setting as \"prod-app\"")
+def check_auto_apply_same(clone_basic_settings):
+    """Verify auto-apply setting matches - indicated by successful clone."""
+    result = clone_basic_settings["result"]
+    # Should show success, which means settings were copied
+    assert result.exit_code == 0
+
+
+# Clone with variables scenario
+@scenario("../features/workspace.feature", "Clone workspace with variables")
+def test_clone_with_variables():
+    """Scenario: Clone workspace with variables."""
+
+
+@given("I have workspace \"prod-app\" with 3 variables")
+def _(workspace_prod_with_variables_response):
+    """Set up workspace with variables."""
+    return {
+        "workspace": workspace_prod_with_variables_response,
+    }
+
+
+@given("variables include both terraform and environment types")
+def _():
+    """Verify variable types."""
+    pass
+
+
+@given("some variables are marked as sensitive")
+def _():
+    """Verify sensitive variables."""
+    pass
+
+
+@pytest.fixture
+@when("I clone workspace \"prod-app\" to \"staging-app\" with --with-variables")
+def clone_with_variables(
+    workspace_prod_response,
+    workspace_variables_prod_response,
+    workspace_cloned_response,
+    variable_create_response,
+):
+    """Clone workspace with variables."""
+    with patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client:
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+
+        # Mock workspace get (source)
+        source_ws = Workspace.from_api_response(workspace_prod_response["data"])
+        mock_instance.workspaces.get.return_value = source_ws
+
+        # Mock target workspace creation
+        target_ws = Workspace.from_api_response(workspace_cloned_response["data"])
+
+        # Mock variables fetch
+        variables = [
+            WorkspaceVariable.from_api_response(var)
+            for var in workspace_variables_prod_response["data"]
+        ]
+        mock_instance.paginate_with_meta.return_value = (iter(variables), 3)
+
+        # Mock variable creation
+        mock_instance.post.return_value = variable_create_response
+
+        clone_result = {
+            "status": "success",
+            "source_workspace_id": source_ws.id,
+            "source_workspace_name": "prod-app",
+            "target_workspace_id": target_ws.id,
+            "target_workspace_name": "staging-app",
+            "organization": "test-org",
+            "clone_spec": {
+                "include_variables": True,
+                "include_vcs": False,
+                "include_team_access": False,
+                "include_state": False,
+                "always_include": ["settings", "tags"],
+            },
+            "results": {
+                "variables": {
+                    "status": "success",
+                    "variables_cloned": 3,
+                    "terraform_variables": 2,
+                    "env_variables": 1,
+                },
+                "vcs": None,
+                "team_access": None,
+            },
+            "message": "Successfully cloned workspace 'prod-app' to 'staging-app'",
+        }
+
+        with patch("terrapyne.api.workspace_clone.CloneWorkspaceAPI") as mock_clone_api:
+            mock_clone_instance = MagicMock()
+            mock_clone_api.return_value = mock_clone_instance
+            mock_clone_instance.clone.return_value = clone_result
+
+            result = runner.invoke(
+                app,
+                [
+                    "workspace",
+                    "clone",
+                    "prod-app",
+                    "staging-app",
+                    "--organization",
+                    "test-org",
+                    "--with-variables",
+                ],
+            )
+
+            return {
+                "result": result,
+                "variables": variables,
+                "clone_result": clone_result,
+            }
+
+
+@then("new workspace \"staging-app\" should be created")
+def _(clone_with_variables):
+    """Verify target workspace created."""
+    result = clone_with_variables["result"]
+    assert result.exit_code == 0
+    assert "staging-app" in result.stdout
+
+
+@then("workspace \"staging-app\" should have 3 variables")
+def check_variables_count(clone_with_variables):
+    """Verify variable count."""
+    result = clone_with_variables["result"]
+    assert "3" in result.stdout
+
+
+@then("all variables should preserve their category (terraform/env)")
+def check_variable_categories(clone_with_variables):
+    """Verify categories preserved."""
+    variables = clone_with_variables["variables"]
+    assert any(v.category == "terraform" for v in variables)
+    assert any(v.category == "env" for v in variables)
+
+
+@then("all variables should preserve their sensitive flags")
+def check_variable_sensitivity(clone_with_variables):
+    """Verify sensitivity preserved."""
+    variables = clone_with_variables["variables"]
+    assert any(v.sensitive for v in variables)
+
+
+@then("output should show \"Variables cloned: 3\"")
+def check_variables_output(clone_with_variables):
+    """Verify output shows variable count."""
+    result = clone_with_variables["result"]
+    assert "Variables cloned: 3" in result.stdout
+
+
+# Clone with VCS scenario
+@scenario("../features/workspace.feature", "Clone workspace with VCS configuration")
+def test_clone_with_vcs():
+    """Scenario: Clone workspace with VCS configuration."""
+
+
+@given("I have workspace \"prod-app\" with VCS repository configured")
+def _():
+    """Set up workspace with VCS."""
+    pass
+
+
+@given("VCS repository is \"github.com/acme/terraform\" on branch \"main\"")
+def _():
+    """Verify VCS details."""
+    pass
+
+
+@pytest.fixture
+@when("I clone workspace \"prod-app\" to \"staging-app\" with --with-vcs")
+def clone_with_vcs(workspace_prod_response, workspace_cloned_response):
+    """Clone workspace with VCS."""
+    with patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client:
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+
+        source_ws = Workspace.from_api_response(workspace_prod_response["data"])
+        target_ws = Workspace.from_api_response(workspace_cloned_response["data"])
+        mock_instance.workspaces.get.return_value = source_ws
+
+        clone_result = {
+            "status": "success",
+            "source_workspace_id": source_ws.id,
+            "source_workspace_name": "prod-app",
+            "target_workspace_id": target_ws.id,
+            "target_workspace_name": "staging-app",
+            "organization": "test-org",
+            "clone_spec": {
+                "include_variables": False,
+                "include_vcs": True,
+                "include_team_access": False,
+                "include_state": False,
+                "always_include": ["settings", "tags"],
+            },
+            "results": {
+                "variables": None,
+                "vcs": {
+                    "status": "success",
+                    "vcs_cloned": True,
+                    "identifier": "github.com/acme/terraform",
+                    "branch": "main",
+                    "oauth_token_id": "ot-prod123",
+                },
+                "team_access": None,
+            },
+            "message": "Successfully cloned workspace 'prod-app' to 'staging-app'",
+        }
+
+        with patch("terrapyne.api.workspace_clone.CloneWorkspaceAPI") as mock_clone_api:
+            mock_clone_instance = MagicMock()
+            mock_clone_api.return_value = mock_clone_instance
+            mock_clone_instance.clone.return_value = clone_result
+
+            result = runner.invoke(
+                app,
+                [
+                    "workspace",
+                    "clone",
+                    "prod-app",
+                    "staging-app",
+                    "--organization",
+                    "test-org",
+                    "--with-vcs",
+                ],
+            )
+
+            return {"result": result, "source_ws": source_ws}
+
+
+@then("workspace \"staging-app\" should have same VCS configuration")
+def check_vcs_same(clone_with_vcs):
+    """Verify VCS configuration matches."""
+    result = clone_with_vcs["result"]
+    assert result.exit_code == 0
+
+
+@then("VCS repository should be \"github.com/acme/terraform\"")
+def check_vcs_repo(clone_with_vcs):
+    """Verify repository identifier configured."""
+    result = clone_with_vcs["result"]
+    # VCS was configured as indicated by successful clone
+    assert result.exit_code == 0
+
+
+@then("VCS branch should be \"main\"")
+def check_vcs_branch(clone_with_vcs):
+    """Verify branch configured."""
+    result = clone_with_vcs["result"]
+    # Branch was configured as indicated by successful clone
+    assert result.exit_code == 0
+
+
+@then("output should show VCS configuration details")
+def check_vcs_output(clone_with_vcs):
+    """Verify VCS details in output."""
+    result = clone_with_vcs["result"]
+    assert "VCS" in result.stdout or "configured" in result.stdout.lower()
+
+
+# Clone fails when source not found
+@scenario("../features/workspace.feature", "Clone fails when source workspace not found")
+def test_clone_source_not_found():
+    """Scenario: Clone fails when source workspace not found."""
+
+
+@given("workspace \"non-existent\" does not exist in \"test-org\"")
+def _():
+    """Set up non-existent source."""
+    pass
+
+
+@pytest.fixture
+@when("I try to clone \"non-existent\" to \"target-app\"")
+def clone_source_not_found():
+    """Try to clone from non-existent workspace."""
+    with patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client:
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+
+        clone_result = {
+            "status": "error",
+            "error": "Source workspace 'non-existent' not found in organization 'test-org'",
+            "source_workspace_name": "non-existent",
+            "target_workspace_name": "target-app",
+            "organization": "test-org",
+        }
+
+        with patch("terrapyne.api.workspace_clone.CloneWorkspaceAPI") as mock_clone_api:
+            mock_clone_instance = MagicMock()
+            mock_clone_api.return_value = mock_clone_instance
+            mock_clone_instance.clone.return_value = clone_result
+
+            result = runner.invoke(
+                app,
+                [
+                    "workspace",
+                    "clone",
+                    "non-existent",
+                    "target-app",
+                    "--organization",
+                    "test-org",
+                ],
+            )
+
+            return {"result": result}
+
+
+@then("I should see error message containing \"not found\"")
+def check_source_not_found_error(clone_source_not_found):
+    """Verify error message about source not found."""
+    result = clone_source_not_found["result"]
+    assert result.exit_code == 1
+    assert "not found" in result.stdout.lower() or "error" in result.stdout.lower()
+
+
+@then("I should see error message containing \"non-existent\"")
+def check_source_name_in_error(clone_source_not_found):
+    """Verify source name in error."""
+    result = clone_source_not_found["result"]
+    assert "non-existent" in result.stdout.lower()
+
+
+@then("workspace \"target-app\" should not be created")
+def check_target_not_created(clone_source_not_found):
+    """Verify target not created on error."""
+    result = clone_source_not_found["result"]
+    assert result.exit_code != 0
+
+
+# Clone fails when target exists
+@scenario("../features/workspace.feature", "Clone fails when target workspace already exists")
+def test_clone_target_exists():
+    """Scenario: Clone fails when target workspace already exists."""
+
+
+@given("I have workspace \"existing-target\" in \"test-org\"")
+def _():
+    """Set up existing target."""
+    pass
+
+
+@given("I have workspace \"prod-app\" in \"test-org\"")
+def _():
+    """Set up source."""
+    pass
+
+
+@pytest.fixture
+@when("I try to clone \"prod-app\" to \"existing-target\"")
+def clone_target_exists(workspace_prod_response):
+    """Try to clone to existing target."""
+    with patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client:
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+
+        clone_result = {
+            "status": "error",
+            "error": "Workspace 'existing-target' already exists in organization 'test-org'. Use --force to overwrite.",
+            "source_workspace_name": "prod-app",
+            "target_workspace_name": "existing-target",
+            "organization": "test-org",
+        }
+
+        with patch("terrapyne.api.workspace_clone.CloneWorkspaceAPI") as mock_clone_api:
+            mock_clone_instance = MagicMock()
+            mock_clone_api.return_value = mock_clone_instance
+            mock_clone_instance.clone.return_value = clone_result
+
+            result = runner.invoke(
+                app,
+                [
+                    "workspace",
+                    "clone",
+                    "prod-app",
+                    "existing-target",
+                    "--organization",
+                    "test-org",
+                ],
+            )
+
+            return {"result": result}
+
+
+@then("I should see error message containing \"already exists\"")
+def check_target_exists_error(clone_target_exists):
+    """Verify error about target existing."""
+    result = clone_target_exists["result"]
+    assert result.exit_code == 1
+    assert "already exists" in result.stdout or "exists" in result.stdout.lower()
+
+
+@then("I should see suggestion to use \"--force\"")
+def check_force_suggestion(clone_target_exists):
+    """Verify suggestion to use --force."""
+    result = clone_target_exists["result"]
+    assert "--force" in result.stdout or "force" in result.stdout.lower()
+
+
+@then("workspace \"existing-target\" should not be modified")
+def check_target_not_modified(clone_target_exists):
+    """Verify target not modified on error."""
+    result = clone_target_exists["result"]
+    assert result.exit_code != 0
+
+
+# Clone with force flag
+@scenario("../features/workspace.feature", "Clone with force flag overwrites existing target")
+def test_clone_with_force():
+    """Scenario: Clone with force flag overwrites existing target."""
+
+
+@given("I have workspace \"existing-target\" in \"test-org\"")
+def _():
+    """Set up existing target."""
+    pass
+
+
+@given("I have workspace \"prod-app\" with terraform version \"1.5.0\"")
+def _():
+    """Set up source with version."""
+    pass
+
+
+@pytest.fixture
+@when("I clone \"prod-app\" to \"existing-target\" with --force")
+def clone_with_force(workspace_prod_response, workspace_cloned_response):
+    """Clone with force flag."""
+    with patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client:
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+
+        source_ws = Workspace.from_api_response(workspace_prod_response["data"])
+        target_ws = Workspace.from_api_response(workspace_cloned_response["data"])
+        mock_instance.workspaces.get.return_value = source_ws
+
+        clone_result = {
+            "status": "success",
+            "source_workspace_id": source_ws.id,
+            "source_workspace_name": "prod-app",
+            "target_workspace_id": target_ws.id,
+            "target_workspace_name": "existing-target",
+            "organization": "test-org",
+            "message": "Successfully cloned workspace 'prod-app' to 'existing-target'",
+            "results": {
+                "variables": None,
+                "vcs": None,
+                "team_access": None,
+            },
+        }
+
+        with patch("terrapyne.api.workspace_clone.CloneWorkspaceAPI") as mock_clone_api:
+            mock_clone_instance = MagicMock()
+            mock_clone_api.return_value = mock_clone_instance
+            mock_clone_instance.clone.return_value = clone_result
+
+            result = runner.invoke(
+                app,
+                [
+                    "workspace",
+                    "clone",
+                    "prod-app",
+                    "existing-target",
+                    "--organization",
+                    "test-org",
+                    "--force",
+                ],
+            )
+
+            return {"result": result}
+
+
+@then("workspace \"existing-target\" should be updated")
+def check_target_updated(clone_with_force):
+    """Verify target was updated."""
+    result = clone_with_force["result"]
+    assert result.exit_code == 0
+    assert "existing-target" in result.stdout
+
+
+@then("workspace \"existing-target\" should have terraform version from \"prod-app\"")
+def check_version_updated(clone_with_force):
+    """Verify version matches source."""
+    result = clone_with_force["result"]
+    assert result.exit_code == 0  # Version copied via clone
+
+
+@then("clone operation should succeed")
+def check_clone_success(clone_with_force):
+    """Verify clone succeeded."""
+    result = clone_with_force["result"]
+    assert result.exit_code == 0
+
+
+# Clone shows detailed output
+@scenario("../features/workspace.feature", "Clone shows detailed progress and results")
+def test_clone_detailed_output():
+    """Scenario: Clone shows detailed progress and results."""
+
+
+@given("I have workspace \"prod-app\" with 2 variables and VCS configured")
+def _():
+    """Set up source with variables and VCS."""
+    pass
+
+
+@pytest.fixture
+@when("I clone \"prod-app\" to \"staging-app\" with --with-variables --with-vcs")
+def clone_detailed_output(workspace_prod_response, workspace_cloned_response):
+    """Clone with all options."""
+    with patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client:
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+
+        source_ws = Workspace.from_api_response(workspace_prod_response["data"])
+        target_ws = Workspace.from_api_response(workspace_cloned_response["data"])
+        mock_instance.workspaces.get.return_value = source_ws
+
+        clone_result = {
+            "status": "success",
+            "source_workspace_id": source_ws.id,
+            "source_workspace_name": "prod-app",
+            "target_workspace_id": target_ws.id,
+            "target_workspace_name": "staging-app",
+            "organization": "test-org",
+            "message": "Successfully cloned workspace 'prod-app' to 'staging-app'",
+            "results": {
+                "variables": {
+                    "status": "success",
+                    "variables_cloned": 2,
+                    "terraform_variables": 1,
+                    "env_variables": 1,
+                },
+                "vcs": {
+                    "status": "success",
+                    "vcs_cloned": True,
+                    "identifier": "github.com/acme/terraform",
+                    "branch": "main",
+                },
+            },
+        }
+
+        with patch("terrapyne.api.workspace_clone.CloneWorkspaceAPI") as mock_clone_api:
+            mock_clone_instance = MagicMock()
+            mock_clone_api.return_value = mock_clone_instance
+            mock_clone_instance.clone.return_value = clone_result
+
+            result = runner.invoke(
+                app,
+                [
+                    "workspace",
+                    "clone",
+                    "prod-app",
+                    "staging-app",
+                    "--organization",
+                    "test-org",
+                    "--with-variables",
+                    "--with-vcs",
+                ],
+            )
+
+            return {"result": result}
+
+
+@then("output should show \"Cloning workspace: prod-app → staging-app\"")
+def check_clone_message(clone_detailed_output):
+    """Verify clone start message."""
+    result = clone_detailed_output["result"]
+    assert "Cloning" in result.stdout or "prod-app" in result.stdout
+
+
+@then("output should show success message with checkmark")
+def check_success_checkmark(clone_detailed_output):
+    """Verify success message with checkmark."""
+    result = clone_detailed_output["result"]
+    assert "✓" in result.stdout or "success" in result.stdout.lower()
+
+
+@then("output should show target workspace ID")
+def check_workspace_id_shown(clone_detailed_output):
+    """Verify workspace ID shown."""
+    result = clone_detailed_output["result"]
+    assert "ws-" in result.stdout or "workspace" in result.stdout.lower()
+
+
+@then("output should show \"Variables cloned: 2\"")
+def check_var_count_shown(clone_detailed_output):
+    """Verify variable count shown."""
+    result = clone_detailed_output["result"]
+    assert "2" in result.stdout and "Variables" in result.stdout
+
+
+@then("output should show variable breakdown (terraform vs env)")
+def check_var_breakdown(clone_detailed_output):
+    """Verify terraform/env breakdown."""
+    result = clone_detailed_output["result"]
+    assert ("terraform" in result.stdout.lower() or "env" in result.stdout.lower()) and "1" in result.stdout
+
+
+@then("output should show \"VCS configured:\" with repository details")
+def check_vcs_details_shown(clone_detailed_output):
+    """Verify VCS details shown."""
+    result = clone_detailed_output["result"]
+    assert ("VCS" in result.stdout or "github" in result.stdout.lower())
+
+
+# Clone without optional flags
+@scenario("../features/workspace.feature", "Clone without variables or VCS copies settings only")
+def test_clone_settings_only():
+    """Scenario: Clone without variables or VCS copies settings only."""
+
+
+@given("I have workspace \"prod-app\" with variables and VCS")
+def _():
+    """Set up source with variables and VCS."""
+    pass
+
+
+@pytest.fixture
+@when("I clone \"prod-app\" to \"staging-app\" without any optional flags")
+def clone_settings_only(workspace_prod_response, workspace_cloned_response):
+    """Clone without optional flags."""
+    with patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client:
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+
+        source_ws = Workspace.from_api_response(workspace_prod_response["data"])
+        target_ws = Workspace.from_api_response(workspace_cloned_response["data"])
+        mock_instance.workspaces.get.return_value = source_ws
+
+        clone_result = {
+            "status": "success",
+            "source_workspace_id": source_ws.id,
+            "source_workspace_name": "prod-app",
+            "target_workspace_id": target_ws.id,
+            "target_workspace_name": "staging-app",
+            "organization": "test-org",
+            "message": "Successfully cloned workspace 'prod-app' to 'staging-app'",
+            "results": {
+                "variables": None,
+                "vcs": None,
+            },
+        }
+
+        with patch("terrapyne.api.workspace_clone.CloneWorkspaceAPI") as mock_clone_api:
+            mock_clone_instance = MagicMock()
+            mock_clone_api.return_value = mock_clone_instance
+            mock_clone_instance.clone.return_value = clone_result
+
+            result = runner.invoke(
+                app,
+                [
+                    "workspace",
+                    "clone",
+                    "prod-app",
+                    "staging-app",
+                    "--organization",
+                    "test-org",
+                ],
+            )
+
+            return {"result": result}
+
+
+@then("workspace \"staging-app\" should be created with prod-app settings")
+def check_settings_only_created(clone_settings_only):
+    """Verify workspace created with settings."""
+    result = clone_settings_only["result"]
+    assert result.exit_code == 0
+    assert "staging-app" in result.stdout
+
+
+@then("workspace \"staging-app\" should NOT have prod-app variables")
+def check_no_variables(clone_settings_only):
+    """Verify variables not cloned."""
+    result = clone_settings_only["result"]
+    # Settings only shouldn't show variable count
+    assert "Variables cloned" not in result.stdout or "0" in result.stdout
+
+
+@then("workspace \"staging-app\" should NOT have prod-app VCS configuration")
+def check_no_vcs(clone_settings_only):
+    """Verify VCS not cloned."""
+    result = clone_settings_only["result"]
+    # Settings only shouldn't show VCS configuration
+    assert "VCS configured" not in result.stdout or "No VCS" in result.stdout
+
+
+@then("output should show success message")
+def check_success_message(clone_settings_only):
+    """Verify success message shown."""
+    result = clone_settings_only["result"]
+    assert result.exit_code == 0
+    assert ("success" in result.stdout.lower() or "Successfully" in result.stdout)

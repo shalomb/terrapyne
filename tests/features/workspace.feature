@@ -87,3 +87,92 @@ Feature: Workspace Operations
     When I list workspaces with --organization "other-org"
     Then I should list workspaces from "other-org"
     And should ignore context organization
+
+  # Workspace Clone Feature Scenarios
+
+  Scenario: Clone workspace with basic settings only
+    Given I have workspace "prod-app" in organization "test-org"
+    When I clone workspace "prod-app" to "staging-app"
+    Then new workspace "staging-app" should be created
+    And workspace "staging-app" should have same terraform version as "prod-app"
+    And workspace "staging-app" should have same execution mode as "prod-app"
+    And workspace "staging-app" should have same auto-apply setting as "prod-app"
+    And exit code should be 0
+
+  Scenario: Clone workspace with variables
+    Given I have workspace "prod-app" with 3 variables
+    And variables include both terraform and environment types
+    And some variables are marked as sensitive
+    When I clone workspace "prod-app" to "staging-app" with --with-variables
+    Then new workspace "staging-app" should be created
+    And workspace "staging-app" should have 3 variables
+    And all variables should preserve their category (terraform/env)
+    And all variables should preserve their sensitive flags
+    And output should show "Variables cloned: 3"
+    And exit code should be 0
+
+  Scenario: Clone workspace with VCS configuration
+    Given I have workspace "prod-app" with VCS repository configured
+    And VCS repository is "github.com/acme/terraform" on branch "main"
+    When I clone workspace "prod-app" to "staging-app" with --with-vcs
+    Then new workspace "staging-app" should be created
+    And workspace "staging-app" should have same VCS configuration
+    And VCS repository should be "github.com/acme/terraform"
+    And VCS branch should be "main"
+    And output should show VCS configuration details
+    And exit code should be 0
+
+  Scenario: Clone workspace with variables and VCS
+    Given I have workspace "prod-app" with variables and VCS configured
+    When I clone workspace "prod-app" to "staging-app" with --with-variables --with-vcs
+    Then new workspace "staging-app" should be created
+    And workspace "staging-app" should have same variables
+    And workspace "staging-app" should have same VCS configuration
+    And output should show both variable and VCS counts
+    And exit code should be 0
+
+  Scenario: Clone fails when source workspace not found
+    Given workspace "non-existent" does not exist in "test-org"
+    When I try to clone "non-existent" to "target-app"
+    Then I should see error message containing "not found"
+    And I should see error message containing "non-existent"
+    And workspace "target-app" should not be created
+    And exit code should be 1
+
+  Scenario: Clone fails when target workspace already exists
+    Given I have workspace "existing-target" in "test-org"
+    And I have workspace "prod-app" in "test-org"
+    When I try to clone "prod-app" to "existing-target"
+    Then I should see error message containing "already exists"
+    And I should see suggestion to use "--force"
+    And workspace "existing-target" should not be modified
+    And exit code should be 1
+
+  Scenario: Clone with force flag overwrites existing target
+    Given I have workspace "existing-target" in "test-org"
+    And I have workspace "prod-app" with terraform version "1.5.0"
+    When I clone "prod-app" to "existing-target" with --force
+    Then workspace "existing-target" should be updated
+    And workspace "existing-target" should have terraform version from "prod-app"
+    And clone operation should succeed
+    And exit code should be 0
+
+  Scenario: Clone shows detailed progress and results
+    Given I have workspace "prod-app" with 2 variables and VCS configured
+    When I clone "prod-app" to "staging-app" with --with-variables --with-vcs
+    Then output should show "Cloning workspace: prod-app → staging-app"
+    And output should show success message with checkmark
+    And output should show target workspace ID
+    And output should show "Variables cloned: 2"
+    And output should show variable breakdown (terraform vs env)
+    And output should show "VCS configured:" with repository details
+    And exit code should be 0
+
+  Scenario: Clone without variables or VCS copies settings only
+    Given I have workspace "prod-app" with variables and VCS
+    When I clone "prod-app" to "staging-app" without any optional flags
+    Then workspace "staging-app" should be created with prod-app settings
+    And workspace "staging-app" should NOT have prod-app variables
+    And workspace "staging-app" should NOT have prod-app VCS configuration
+    And output should show success message
+    And exit code should be 0
