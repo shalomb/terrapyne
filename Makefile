@@ -103,6 +103,9 @@ test-unit: ## Run unit tests only
 test-integration: ## Run integration tests (needs terraform + network)
 	uv run pytest tests/ -v --no-cov -m "integration"
 
+test-uat: ## Run UAT tests (needs TFC credentials, read-only)
+	uv run pytest tests/uat/ -v --no-cov -m "uat" -o "addopts="
+
 format: ## Format code with ruff
 	uv run ruff format src/ tests/
 

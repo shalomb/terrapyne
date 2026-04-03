@@ -41,7 +41,10 @@ class WorkspaceAPI:
 
         params = {}
         if search:
-            params["search[name]"] = search
+            if "*" in search:
+                params["search[wildcard-name]"] = search
+            else:
+                params["search[name]"] = search
         if project_id:
             params["filter[project][id]"] = project_id
 

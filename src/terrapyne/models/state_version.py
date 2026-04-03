@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from terrapyne.models.utils import parse_iso_datetime
 
@@ -32,8 +32,7 @@ class StateVersion(BaseModel):
     resources_processed: bool = Field(False, alias="resources-processed")
     run_id: str | None = None
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     @classmethod
     def from_api_response(cls, data: dict[str, Any]) -> StateVersion:

@@ -230,6 +230,7 @@ def run_plan(
 def run_logs(
     run_id: str = typer.Argument(..., help="Run ID"),
     log_type: str = typer.Option("plan", "--type", "-t", help="Log type: plan or apply"),
+    organization: str | None = typer.Option(None, "--organization", "-o", help="TFC organization"),
 ):
     """View plan or apply logs for a run.
 
@@ -240,7 +241,9 @@ def run_logs(
         # View apply logs
         terrapyne run logs run-abc123 --type apply
     """
-    with TFCClient() as client:
+    org, _ = validate_context(organization)
+
+    with TFCClient(organization=org) as client:
         run = client.runs.get(run_id)
 
         console.print(
@@ -251,12 +254,24 @@ def run_logs(
             if not run.apply_id:
                 console.print("[yellow]No apply logs available for this run.[/yellow]")
                 raise typer.Exit(1)
-            logs = client.runs.get_apply_logs(run.apply_id)
+            try:
+                logs = client.runs.get_apply_logs(run.apply_id)
+            except Exception:
+                console.print(
+                    "[yellow]Apply logs unavailable — run may have errored before apply started.[/yellow]"
+                )
+                raise typer.Exit(1) from None
         else:
             if not run.plan_id:
                 console.print("[yellow]No plan logs available for this run.[/yellow]")
                 raise typer.Exit(1)
-            logs = client.runs.get_plan_logs(run.plan_id)
+            try:
+                logs = client.runs.get_plan_logs(run.plan_id)
+            except Exception:
+                console.print(
+                    "[yellow]Plan logs unavailable — run may have errored before plan completed.[/yellow]"
+                )
+                raise typer.Exit(1) from None
 
         if not logs.strip():
             console.print("[yellow]Logs are empty (run may still be in progress).[/yellow]")

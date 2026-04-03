@@ -25,6 +25,7 @@ console = Console()
 @handle_cli_errors
 def list_projects(
     organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
+    search: str | None = typer.Option(None, "--search", "-s", help="Search projects by name"),
     limit: int = typer.Option(100, "--limit", "-n", help="Maximum number of projects to display"),
 ) -> None:
     """List all projects in organization."""
@@ -33,7 +34,7 @@ def list_projects(
     client = TFCClient(organization=org)
     project_api = ProjectAPI(client)
 
-    projects_iter, total_count = project_api.list(org)
+    projects_iter, total_count = project_api.list(org, search=search)
     projects = list(projects_iter)[:limit]
 
     if not projects:
@@ -41,7 +42,7 @@ def list_projects(
         sys.exit(0)
 
     # Get actual workspace counts
-    workspace_counts = project_api.get_workspace_counts(org)
+    workspace_counts = {} if search else project_api.get_workspace_counts(org)
 
     render_projects(
         projects,

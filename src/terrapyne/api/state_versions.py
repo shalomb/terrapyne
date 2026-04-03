@@ -24,12 +24,10 @@ class StateVersionsAPI:
     ) -> tuple[builtins.list[StateVersion], int | None]:
         """List state versions for a workspace.
 
-        Can filter by workspace ID or by org+name. The TFC API supports both.
-
         Args:
-            workspace_id: Workspace ID (used if org/name not provided)
-            organization: Organization name (for name-based filtering)
-            workspace_name: Workspace name (for name-based filtering)
+            workspace_id: Workspace ID (resolved to name+org automatically)
+            organization: Organization name
+            workspace_name: Workspace name
             limit: Maximum versions to return
 
         Returns:
@@ -38,11 +36,19 @@ class StateVersionsAPI:
         path = "/state-versions"
         params: dict[str, Any] = {}
 
+        # TFC API requires org+name, not workspace ID
+        if not (organization and workspace_name) and workspace_id:
+            from terrapyne.api.workspaces import WorkspaceAPI
+
+            ws = WorkspaceAPI(self.client).get_by_id(workspace_id)
+            workspace_name = ws.name
+            organization = self.client.get_organization()
+
         if organization and workspace_name:
             params["filter[organization][name]"] = organization
             params["filter[workspace][name]"] = workspace_name
         else:
-            params["filter[workspace][id]"] = workspace_id
+            raise ValueError("Either workspace_id or organization+workspace_name required")
 
         items_iter, total_count = self.client.paginate_with_meta(path, params=params)
 
@@ -114,7 +120,15 @@ class StateVersionsAPI:
             before = before.replace(tzinfo=UTC)
 
         path = "/state-versions"
-        params = {"filter[workspace][id]": workspace_id}
+        # Resolve workspace ID to name+org (TFC API requirement)
+        from terrapyne.api.workspaces import WorkspaceAPI
+
+        ws = WorkspaceAPI(self.client).get_by_id(workspace_id)
+        organization = self.client.get_organization()
+        params: dict[str, Any] = {
+            "filter[organization][name]": organization,
+            "filter[workspace][name]": ws.name,
+        }
 
         for item in self.client.paginate(path, params=params):
             sv = StateVersion.from_api_response(item)
