@@ -104,23 +104,29 @@ def state_list(
 
 @app.command("show")
 def state_show(
-    state_version_id: str | None = typer.Argument(None, help="State version ID"),
+    target: str | None = typer.Argument(
+        None, help="State version ID (sv-*), workspace name, or workspace ID (ws-*)"
+    ),
     workspace: str | None = typer.Option(None, "-w", "--workspace"),
     organization: str | None = typer.Option(None, "-o", "--organization"),
-    latest: bool = typer.Option(False, "--latest", help="Show the current/latest state version"),
 ) -> None:
-    """Show state version metadata."""
+    """Show state version metadata. Defaults to latest for the workspace."""
     org, ws_name = validate_context(organization, workspace)
 
     with TFCClient(organization=org) as client:
-        if latest or not state_version_id:
-            if not ws_name:
-                console.print("[red]Error: Workspace required for --latest[/red]")
-                raise typer.Exit(1)
-            ws = client.workspaces.get(ws_name, org)
-            sv = client.state_versions.get_current(ws.id)
+        if target and target.startswith("sv-"):
+            sv = client.state_versions.get(target)
         else:
-            sv = client.state_versions.get(state_version_id)
+            # Resolve workspace from target arg, -w flag, or context
+            resolve_ws = target or ws_name
+            if not resolve_ws:
+                console.print("[red]Error: Provide a workspace name or state version ID[/red]")
+                raise typer.Exit(1)
+            if resolve_ws.startswith("ws-"):
+                ws = client.workspaces.get_by_id(resolve_ws)
+            else:
+                ws = client.workspaces.get(resolve_ws, org)
+            sv = client.state_versions.get_current(ws.id)
 
     console.print(f"[bold]State Version:[/bold] {sv.id}")
     console.print(f"  Serial:     {sv.serial}")
@@ -158,7 +164,9 @@ def state_pull(
 
 @app.command("outputs")
 def state_outputs(
-    state_version_id: str | None = typer.Argument(None, help="State version ID (default: latest)"),
+    target: str | None = typer.Argument(
+        None, help="Workspace name, workspace ID (ws-*), or state version ID (sv-*)"
+    ),
     workspace: str | None = typer.Option(None, "-w", "--workspace"),
     organization: str | None = typer.Option(None, "-o", "--organization"),
     output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
@@ -167,13 +175,28 @@ def state_outputs(
     org, ws_name = validate_context(organization, workspace)
 
     with TFCClient(organization=org) as client:
-        if not state_version_id:
-            if not ws_name:
-                console.print("[red]Error: Workspace required when no state version ID given[/red]")
-                raise typer.Exit(1)
+        state_version_id = None
+
+        if target and target.startswith("sv-"):
+            # Explicit state version ID
+            state_version_id = target
+        elif target:
+            # Treat as workspace name or ID
+            if target.startswith("ws-"):
+                ws = client.workspaces.get_by_id(target)
+            else:
+                ws = client.workspaces.get(target, org)
+            sv = client.state_versions.get_current(ws.id)
+            state_version_id = sv.id
+        elif ws_name:
             ws = client.workspaces.get(ws_name, org)
             sv = client.state_versions.get_current(ws.id)
             state_version_id = sv.id
+        else:
+            console.print(
+                "[red]Error: Provide a workspace name, workspace ID, or state version ID[/red]"
+            )
+            raise typer.Exit(1)
 
         outputs = client.state_versions.list_outputs(state_version_id)
 
