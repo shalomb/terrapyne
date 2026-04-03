@@ -204,6 +204,7 @@ def workspace_variables(
 
     with TFCClient(organization=org) as client:
         ws = client.workspaces.get(cast(str, ws_name), org)
+        variables = client.workspaces.get_variables(ws.id)
 
         if not variables:
             console.print("[yellow]No variables configured in this workspace.[/yellow]")
@@ -307,6 +308,7 @@ def workspace_var_set(
 
     with TFCClient(organization=org) as client:
         ws = client.workspaces.get(cast(str, ws_name), org)
+        existing_variables: list[WorkspaceVariable] = client.workspaces.get_variables(ws.id)
 
         results = []
         for k, v in to_set.items():

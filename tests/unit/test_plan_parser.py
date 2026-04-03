@@ -118,17 +118,13 @@ Plan: 1 to add, 0 to change, 0 to destroy.
 """
 
     def _run_cli(self, args: list, tmp_path=None, stdin=None) -> "subprocess.CompletedProcess":
-        """Run terrapyne CLI from the worktree source via subprocess."""
-        import os
+        """Run terrapyne CLI using the current venv's Python."""
         import subprocess
         import sys
-        from pathlib import Path
 
-        src_root = str(Path(__file__).parent.parent.parent / "src")
-        env = {**os.environ, "PYTHONPATH": src_root}
         return subprocess.run(
             [sys.executable, "-m", "terrapyne"] + args,
-            capture_output=True, text=True, env=env,
+            capture_output=True, text=True,
             input=stdin,
         )
 
@@ -244,7 +240,6 @@ Plan: 1 to add, 0 to change, 0 to destroy.
         assert len(result["resource_changes"]) == 1
 
 
-import os
 from pathlib import Path
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures" / "plan_outputs"
@@ -279,12 +274,10 @@ def test_fixture_json_output_is_valid(fixture_file, tmp_path):
     import sys
     from pathlib import Path
 
-    src_root = str(Path(__file__).parent.parent.parent / "src")
-    env = {**os.environ, "PYTHONPATH": src_root}
     result = subprocess.run(
         [sys.executable, "-m", "terrapyne", "run", "parse-plan",
          str(fixture_file), "--format", "json"],
-        capture_output=True, text=True, env=env,
+        capture_output=True, text=True,
     )
     assert result.returncode == 0, f"exit={result.returncode}\nstderr: {result.stderr}"
     parsed = json.loads(result.stdout)  # raises on invalid JSON

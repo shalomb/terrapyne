@@ -17,6 +17,19 @@ from decouple import config
 
 sys.path.append(str(Path(f"{__file__}/../src").resolve()))
 
+
+@pytest.fixture(autouse=True)
+def restore_cwd():
+    """Restore the working directory after every test in this module.
+
+    Each test calls os.chdir(tmpdir) but never restores; this poisons the
+    cwd for other xdist workers, causing subprocess-based tests to fail
+    with ENOENT when the tempdir is deleted.
+    """
+    original = os.getcwd()
+    yield
+    os.chdir(original)
+
 import terrapyne
 import terrapyne.logging
 

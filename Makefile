@@ -86,10 +86,10 @@ test-typecheck: ## Rung 0.35: Type check (blocking, fast)
 	uv run mypy src/
 
 test-all: ## Rung 2.0: Full test suite (blocking)
-	uv run pytest tests/ -v --no-cov
+	uv run python -m pytest tests/ -v --no-cov
 
 test-coverage: ## Rung 3.0: Coverage report (informational)
-	uv run pytest tests/ --cov=src --cov-report=term --no-header -q --no-cov-on-fail || true
+	uv run python -m pytest tests/ --cov=src --cov-report=term --no-header -q --no-cov-on-fail || true
 
 test-fast: test-lint test-typecheck ## Inner loop: lint + typecheck (< 10s)
 
@@ -98,10 +98,10 @@ test-ci: test-lint test-typecheck test-all test-coverage ## Outer loop: full acc
 # --- End Test Accordion ---
 
 test-unit: ## Run unit tests only
-	uv run pytest tests/unit/ -v --no-cov
+	uv run python -m pytest tests/unit/ -v --no-cov
 
 test-integration: ## Run integration tests (needs terraform + network)
-	uv run pytest tests/ -v --no-cov -m "integration"
+	uv run python -m pytest tests/ -v --no-cov -m "integration"
 
 test-uat: ## Run UAT tests (needs TFC credentials, read-only)
 	uv run pytest tests/uat/ -v --no-cov -m "uat" -o "addopts="
