@@ -30,6 +30,7 @@ def team_list(
     search: str | None = typer.Option(
         None, "--search", "-s", help="Search teams by name (substring match)"
     ),
+    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ):
     """List teams in an organization.
 
@@ -53,6 +54,12 @@ def team_list(
 
         if not teams:
             console.print("[yellow]No teams found.[/yellow]")
+            return
+
+        if output_format == "json":
+            from terrapyne.cli.utils import emit_json
+
+            emit_json([{"id": t.id, "name": t.name, "created_at": t.created_at} for t in teams])
             return
 
         # Render teams table
