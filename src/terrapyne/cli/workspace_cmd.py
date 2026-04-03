@@ -755,23 +755,31 @@ def workspace_costs(
 
     with TFCClient(organization=org) as client:
         ws = client.workspaces.get(cast(str, ws_name), org)
-        runs, _ = client.runs.list(ws.id, limit=1)
-        if not runs or not runs[0].cost_estimate:
+        cost_estimate = client.runs.get_latest_cost_estimate(ws.id)
+        if not cost_estimate:
             console.print("[yellow]No cost estimates available for the latest run.[/yellow]")
             return
 
-        cost_estimate = runs[0].cost_estimate
-        monthly = cost_estimate.get("proposed_monthly_cost", "0.0")
-        delta = cost_estimate.get("delta_monthly_cost", "0.0")
+        monthly = cost_estimate.get("monthly", "0.0")
+        delta = cost_estimate.get("delta", "0.0")
+
+        try:
+            monthly_val = float(monthly)
+            delta_raw = float(delta)
+        except ValueError:
+            monthly_val = 0.0
+            delta_raw = 0.0
 
         # Add + sign if positive
-        if delta and not delta.startswith("-") and float(delta) > 0:
+        if delta_raw > 0:
             delta_prefix = "+$"
-        elif delta.startswith("-"):
+            delta_val = delta_raw
+        elif delta_raw < 0:
             delta_prefix = "-$"
-            delta = delta[1:]
+            delta_val = abs(delta_raw)
         else:
             delta_prefix = "$"
+            delta_val = 0.0
 
-        console.print(f"Estimated monthly cost: ${monthly}")
-        console.print(f"Cost delta: {delta_prefix}{delta}")
+        console.print(f"Estimated monthly cost: ${monthly_val:.2f}")
+        console.print(f"Cost delta: {delta_prefix}{delta_val:.2f}")

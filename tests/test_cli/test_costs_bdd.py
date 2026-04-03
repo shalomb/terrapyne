@@ -66,16 +66,10 @@ def workspace_exists(mock_api_client: MagicMock, workspace_name: str) -> None:
 @given(parsers.parse('the latest run for "{workspace_name}" has a cost estimate of ${monthly} monthly with a ${delta} delta'))
 def latest_run_has_cost_estimate(mock_api_client: MagicMock, workspace_name: str, monthly: str, delta: str) -> None:
     """Mock the latest run with a cost estimate."""
-    run = Run(
-        id="run-costs-test",
-        status=RunStatus.PLANNED,
-        workspace={"id": f"ws-{workspace_name}", "name": workspace_name},
-        cost_estimate={
-            "proposed_monthly_cost": f"{monthly}.00",
-            "delta_monthly_cost": f"{delta}.00"
-        }
-    )
-    mock_api_client.runs.list.return_value = ([run], 1)
+    mock_api_client.runs.get_latest_cost_estimate.return_value = {
+        "monthly": f"{monthly}.00",
+        "delta": f"{delta}.00"
+    }
 
 
 @given(parsers.parse('a Terraform Cloud project "{project_name}" exists'))
@@ -99,20 +93,14 @@ def project_workspaces_have_cost_estimates(mock_api_client: MagicMock, project_n
         2
     )
     
-    def list_runs(workspace_id, **kwargs):
+    def get_costs(workspace_id, **kwargs):
         if workspace_id == "ws-1":
-            return ([Run(
-                id="run-1", status=RunStatus.PLANNED,
-                cost_estimate={"proposed_monthly_cost": str(int(total_monthly) // 2) + ".00", "delta_monthly_cost": "0.0"}
-            )], 1)
+            return {"monthly": str(int(total_monthly) // 2) + ".00", "delta": "0.0"}
         elif workspace_id == "ws-2":
-            return ([Run(
-                id="run-2", status=RunStatus.PLANNED,
-                cost_estimate={"proposed_monthly_cost": str(int(total_monthly) - int(total_monthly) // 2) + ".00", "delta_monthly_cost": "0.0"}
-            )], 1)
-        return ([], 0)
+            return {"monthly": str(int(total_monthly) - int(total_monthly) // 2) + ".00", "delta": "0.0"}
+        return None
         
-    mock_api_client.runs.list.side_effect = list_runs
+    mock_api_client.runs.get_latest_cost_estimate.side_effect = get_costs
 
 
 # --- When Steps ---

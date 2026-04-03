@@ -192,9 +192,9 @@ def project_costs(
         total_monthly = 0.0
 
         for ws in workspaces:
-            runs, _ = client.runs.list(ws.id, limit=1)
-            if runs and runs[0].cost_estimate:
-                cost = runs[0].cost_estimate.get("proposed_monthly_cost", "0.0")
+            cost_estimate = client.runs.get_latest_cost_estimate(ws.id)
+            if cost_estimate:
+                cost = cost_estimate.get("monthly", "0.0")
                 total_monthly += float(cost)
 
         console.print(f"Total project estimated monthly cost: ${total_monthly:.2f}")
