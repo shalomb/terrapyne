@@ -36,29 +36,43 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-        cache: pip
 
     - name: Restore cached virtualenv
       uses: actions/cache/restore@v4
       with:
-        key: venv-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}
+        key: venv-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('pyproject.toml','uv.lock') }}
         path: venv
 
-    - name: Install dependencies
-      run: |
-        make init
-        echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
-        echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
+    - name: Install uv (astral action)
+      uses: astral-sh/setup-uv@v1
 
-    - name: Run tests
-      run: |
-          DEBUG=1 make test
+    - name: Install Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_wrapper: false
+
+    - name: Bootstrap (make init)
+      run: make init
+
+    - name: "Rung 0.5: Lint"
+      run: make test-lint
+
+    - name: "Rung 0.35: Typecheck"
+      run: make test-typecheck
+
+    - name: "Rung 2.0: Tests"
+      run: make test-all
+
+    - name: "Rung 3.0: Coverage report"
+      if: always()
+      continue-on-error: true
+      run: make test-coverage
 
     - name: Saved cached virtualenv
       if: always()
       uses: actions/cache/save@v4
       with:
-        key: venv-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}
+        key: venv-${{ runner.os }}-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('pyproject.toml','uv.lock') }}
         path: venv
 
 # https://adamj.eu/tech/2023/11/02/github-actions-faster-python-virtual-environments/

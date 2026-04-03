@@ -2,25 +2,24 @@
 
 # -*- coding: utf-8 -*-
 
-from functools import cached_property
-from pathlib import Path
-from shutil import which
-from subprocess import Popen, PIPE
-from textwrap import dedent
-from typing import Tuple, Any, TypeAlias, Union
 import json
 import logging as log
-from benedict import benedict
 import os
 import re
+from pathlib import Path
+from shutil import which
+from subprocess import PIPE, Popen
+from textwrap import dedent
+from typing import Any
 
-from .utils import change_directory
+from benedict import benedict
+
 from . import exceptions
+from .utils import change_directory
 
-
-NullableDict: TypeAlias = Union[dict[Any, Any], None]
-NullableList: TypeAlias = Union[list, None]
-NullableStr: TypeAlias = Union[str, None]
+type NullableDict = dict[Any, Any] | None
+type NullableList = list | None
+type NullableStr = str | None
 
 
 class Terraform:
@@ -55,11 +54,10 @@ class Terraform:
         self.tfplan_name = "current.tfplan"  # Name by project
 
         assert self.version
-        if required_version is not None:
-            if self.version != required_version:
-                raise exceptions.TerraformVersionException(
-                    f"required version of terraform check failed: {self.version} != {required_version}"
-                )
+        if required_version is not None and self.version != required_version:
+            raise exceptions.TerraformVersionException(
+                f"required version of terraform check failed: {self.version} != {required_version}"
+            )
 
     @property
     def version(self) -> str:
@@ -73,7 +71,7 @@ class Terraform:
     def platform(self) -> str:
         return self._version_info.platform
 
-    def init(self, args: NullableList = None) -> Tuple[str, str, int]:
+    def init(self, args: NullableList = None) -> tuple[str, str, int]:
         return self.exec(
             cmd=["init", *(args or [])],
         )
@@ -92,7 +90,7 @@ class Terraform:
         args: NullableList = None,
         tfvars: NullableDict = None,
         envvars: NullableDict = None,
-    ) -> Tuple[str, str, int]:
+    ) -> tuple[str, str, int]:
         return self.exec(
             cmd=["plan", *(args or [])],
             tfvars=self.benedict(tfvars or {}),
@@ -104,7 +102,7 @@ class Terraform:
         args: NullableList = None,
         tfvars: NullableDict = None,
         envvars: NullableDict = None,
-    ) -> Tuple[str, str, int]:
+    ) -> tuple[str, str, int]:
         if not Path(self.tfplan_name).exists():
             self.init(args=["-backend=false"])
             self.plan(
@@ -123,12 +121,12 @@ class Terraform:
         )
         return benedict(json.loads(o), keypath_separator="¬")
 
-    def state(self, args: NullableList = None) -> Tuple[str, str, int]:
+    def state(self, args: NullableList = None) -> tuple[str, str, int]:
         return self.exec(
             cmd=["state", *(args or [""])],
         )
 
-    def dump(self, args: NullableList = None) -> Tuple[dict[Any, Any], str, int]:
+    def dump(self, args: NullableList = None) -> tuple[dict[Any, Any], str, int]:
         o, e, c = self.exec(
             cmd=["state", "pull", *(args or [""])],
         )
@@ -138,10 +136,10 @@ class Terraform:
         o, _, _ = self.dump()
         return benedict(o, keypath_separator="¬")
 
-    def destroy(self, args: NullableList = None) -> Tuple[str, str, int]:
+    def destroy(self, args: NullableList = None) -> tuple[str, str, int]:
         return self.exec(cmd=["destroy", *(args or [])])
 
-    def fmt(self) -> Tuple[str, str, int]:
+    def fmt(self) -> tuple[str, str, int]:
         return self.exec(
             cmd=["fmt", "-recursive"],
         )
@@ -180,7 +178,7 @@ class Terraform:
         Modules: [ {Key, Source, Dir} ]
         """
         if modinfo := Path(".terraform/modules/modules.json").resolve():
-            with open(modinfo, "r") as f:
+            with open(modinfo) as f:
                 r = f.read()
                 log.debug(f"R:{r} // f:{modinfo}")
                 return self.objectify(r)
@@ -226,7 +224,7 @@ class Terraform:
         ignore_exit_code=False,
         envvars: NullableDict = None,
         tfvars: NullableDict = None,
-    ) -> Tuple[str, str, int]:
+    ) -> tuple[str, str, int]:
         with change_directory(self.workspace_directory):
             cmd.insert(0, self.executable)
             log.debug(f"terraform.exec({cmd}) with {self.executable}")

@@ -79,6 +79,7 @@ class TestTerrapyneBase:
                 assert "0 changed" in _apply_out[0]
                 assert "0 destroyed" in _apply_out[0]
 
+    @pytest.mark.integration
     def test_minimal_layout(self) -> None:
         with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
             with tempfile.TemporaryDirectory() as tmpdir:
@@ -209,6 +210,7 @@ class TestTerrapyneBase:
                 assert _output_out.moo.value.foo == tfvars["moo"]["foo"]
                 assert _output_out.moo.value.baz == tfvars["moo"]["baz"]
 
+    @pytest.mark.integration
     def test_providers(self) -> None:
         with terrapyne.logging.cli_log_config(verbose=VERBOSITY, logger=log.root):
             with tempfile.TemporaryDirectory() as tmpdir:

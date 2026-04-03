@@ -7,8 +7,8 @@
 import logging
 import typing as t
 from textwrap import indent
-from pretty_traceback.formatting import exc_to_traceback_str
 
+from pretty_traceback.formatting import exc_to_traceback_str
 
 _ansi_colors = {
     "black": 30,
@@ -31,7 +31,7 @@ _ansi_colors = {
 }
 _ansi_reset_all = "\033[0m"
 
-Color = t.Union[int, t.Tuple[int, int, int], str]
+Color = t.Union[int, tuple[int, int, int], str]
 
 
 def _interpret_color(color: Color, offset: int = 0) -> str:
@@ -47,16 +47,16 @@ def _interpret_color(color: Color, offset: int = 0) -> str:
 
 def style(
     text: t.Any,
-    fg: t.Optional[Color] = None,
-    bg: t.Optional[Color] = None,
-    bold: t.Optional[bool] = None,
-    dim: t.Optional[bool] = None,
-    underline: t.Optional[bool] = None,
-    overline: t.Optional[bool] = None,
-    italic: t.Optional[bool] = None,
-    blink: t.Optional[bool] = None,
-    reverse: t.Optional[bool] = None,
-    strikethrough: t.Optional[bool] = None,
+    fg: Color | None = None,
+    bg: Color | None = None,
+    bold: bool | None = None,
+    dim: bool | None = None,
+    underline: bool | None = None,
+    overline: bool | None = None,
+    italic: bool | None = None,
+    blink: bool | None = None,
+    reverse: bool | None = None,
+    strikethrough: bool | None = None,
     reset: bool = True,
 ):
     if not isinstance(text, str):
@@ -107,7 +107,9 @@ default_formats = {
     #
     logging.ERROR: style("ERROR", fg="red") + " | " + style("%(message)s", fg="red"),
     #
-    logging.CRITICAL: style("FATAL", fg="white", bg="red", bold=True) + " | " + style("%(message)s", fg="red", bold=True),
+    logging.CRITICAL: style("FATAL", fg="white", bg="red", bold=True)
+    + " | "
+    + style("%(message)s", fg="red", bold=True),
 }
 
 
@@ -144,13 +146,15 @@ class PrettyExceptionFormatter(logging.Formatter):
 class MultiFormatter(PrettyExceptionFormatter):
     """Format log messages differently for each log level"""
 
-    def __init__(self, formats: t.Dict[int, str] = None, **kwargs):
+    def __init__(self, formats: dict[int, str] = None, **kwargs):
         base_format = kwargs.pop("fmt", None)
         super().__init__(base_format, **kwargs)
 
         formats = formats or default_formats
 
-        self.formatters = {level: PrettyExceptionFormatter(fmt, **kwargs) for level, fmt in formats.items()}
+        self.formatters = {
+            level: PrettyExceptionFormatter(fmt, **kwargs) for level, fmt in formats.items()
+        }
 
     def format(self, record: logging.LogRecord):
         formatter = self.formatters.get(record.levelno)
@@ -304,7 +308,9 @@ def cli_log_config(
 
     if filename:
         file_handler = logging.FileHandler(filename)
-        file_handler.setFormatter(PrettyExceptionFormatter("%(levelname)s:%(asctime)s:%(name)s:%(message)s", color=False))
+        file_handler.setFormatter(
+            PrettyExceptionFormatter("%(levelname)s:%(asctime)s:%(name)s:%(message)s", color=False)
+        )
         file_handler.setLevel(file_level)
         contexts.append(LoggingContext(logger=logger, handler=file_handler))
 
