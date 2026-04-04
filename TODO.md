@@ -26,9 +26,9 @@ Impact: 🔴 High (broken/unusable/blocks workflow), 🟡 Medium (annoying/worka
 | 10 | `--wait` flag for `run trigger`/`apply` to stream logs & exit w/ code on failure | 🔴 | M | 🏆 | TODO |
 | 5 | `tfc state show` without args should default to latest | 🟡 | S | ⭐ | ✅ PR #21 |
 | 2 | `tfc state outputs` without workspace should auto-detect from context | 🟡 | S | ⭐ | ✅ PR #21 |
-| 11 | `tfc workspace costs` to extract cost estimates (deltas and monthly) | 🟡 | M | ⭐ | TODO |
-| 12 | `tfc project costs` to aggregate cost estimates across workspaces | 🟡 | M | ⭐ | TODO |
-| 1 | `tfc project show` without args should resolve project from current workspace | 🟡 | M | ⭐ | ✅ PR |
+| 11 | `tfc workspace costs` to extract cost estimates (deltas and monthly) | 🟡 | M | ⭐ | ✅ PR #23 |
+| 12 | `tfc project costs` to aggregate cost estimates across workspaces | 🟡 | M | ⭐ | ✅ PR #23 |
+| 1 | `tfc project show` without args should resolve project from current workspace | 🟡 | M | ⭐ | ✅ PR #26 |
 | 1b | `tfc workspace show` 'single glance' snapshot (queued runs, health, VCS commit) | 🟡 | M | ⭐ | TODO |
 | 1c | `tfc project show` 'single glance' snapshot (workspaces summary, active runs) | 🟡 | M | ⭐ | TODO |
 | 13 | `--json` full structured output for `workspace show` and `project show` (for IDPs) | 🟡 | S | ⭐ | TODO |
