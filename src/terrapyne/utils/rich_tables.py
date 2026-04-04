@@ -1,7 +1,7 @@
 """Rich table formatters for TFC data."""
 
+import datetime
 from collections.abc import Sequence
-from datetime import UTC, datetime
 
 from rich.console import Console
 from rich.table import Table
@@ -162,8 +162,8 @@ def render_run_detail(
     renderer.render(run, console_instance=console)
 
 
-def _format_datetime(dt: datetime) -> str:
-    """Format datetime for display.
+def _format_datetime(dt: datetime.datetime) -> str:
+    """Format datetime.datetime for display.
 
     Args:
         dt: Datetime object
@@ -171,11 +171,11 @@ def _format_datetime(dt: datetime) -> str:
     Returns:
         Formatted string
     """
-    return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+    return dt.strftime("%Y-%m-%d %H:%M:%S datetime.UTC")
 
 
-def _format_relative_time(dt: datetime) -> str:
-    """Format datetime as relative time (e.g., '2h ago').
+def _format_relative_time(dt: datetime.datetime) -> str:
+    """Format datetime.datetime as relative time (e.g., '2h ago').
 
     Args:
         dt: Datetime object
@@ -183,10 +183,10 @@ def _format_relative_time(dt: datetime) -> str:
     Returns:
         Relative time string
     """
-    now = datetime.now(UTC)
+    now = datetime.datetime.now(datetime.UTC)
     # Ensure dt is timezone-aware
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=UTC)
+        dt = dt.replace(tzinfo=datetime.UTC)
 
     delta = now - dt
 

@@ -1,5 +1,6 @@
 """Run CLI commands."""
 
+import datetime
 from contextlib import suppress
 from pathlib import Path
 from typing import Annotated, Any
@@ -461,8 +462,6 @@ def run_errors(
         # Show errors in a specific project from last 7 days
         terrapyne run errors --project platform --days 7
     """
-    from datetime import UTC, datetime, timedelta
-
     # Resolve organization
     org, _ = validate_context(organization)
 
@@ -482,7 +481,7 @@ def run_errors(
 
         # 3. Fetch errored runs for each workspace
         errored_runs: list[tuple[Run, str]] = []
-        cutoff_date = datetime.now(UTC) - timedelta(days=days)
+        cutoff_date = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=days)
 
         with console.status("[bold green]Mining for errors...") as status:
             for ws in workspaces:
@@ -504,7 +503,11 @@ def run_errors(
 
         # 4. Sort by creation date (descending)
         errored_runs.sort(
-            key=lambda x: x[0].created_at or datetime.min.replace(tzinfo=UTC), reverse=True
+            key=lambda x: (
+                x[0].created_at
+                or __import__("datetime").datetime.min.replace(tzinfo=__import__("datetime").UTC)
+            ),
+            reverse=True,
         )
 
         # 5. Render results

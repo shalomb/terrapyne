@@ -7,9 +7,6 @@ from pathlib import Path
 from pytest_bdd import given, scenario, then, when, parsers
 from typer.testing import CliRunner
 
-import terrapyne
-print(f"DEBUG: terrapyne imported from {terrapyne.__file__}")
-
 from terrapyne.cli.main import app
 
 runner = CliRunner()

@@ -1,8 +1,6 @@
 """CLI tests for run commands - Refined for Adzic Index."""
 
 import pytest
-import sys
-print(f"DEBUG: sys.path={sys.path}")
 from pytest_bdd import given, scenario, then, when, parsers
 from typer.testing import CliRunner
 from unittest.mock import MagicMock, patch
@@ -417,9 +415,6 @@ def analyze_project_failures_step(project_errors_setup):
         mock_instance.runs.list.side_effect = mock_runs_list
 
         result = runner.invoke(app, ["run", "errors", "--project", project, "--organization", "test-org"])
-        if result.exit_code != 0:
-            print(f"DEBUG: run errors failed with exit_code={result.exit_code}")
-            print(f"DEBUG: stdout={result.stdout}")
         return result
 
 @then("I should see a report of all failed executions")
