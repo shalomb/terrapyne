@@ -781,6 +781,11 @@ def workspace_costs(
             cost = float(r.get("proposed-monthly-cost", 0))
             by_type[rtype] = by_type.get(rtype, 0) + cost
 
+        unpriced_types: dict[str, int] = {}
+        for r in resources.get("unmatched", []):
+            rtype = r["type"]
+            unpriced_types[rtype] = unpriced_types.get(rtype, 0) + 1
+
         if output_format == "json":
             from terrapyne.cli.utils import emit_json
 
@@ -793,6 +798,7 @@ def workspace_costs(
                     "matched_resources": matched,
                     "unmatched_resources": unmatched,
                     "by_resource_type": by_type,
+                    "unpriced_resource_types": unpriced_types,
                 }
             )
             return
@@ -806,10 +812,18 @@ def workspace_costs(
         else:
             console.print("  Delta:        $0.00")
         console.print(f"  Prior:        ${prior:,.2f}")
-        console.print(f"  Resources:    {matched} matched, {unmatched} unmatched")
+        console.print(f"  Resources:    {matched} priced, {unmatched} unpriced")
 
         if by_type:
-            console.print("\n  [dim]By resource type:[/dim]")
+            console.print("\n  [dim]Priced by resource type:[/dim]")
             for rtype, cost in sorted(by_type.items(), key=lambda x: -x[1]):
                 console.print(f"    {rtype:40s}  ${cost:>10,.2f}/mo")
+
+        if unpriced_types:
+            console.print(
+                f"\n  [yellow]⚠ {unmatched} resources not priced by TFC cost estimation:[/yellow]"
+            )
+            for rtype, count in sorted(unpriced_types.items()):
+                console.print(f"    {rtype:40s}  x{count}")
+
         console.print()
