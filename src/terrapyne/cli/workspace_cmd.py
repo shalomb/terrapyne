@@ -749,37 +749,67 @@ def workspace_costs(
         "-o",
         help="TFC organization (auto-detected from context if available)",
     ),
+    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ):
-    """Show cost estimates for the latest plan."""
+    """Show workspace TCO — total monthly cost from the latest cost estimate."""
     org, ws_name = validate_context(organization, workspace, require_workspace=True)
 
     with TFCClient(organization=org) as client:
         ws = client.workspaces.get(cast(str, ws_name), org)
-        cost_estimate = client.runs.get_latest_cost_estimate(ws.id)
-        if not cost_estimate:
-            console.print("[yellow]No cost estimates available for the latest run.[/yellow]")
+        ce = client.runs.get_latest_cost_estimate(ws.id)
+        if not ce:
+            console.print("[yellow]No finished cost estimates found in recent runs.[/yellow]")
             return
 
-        monthly = cost_estimate.get("monthly", "0.0")
-        delta = cost_estimate.get("delta", "0.0")
-
+        monthly = 0.0
+        prior = 0.0
+        delta = 0.0
         try:
-            monthly_val = float(monthly)
-            delta_raw = float(delta)
-        except ValueError:
-            monthly_val = 0.0
-            delta_raw = 0.0
+            monthly = float(ce.get("proposed-monthly-cost") or 0)
+            prior = float(ce.get("prior-monthly-cost") or 0)
+            delta = float(ce.get("delta-monthly-cost") or 0)
+        except (ValueError, TypeError):
+            pass
+        matched = ce.get("matched-resources-count", 0)
+        unmatched = ce.get("unmatched-resources-count", 0)
 
-        # Add + sign if positive
-        if delta_raw > 0:
-            delta_prefix = "+$"
-            delta_val = delta_raw
-        elif delta_raw < 0:
-            delta_prefix = "-$"
-            delta_val = abs(delta_raw)
+        # Resource breakdown by type
+        resources = ce.get("resources", {})
+        by_type: dict[str, float] = {}
+        for r in resources.get("matched", []):
+            rtype = r["type"]
+            cost = float(r.get("proposed-monthly-cost", 0))
+            by_type[rtype] = by_type.get(rtype, 0) + cost
+
+        if output_format == "json":
+            from terrapyne.cli.utils import emit_json
+
+            emit_json(
+                {
+                    "workspace": ws.name,
+                    "monthly_cost": monthly,
+                    "prior_monthly_cost": prior,
+                    "delta_monthly_cost": delta,
+                    "matched_resources": matched,
+                    "unmatched_resources": unmatched,
+                    "by_resource_type": by_type,
+                }
+            )
+            return
+
+        console.print(f"\n[bold]{ws.name}[/bold] — Cost Estimate\n")
+        console.print(f"  Monthly TCO:  [bold]${monthly:,.2f}[/bold]")
+        if delta > 0:
+            console.print(f"  Delta:        [red]+${delta:,.2f}[/red]")
+        elif delta < 0:
+            console.print(f"  Delta:        [green]-${abs(delta):,.2f}[/green]")
         else:
-            delta_prefix = "$"
-            delta_val = 0.0
+            console.print("  Delta:        $0.00")
+        console.print(f"  Prior:        ${prior:,.2f}")
+        console.print(f"  Resources:    {matched} matched, {unmatched} unmatched")
 
-        console.print(f"Estimated monthly cost: ${monthly_val:.2f}")
-        console.print(f"Cost delta: {delta_prefix}{delta_val:.2f}")
+        if by_type:
+            console.print("\n  [dim]By resource type:[/dim]")
+            for rtype, cost in sorted(by_type.items(), key=lambda x: -x[1]):
+                console.print(f"    {rtype:40s}  ${cost:>10,.2f}/mo")
+        console.print()

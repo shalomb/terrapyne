@@ -58,23 +58,36 @@ class RunsAPI:
 
         return runs, total_count
 
-    def get_latest_cost_estimate(self, workspace_id: str) -> dict[str, str] | None:
-        """Get the cost estimate for the latest run in a workspace."""
+    def get_latest_cost_estimate(self, workspace_id: str) -> dict[str, Any] | None:
+        """Get the latest finished cost estimate for a workspace.
+
+        Walks recent runs until one with a finished cost estimate is found.
+        Returns the full cost estimate attributes including resource breakdown.
+        """
         response = self.client.get(
-            f"/workspaces/{workspace_id}/runs", {"include": "cost_estimate", "page[size]": 1}
+            f"/workspaces/{workspace_id}/runs",
+            {"include": "cost_estimate", "page[size]": 10},
         )
 
         runs = response.get("data", [])
         if not runs:
             return None
 
-        for inc in response.get("included", []):
-            if inc.get("type") == "cost-estimates":
-                attrs = inc.get("attributes", {})
-                return {
-                    "monthly": attrs.get("proposed-monthly-cost", "0.0"),
-                    "delta": attrs.get("delta-monthly-cost", "0.0"),
-                }
+        cost_by_id = {
+            inc["id"]: inc["attributes"]
+            for inc in response.get("included", [])
+            if inc.get("type") == "cost-estimates"
+        }
+
+        for run in runs:
+            ce_rel = run.get("relationships", {}).get("cost-estimate", {}).get("data")
+            if not ce_rel:
+                continue
+            ce = cost_by_id.get(ce_rel["id"], {})
+            if ce.get("status") == "finished" and ce.get("proposed-monthly-cost"):
+                # Fetch full resource breakdown via direct endpoint
+                ce_full = self.client.get(f"/cost-estimates/{ce_rel['id']}")
+                return ce_full["data"]["attributes"]
 
         return None
 

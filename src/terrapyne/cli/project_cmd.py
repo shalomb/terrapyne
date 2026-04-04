@@ -193,23 +193,47 @@ def project_costs(
         "-o",
         help="TFC organization (auto-detected from context if available)",
     ),
+    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ):
-    """Aggregate cost estimates across a project."""
+    """Aggregate cost estimates across all workspaces in a project."""
     org, _ = validate_context(organization)
 
     with TFCClient(organization=org) as client:
-        # Resolve project from name or context
         org, project = resolve_project_context(client, org, project_name)
 
-        workspaces, _ = client.workspaces.list(org, project_id=project.id)
+        workspaces_iter, _ = client.workspaces.list(org, project_id=project.id)
 
         total_monthly = 0.0
+        ws_costs = []
 
-        for ws in workspaces:
-            cost_estimate = client.runs.get_latest_cost_estimate(ws.id)
-            if cost_estimate:
-                cost = cost_estimate.get("monthly", "0.0")
+        for ws in workspaces_iter:
+            ce = client.runs.get_latest_cost_estimate(ws.id)
+            monthly = 0.0
+            if ce and ce.get("proposed-monthly-cost"):
                 with contextlib.suppress(ValueError):
-                    total_monthly += float(cost)
+                    monthly = float(ce["proposed-monthly-cost"])
+            total_monthly += monthly
+            ws_costs.append({"workspace": ws.name, "monthly_cost": monthly})
 
-        console.print(f"Total project estimated monthly cost: ${total_monthly:.2f}")
+        if output_format == "json":
+            from terrapyne.cli.utils import emit_json
+
+            emit_json(
+                {
+                    "project": project.name,
+                    "total_monthly_cost": total_monthly,
+                    "workspaces": ws_costs,
+                }
+            )
+            return
+
+        console.print(f"\n[bold]{project.name}[/bold] — Project Cost Estimate\n")
+        console.print(f"  Total monthly: [bold]${total_monthly:,.2f}[/bold]")
+        console.print(f"  Workspaces:    {len(ws_costs)}\n")
+
+        if ws_costs:
+            for wc in sorted(ws_costs, key=lambda x: -float(str(x["monthly_cost"]))):
+                cost = float(str(wc["monthly_cost"]))
+                cost_str = f"${cost:,.2f}" if cost > 0 else "[dim]$0.00[/dim]"
+                console.print(f"    {wc['workspace']:50s}  {cost_str}")
+        console.print()
