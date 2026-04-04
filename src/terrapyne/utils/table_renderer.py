@@ -173,6 +173,14 @@ class WorkspaceDetailRenderer(DetailRenderer["Workspace"]):  # type: ignore
             ("Name", entity.name),
         ]
 
+        project_name = getattr(entity, "project_name", None)
+        project_id = getattr(entity, "project_id", None)
+
+        if project_name:
+            fields.append(("Project", project_name))
+        elif project_id:
+            fields.append(("Project ID", project_id))
+
         if entity.environment:
             fields.append(("Environment", entity.environment))
 

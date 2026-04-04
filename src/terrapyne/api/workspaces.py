@@ -72,8 +72,8 @@ class WorkspaceAPI:
         org = self.client.get_organization(organization)
         path = f"/organizations/{org}/workspaces/{workspace_name}"
 
-        response = self.client.get(path)
-        return Workspace.from_api_response(response["data"])
+        response = self.client.get(path, params={"include": "project"})
+        return Workspace.from_api_response(response["data"], response.get("included", []))
 
     def get_by_id(self, workspace_id: str) -> Workspace:
         """Get workspace by ID.
@@ -89,8 +89,8 @@ class WorkspaceAPI:
         """
         path = f"/workspaces/{workspace_id}"
 
-        response = self.client.get(path)
-        return Workspace.from_api_response(response["data"])
+        response = self.client.get(path, params={"include": "project"})
+        return Workspace.from_api_response(response["data"], response.get("included", []))
 
     def get_variables(self, workspace_id: str) -> list[WorkspaceVariable]:  # type: ignore[valid-type]  # noqa: A003
         """Get variables for a workspace.
