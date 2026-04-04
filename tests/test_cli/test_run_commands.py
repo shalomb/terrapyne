@@ -1,6 +1,8 @@
 """CLI tests for run commands - Refined for Adzic Index."""
 
 import pytest
+import sys
+print(f"DEBUG: sys.path={sys.path}")
 from pytest_bdd import given, scenario, then, when, parsers
 from typer.testing import CliRunner
 from unittest.mock import MagicMock, patch
@@ -361,22 +363,104 @@ def start_monitoring(run_id): pass
 @then("I should eventually see the final completion summary")
 def check_continuous_updates(): pass
 
-@given(parsers.parse('the project "{project}" has recently encountered execution errors:'))
-def project_errors_setup(project, datatable): pass
+@given(parsers.parse('the project "{project}" has recently encountered execution errors:'), target_fixture="project_errors_setup")
+def project_errors_setup_step(project, datatable):
+    from datetime import datetime, UTC, timedelta
+    # Set dates to very recent to ensure they pass the 'days' filter
+    now = datetime.now(UTC)
+    setup = []
+    for row in datatable:
+        if row[0] == 'workspace': continue
+        setup.append({
+            'workspace': row[0],
+            'run_id': row[1],
+            'message': row[2],
+            'created_at': (now - timedelta(minutes=10)).isoformat()
+        })
+    return {"project": project, "runs": setup}
 
-@when("I analyze recent project-wide execution failures")
-@when(parsers.parse('I analyze execution failures for the last "{days}" days'))
-def analyze_project_failures(days=None): pass
+@pytest.fixture
+@when("I analyze recent project-wide execution failures", target_fixture="analyze_project_failures")
+def analyze_project_failures_step(project_errors_setup):
+    from terrapyne.models.run import RunStatus
+    from terrapyne.models.project import Project
+    project = project_errors_setup["project"]
+    with patch("terrapyne.cli.run_cmd.TFCClient") as mock_client:
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+
+        # 1. Mock projects.list
+        proj = Project.model_construct(id="proj-123", name=project)
+        mock_instance.projects.list.return_value = ([proj], 1)
+
+        # 2. Mock workspaces.list
+        workspaces = []
+        for r in project_errors_setup["runs"]:
+            if not any(w.name == r['workspace'] for w in workspaces):
+                workspaces.append(Workspace.model_construct(id=f"ws-{r['workspace']}", name=r['workspace']))
+        mock_instance.workspaces.list.return_value = (iter(workspaces), len(workspaces))
+
+        # 3. Mock runs.list for each workspace
+        def mock_runs_list(workspace_id, limit=50, status=None):
+            ws_name = workspace_id.replace("ws-", "")
+            ws_runs = []
+            for r in project_errors_setup["runs"]:
+                if r['workspace'] == ws_name:
+                    ws_runs.append(Run.model_construct(
+                        id=r['run_id'],
+                        status=RunStatus.ERRORED,
+                        message=r['message'],
+                        created_at=datetime.fromisoformat(r['created_at'].replace('Z', '+00:00'))
+                    ))
+            return (ws_runs, len(ws_runs))
+        
+        mock_instance.runs.list.side_effect = mock_runs_list
+
+        result = runner.invoke(app, ["run", "errors", "--project", project, "--organization", "test-org"])
+        if result.exit_code != 0:
+            print(f"DEBUG: run errors failed with exit_code={result.exit_code}")
+            print(f"DEBUG: stdout={result.stdout}")
+        return result
 
 @then("I should see a report of all failed executions")
-@then("the report should include environment names, IDs, and error summaries")
-def check_failure_report(): pass
+def check_failure_report(analyze_project_failures):
+    assert analyze_project_failures.exit_code == 0
+    assert "run-aaa111" in analyze_project_failures.stdout
+    assert "run-bbb222" in analyze_project_failures.stdout
 
-@given(parsers.parse('no environments in project "{project}" have failed in the last "{days}" days'))
-def no_project_failures(project, days): pass
+@then("the report should include environment names, IDs, and error summaries")
+def check_failure_report_details(analyze_project_failures):
+    assert "Workspace" in analyze_project_failures.stdout
+    assert "Run ID" in analyze_project_failures.stdout
+    assert "Message" in analyze_project_failures.stdout
+
+@given(parsers.parse('no environments in project "{project}" have failed in the last "{days}" days'), target_fixture="no_project_failures")
+def no_project_failures_step(project, days):
+    return {"project": project, "days": int(days)}
+
+@pytest.fixture
+@when(parsers.parse('I analyze execution failures for the last "{days}" days'), target_fixture="analyze_project_failures_clean")
+def analyze_project_failures_clean_step(no_project_failures, days):
+    from terrapyne.models.project import Project
+    project = no_project_failures["project"]
+    with patch("terrapyne.cli.run_cmd.TFCClient") as mock_client:
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+
+        # Mock project found
+        proj = Project.model_construct(id="proj-123", name=project)
+        mock_instance.projects.list.return_value = ([proj], 1)
+        
+        # Mock no workspaces
+        mock_instance.workspaces.list.return_value = (iter([]), 0)
+
+        result = runner.invoke(app, ["run", "errors", "--project", project, "--days", str(days), "--organization", "test-org"])
+        return result
 
 @then("I should be notified that no project errors were found")
-def check_no_errors_msg(): pass
+def check_no_errors_msg(analyze_project_failures_clean):
+    assert "No errored runs found" in analyze_project_failures_clean.stdout
+    assert analyze_project_failures_clean.exit_code == 0
 
 # ============================================================================
 # Extra Listing steps
