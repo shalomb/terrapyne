@@ -1,73 +1,75 @@
-# TODO — Exploratory Testing Findings
+# Terrapyne — Backlog
 
-Bugs and improvements found during exploratory testing against live TFC.
+Consolidated from exploratory testing findings, FEEDBACK.md code review, and TODO items.
 
-## Development Requirements
-All new features and fixes must strictly follow:
-1. **Red/Green TDD**: Write a failing test first, make it pass with minimal code, then refactor.
-2. **Adzic BDD**: Use Gojko Adzic's Specification by Example principles to write `.feature` files.
-3. **ACP (Atomic Commit Protocol)**: Every commit must be atomic, verified, and use Conventional Commits.
+## Bugs
 
-## Test Environment
-For evaluating live TFC behavior, use the following workspace directory:
-- `/home/unop/oneTakeda/terraform-dce-developer-ShalomBhooshi/iac/dev`
+| # | Issue | Effort | Status |
+|---|---|---|---|
+| B1 | `workspace show/variables/vcs` discards resolved workspace name | S | ✅ PR #12 |
+| B2 | `run logs` missing `-o` flag | S | ✅ PR #13 |
+| B3 | `run logs` 404 on errored runs shows raw traceback | S | ✅ PR #13 |
+| B4 | `state outputs` treats workspace name as state version ID | S | ✅ PR #21 |
+| B5 | `state show` requires `--latest` instead of defaulting | S | ✅ PR #21 |
+| B6 | `state list` HTTP 400 — missing org filter | S | ✅ PR #8 |
+| B7 | `project find` takes 1m38s — client-side filtering | S | ✅ PR #20 |
+| B8 | Exit code 2 on help screens | S | ✅ PR #9, #14 |
+| B9 | `workspace list --project` silently ignored — name not resolved to ID | S | TODO |
+| B10 | `run list` truncates Run IDs — copy-paste unusable | S | TODO |
+| B11 | `parse-plan --format json` to stdout produces invalid JSON (Rich mangles it) | S | TODO |
+| B12 | `state diff` silently aborts on error | S | TODO |
+| B13 | `debug run`/`debug workspace` are stubs that exit 0 | S | TODO |
+| B14 | Pydantic V2 deprecation in `state_version.py` (`class Config`) | S | TODO |
 
-## Priority Matrix
+## Features
 
-Effort: S (< 30min), M (1-2h), L (half day+)
-Impact: 🔴 High (broken/unusable/blocks workflow), 🟡 Medium (annoying/workaround exists), 🟢 Low (nice-to-have)
+| # | Feature | Effort | Status |
+|---|---|---|---|
+| F1 | `--format json` on all list/show commands | M | ✅ PR #18 |
+| F2 | `--search` on workspace/team/project list | S | ✅ PR #10 |
+| F3 | Wildcard workspace search (`search[wildcard-name]`) | S | ✅ PR #10 |
+| F4 | `project show` without args resolves from current workspace | M | TODO |
+| F5 | `workspace show` enrichment (project name, last run, health) | M | TODO |
+| F6 | `--debug` flag for API call tracing to stderr | M | TODO |
+| F7 | `run parse-plan` stdin support (`-` for piping) | S | TODO |
+| F8 | `team access` / `team access-compare` CLI commands | M | TODO |
+| F9 | `vcs set-branch` (rename from `update-branch`) | S | TODO |
+| F10 | `--yes` on all mutating commands | M | TODO |
+| F11 | Local file-based response cache with TTL | L | TODO |
 
-| # | Finding | Impact | Effort | Score | Status |
-|---|---|---|---|---|---|
-| 7 | `tfc project find` takes 1m38s — use `filter[names]` for exact match | 🔴 | S | 🏆 | ✅ PR #20 |
-| 3 | `tfc state outputs 'workspace-name'` errors — arg treated as state version ID | 🔴 | S | 🏆 | ✅ PR #21 |
-| 4 | `tfc state outputs 'ws-ID'` errors — same arg ambiguity | 🔴 | S | 🏆 | ✅ PR #21 |
-| 9 | `--raw` flag for `state outputs` for single unquoted values (CI/CD friendly) | 🟡 | S | 🏆 | TODO |
-| 10 | `--wait` flag for `run trigger`/`apply` to stream logs & exit w/ code on failure | 🔴 | M | 🏆 | TODO |
-| 5 | `tfc state show` without args should default to latest | 🟡 | S | ⭐ | ✅ PR #21 |
-| 2 | `tfc state outputs` without workspace should auto-detect from context | 🟡 | S | ⭐ | ✅ PR #21 |
-| 11 | `tfc workspace costs` to extract cost estimates (deltas and monthly) | 🟡 | M | ⭐ | ✅ PR |
-| 12 | `tfc project costs` to aggregate cost estimates across workspaces | 🟡 | M | ⭐ | ✅ PR |
-| 1 | `tfc project show` without args should resolve project from current workspace | 🟡 | M | ⭐ | TODO |
-| 1b | `tfc workspace show` 'single glance' snapshot (queued runs, health, VCS commit) | 🟡 | M | ⭐ | TODO |
-| 1c | `tfc project show` 'single glance' snapshot (workspaces summary, active runs) | 🟡 | M | ⭐ | TODO |
-| 13 | `--json` full structured output for `workspace show` and `project show` (for IDPs) | 🟡 | S | ⭐ | TODO |
-| 14 | Restore test coverage minimum `fail-under` to 80% in `pyproject.toml` | 🔴 | S | 🏆 | TODO |
-| 6 | `--debug` flag for API call tracing (URLs, response codes, timing) | 🟡 | M | 💡 | TODO |
-| 8 | Local file-based response cache with TTL for expensive API calls | 🟢 | L | 💡 | TODO |
+## Quality
 
-## Remaining Details
+| # | Item | Effort | Status |
+|---|---|---|---|
+| Q1 | Coverage: 64% → 80% (state_versions 0%, CLI commands ~15%) | L | TODO |
+| Q2 | Stale `utils.py` alongside `utils/` package — audit/remove | S | TODO |
+| Q3 | `pyproject.toml` license/classifier mismatch | S | TODO |
+| Q4 | Development status classifier: Production/Stable → Alpha | S | TODO |
+| Q5 | `.gitignore`: exclude `build/`, `.ipynb_checkpoints/` | S | TODO |
+| Q6 | Import plan parser 30-fixture test suite from authoritative source | M | TODO |
+| Q7 | TFC 1.12+ structured log format: detect and warn | M | TODO |
 
-### 9. `--raw` flag for outputs (🏆)
-When extracting outputs for bash scripts (e.g., `DB_URL=$(tfc state outputs db_endpoint --raw)`), we need a way to return just the unquoted string value to stdout without the table formatting or JSON structure.
+## Priority Order
 
-### 10. CI/CD Wait States (🏆)
-`tfc run trigger` and `tfc run apply` need a `--wait` flag. It should block execution, stream the logs to stdout, and critically, exit with a non-zero exit code if the run fails. This is essential for using the CLI inside GitHub Actions or Jenkins pipelines.
+### Do now (S effort, high impact)
+1. B10 — Run ID truncation (`no_wrap=True`)
+2. B11 — `parse-plan` JSON stdout fix (`print()` not `console.print()`)
+3. B13 — Remove or mark debug stubs
+4. B14 — StateVersion ConfigDict
+5. Q3/Q4/Q5 — pyproject.toml + .gitignore housekeeping
 
-### 11 & 12. Workspace and Project Cost Estimates (⭐)
-Power users and FinOps need cost visibility without opening the UI.
-- `tfc workspace costs`: Look up the latest plan for a workspace and extract the estimated monthly cost and the cost delta (+/-).
-- `tfc project costs`: Iterate through all workspaces in a project, extract their cost estimates, and provide an aggregated total for the project.
+### Do next (S-M effort, medium impact)
+6. B9 — `--project` name resolution in workspace list
+7. F4 — `project show` from context
+8. F7 — `parse-plan` stdin support
+9. F10 — `--yes` on mutating commands
+10. B12 — `state diff` error surfacing
 
-### 1. Project show from context (⭐)
-`tfc project show` without args should resolve: context → workspace → project_id → project.
-Requires one extra API call (get workspace, read project_id relationship).
-
-### 1b. Workspace show enrichment (⭐)
-`tfc workspace show` should act as a 'single glance' snapshot for power engineers. It needs to show if there are runs planned, how many are queued/lined up, health status, and VCS commit info. Essentially recreating the GUI's high-level dashboard but optimized for the terminal.
-
-### 1c. Project show enrichment (⭐)
-`tfc project show` should similarly act as a 'single glance' snapshot. It could aggregate workspace health, show total active runs across the project, and summarize workspace counts.
-
-### 13. IDP-Friendly JSON Exports (⭐)
-For integrations with Service Catalogs (Backstage, Harness IDP), `workspace show` and `project show` must support a `--json` flag that outputs a stable, comprehensive schema containing all the aggregated snapshot data.
-
-### 6. Debug flag (💡)
-A `--debug` or `-v` flag that logs API calls (URL, method, status code, timing) to stderr.
-Could use Python's `logging` module with `httpx`'s event hooks. Useful for diagnosing
-slow commands and understanding what the tool is doing.
-
-### 8. Response caching (💡)
-Cache expensive API responses (workspace list, project list, team list) in
-`~/.cache/terrapyne/` with a configurable TTL (default 5min). Invalidate on any write
-operation. Would make repeated `tfc project show` or `tfc workspace list` near-instant.
+### Backlog (M-L effort, nice-to-have)
+11. F5 — Workspace show enrichment
+12. F6 — `--debug` flag
+13. F8 — Team access CLI commands
+14. F11 — Response caching
+15. Q1 — Coverage push to 80%
+16. Q6 — Import parser fixture suite
+17. Q7 — TFC 1.12+ structured log detection
