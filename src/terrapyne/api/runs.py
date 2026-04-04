@@ -58,6 +58,26 @@ class RunsAPI:
 
         return runs, total_count
 
+    def get_latest_cost_estimate(self, workspace_id: str) -> dict[str, str] | None:
+        """Get the cost estimate for the latest run in a workspace."""
+        response = self.client.get(
+            f"/workspaces/{workspace_id}/runs", {"include": "cost_estimate", "page[size]": 1}
+        )
+
+        runs = response.get("data", [])
+        if not runs:
+            return None
+
+        for inc in response.get("included", []):
+            if inc.get("type") == "cost-estimates":
+                attrs = inc.get("attributes", {})
+                return {
+                    "monthly": attrs.get("proposed-monthly-cost", "0.0"),
+                    "delta": attrs.get("delta-monthly-cost", "0.0"),
+                }
+
+        return None
+
     def get(self, run_id: str) -> Run:
         """Get run by ID.
 
