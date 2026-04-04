@@ -32,6 +32,7 @@ Impact: 🔴 High (broken/unusable/blocks workflow), 🟡 Medium (annoying/worka
 | 1b | `tfc workspace show` 'single glance' snapshot (queued runs, health, VCS commit) | 🟡 | M | ⭐ | TODO |
 | 1c | `tfc project show` 'single glance' snapshot (workspaces summary, active runs) | 🟡 | M | ⭐ | TODO |
 | 13 | `--json` full structured output for `workspace show` and `project show` (for IDPs) | 🟡 | S | ⭐ | TODO |
+| 14 | Restore test coverage minimum `fail-under` to 80% in `pyproject.toml` | 🔴 | S | 🏆 | TODO |
 | 6 | `--debug` flag for API call tracing (URLs, response codes, timing) | 🟡 | M | 💡 | TODO |
 | 8 | Local file-based response cache with TTL for expensive API calls | 🟢 | L | 💡 | TODO |
 
