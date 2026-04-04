@@ -20,6 +20,7 @@ Impact: 🔴 High (broken/unusable/blocks workflow), 🟡 Medium (annoying/worka
 | # | Finding | Impact | Effort | Score | Status |
 |---|---|---|---|---|---|
 | 7 | `tfc project find` takes 1m38s — use `filter[names]` for exact match | 🔴 | S | 🏆 | ✅ PR #20 |
+| 15 | Audit and refine BDD features to Adzic standard (Plan Parser, Runs) | 🔴 | M | 🏆 | ✅ PR #27 |
 | 3 | `tfc state outputs 'workspace-name'` errors — arg treated as state version ID | 🔴 | S | 🏆 | ✅ PR #21 |
 | 4 | `tfc state outputs 'ws-ID'` errors — same arg ambiguity | 🔴 | S | 🏆 | ✅ PR #21 |
 | 9 | `--raw` flag for `state outputs` for single unquoted values (CI/CD friendly) | 🟡 | S | 🏆 | TODO |
