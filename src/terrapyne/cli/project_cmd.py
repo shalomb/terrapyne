@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import sys
 
 import typer
@@ -195,6 +196,7 @@ def project_costs(
             cost_estimate = client.runs.get_latest_cost_estimate(ws.id)
             if cost_estimate:
                 cost = cost_estimate.get("monthly", "0.0")
-                total_monthly += float(cost)
+                with contextlib.suppress(ValueError):
+                    total_monthly += float(cost)
 
         console.print(f"Total project estimated monthly cost: ${total_monthly:.2f}")

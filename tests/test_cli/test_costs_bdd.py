@@ -36,24 +36,42 @@ def mock_api_client():
         
         yield mock_instance
 
-
 @scenario("../features/costs.feature", "Extract workspace costs from the latest plan")
 def test_workspace_costs() -> None:
-    """Extract workspace costs from the latest plan."""
     pass
 
+@scenario("../features/costs.feature", "Extract workspace costs with a cost decrease")
+def test_workspace_costs_decrease() -> None:
+    pass
+
+@scenario("../features/costs.feature", "Extract workspace costs with zero delta")
+def test_workspace_costs_zero() -> None:
+    pass
+
+@scenario("../features/costs.feature", "Extract workspace costs when no cost estimate is available")
+def test_workspace_costs_no_estimate() -> None:
+    pass
+
+@scenario("../features/costs.feature", "Extract workspace costs with invalid cost strings")
+def test_workspace_costs_invalid() -> None:
+    pass
 
 @scenario("../features/costs.feature", "Aggregate costs across a project")
 def test_project_costs() -> None:
-    """Aggregate costs across a project."""
     pass
 
+@scenario("../features/costs.feature", "Aggregate costs across a project with no workspaces")
+def test_project_costs_empty() -> None:
+    pass
+
+@scenario("../features/costs.feature", "Aggregate costs across a project with invalid cost strings")
+def test_project_costs_invalid() -> None:
+    pass
 
 # --- Given Steps ---
 
 @given(parsers.parse('a Terraform Cloud workspace "{workspace_name}" exists'))
 def workspace_exists(mock_api_client: MagicMock, workspace_name: str) -> None:
-    """Mock a workspace existing."""
     ws = Workspace(
         id=f"ws-{workspace_name}",
         name=workspace_name,
@@ -62,19 +80,33 @@ def workspace_exists(mock_api_client: MagicMock, workspace_name: str) -> None:
     )
     mock_api_client.workspaces.get_by_name.return_value = ws
 
-
 @given(parsers.parse('the latest run for "{workspace_name}" has a cost estimate of ${monthly} monthly with a ${delta} delta'))
 def latest_run_has_cost_estimate(mock_api_client: MagicMock, workspace_name: str, monthly: str, delta: str) -> None:
-    """Mock the latest run with a cost estimate."""
     mock_api_client.runs.get_latest_cost_estimate.return_value = {
         "monthly": f"{monthly}.00",
         "delta": f"{delta}.00"
     }
 
+@given(parsers.parse('the latest run for "{workspace_name}" has a cost estimate of ${monthly} monthly with a -${delta} delta'))
+def latest_run_has_cost_estimate_decrease(mock_api_client: MagicMock, workspace_name: str, monthly: str, delta: str) -> None:
+    mock_api_client.runs.get_latest_cost_estimate.return_value = {
+        "monthly": f"{monthly}.00",
+        "delta": f"-{delta}.00"
+    }
+
+@given(parsers.parse('the latest run for "{workspace_name}" has no cost estimate'))
+def latest_run_no_cost_estimate(mock_api_client: MagicMock, workspace_name: str) -> None:
+    mock_api_client.runs.get_latest_cost_estimate.return_value = None
+
+@given(parsers.parse('the latest run for "{workspace_name}" has an invalid cost estimate string'))
+def latest_run_invalid_cost_estimate(mock_api_client: MagicMock, workspace_name: str) -> None:
+    mock_api_client.runs.get_latest_cost_estimate.return_value = {
+        "monthly": "invalid_cost",
+        "delta": "invalid_delta"
+    }
 
 @given(parsers.parse('a Terraform Cloud project "{project_name}" exists'))
 def project_exists(mock_api_client: MagicMock, project_name: str) -> None:
-    """Mock a project existing."""
     from terrapyne.models.project import Project
     prj = Project(
         id=f"prj-{project_name}",
@@ -83,11 +115,8 @@ def project_exists(mock_api_client: MagicMock, project_name: str) -> None:
     )
     mock_api_client.projects.get_by_name.return_value = prj
 
-
 @given(parsers.parse('the project "{project_name}" contains workspaces with cost estimates totaling ${total_monthly} monthly'))
 def project_workspaces_have_cost_estimates(mock_api_client: MagicMock, project_name: str, total_monthly: str) -> None:
-    """Mock a project with multiple workspaces and cost estimates."""
-    # Simplified mock for the total project cost.
     mock_api_client.workspaces.list.return_value = (
         [Workspace(id="ws-1", name="ws-1"), Workspace(id="ws-2", name="ws-2")],
         2
@@ -102,38 +131,46 @@ def project_workspaces_have_cost_estimates(mock_api_client: MagicMock, project_n
         
     mock_api_client.runs.get_latest_cost_estimate.side_effect = get_costs
 
+@given(parsers.parse('the project "{project_name}" contains workspaces with invalid cost estimates'))
+def project_workspaces_invalid_cost_estimates(mock_api_client: MagicMock, project_name: str) -> None:
+    mock_api_client.workspaces.list.return_value = (
+        [Workspace(id="ws-1", name="ws-1")],
+        1
+    )
+    mock_api_client.runs.get_latest_cost_estimate.return_value = {
+        "monthly": "invalid_string",
+        "delta": "invalid_delta"
+    }
+
+@given(parsers.parse('the project "{project_name}" contains no workspaces'))
+def project_contains_no_workspaces(mock_api_client: MagicMock, project_name: str) -> None:
+    mock_api_client.workspaces.list.return_value = ([], 0)
 
 # --- When Steps ---
 
 @when(parsers.parse('I run "{command}"'), target_fixture="cli_result")
 def run_command(mock_api_client: MagicMock, command: str) -> object:
-    """Run a CLI command."""
     args = command.replace("tfc ", "").split()
     return runner.invoke(app, args, catch_exceptions=False)
-
 
 # --- Then Steps ---
 
 @then("the command should succeed")
 def command_succeeds(cli_result: object) -> None:
-    """Check that the command succeeded."""
     assert cli_result.exit_code == 0, f"Command failed: {cli_result.stdout}"
-
 
 @then(parsers.parse('the output should show an estimated monthly cost of "{expected_cost}"'))
 def output_shows_monthly_cost(cli_result: object, expected_cost: str) -> None:
-    """Check that the output contains the estimated monthly cost."""
     assert expected_cost in cli_result.stdout
-
 
 @then(parsers.parse('the output should show a cost delta of "{expected_delta}"'))
 def output_shows_cost_delta(cli_result: object, expected_delta: str) -> None:
-    """Check that the output contains the cost delta."""
     assert expected_delta in cli_result.stdout
 
+@then("the output should indicate no cost estimates are available")
+def output_indicates_no_cost_estimates(cli_result: object) -> None:
+    assert "No cost estimates available" in cli_result.stdout
 
 @then(parsers.parse('the output should show the total project estimated monthly cost of "{expected_cost}"'))
 def output_shows_total_project_cost(cli_result: object, expected_cost: str) -> None:
-    """Check that the output contains the total project estimated cost."""
     assert expected_cost in cli_result.stdout
-
