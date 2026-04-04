@@ -140,8 +140,10 @@ def show_project_details(project_context, project_detail_response):
 
     # CLI uses ProjectAPI(client) and WorkspaceAPI(client) directly
     with patch("terrapyne.cli.project_cmd.TFCClient"), \
+         patch("terrapyne.cli.project_cmd.resolve_project_context") as mock_resolve, \
          patch("terrapyne.cli.project_cmd.ProjectAPI") as mock_api_class, \
          patch("terrapyne.cli.project_cmd.WorkspaceAPI") as mock_ws_class:
+        mock_resolve.return_value = ("test-org", project)
         mock_api = MagicMock()
         mock_api_class.return_value = mock_api
         mock_api.get_by_name.return_value = project
@@ -225,7 +227,9 @@ def list_team_access(project_context, project_detail_response, team_project_acce
 
     # CLI uses ProjectAPI(client) directly — command name is 'teams' not 'access'
     with patch("terrapyne.cli.project_cmd.TFCClient"), \
+         patch("terrapyne.cli.project_cmd.resolve_project_context") as mock_resolve, \
          patch("terrapyne.cli.project_cmd.ProjectAPI") as mock_api_class:
+        mock_resolve.return_value = ("test-org", project)
         mock_api = MagicMock()
         mock_api_class.return_value = mock_api
         mock_api.get_by_name.return_value = project
