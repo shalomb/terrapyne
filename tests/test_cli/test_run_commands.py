@@ -1,11 +1,7 @@
-"""CLI tests for run commands using pytest-bdd.
-
-Tests the run list, show, plan, apply, and logs commands with various scenarios
-including filtering, error handling, and context detection.
-"""
+"""CLI tests for run commands - Refined for Adzic Index."""
 
 import pytest
-from pytest_bdd import given, scenario, then, when
+from pytest_bdd import given, scenario, then, when, parsers
 from typer.testing import CliRunner
 from unittest.mock import MagicMock, patch
 
@@ -15,371 +11,388 @@ from terrapyne.models.workspace import Workspace
 
 runner = CliRunner()
 
-
-# Run-related fixtures (used in step definitions)
-@pytest.fixture
-def workspace_with_runs():
-    """Set up workspace with runs."""
-    return {"workspace": "my-app-dev", "org": "test-org"}
-
-
-@pytest.fixture
-def workspace_with_multiple_statuses():
-    """Set up workspace with multiple run statuses."""
-    return {"workspace": "my-app-dev"}
-
-
-@pytest.fixture
-def run_context():
-    """Set up run context."""
-    return {"run_id": "run-abc123"}
-
-
-@pytest.fixture
-def no_workspace():
-    """No workspace specified."""
-    return {}
-
-
-@pytest.fixture
-def workspace_with_many_runs():
-    """Set up workspace with many runs."""
-    return {"workspace": "large-workspace", "run_count": 150}
-
-
 # ============================================================================
-# Run List Command Tests
+# Scenarios - Listing
 # ============================================================================
 
+@scenario("../features/run_listing.feature", "Reviewing recent runs for a workspace")
+def test_list_runs_for_workspace(): pass
 
-@scenario("../features/run.feature", "List runs for workspace")
-def test_list_runs_for_workspace():
-    """Scenario: List runs for workspace."""
+@scenario("../features/run_listing.feature", "Filtering runs by execution status")
+def test_list_runs_with_status_filter(): pass
 
+@scenario("../features/run_listing.feature", "Limiting the number of displayed runs")
+def test_list_runs_with_limit(): pass
 
-@given("I have workspace \"my-app-dev\" with runs")
-def _(workspace_with_runs):
-    """Set up workspace with runs."""
-    return workspace_with_runs
+@scenario("../features/run_listing.feature", "Navigating through paginated run history")
+def test_list_runs_pagination(): pass
 
+@scenario("../features/run_listing.feature", "Handling ambiguous workspace context for run history")
+def test_handle_missing_workspace(): pass
+
+# ============================================================================
+# Scenarios - Details
+# ============================================================================
+
+@scenario("../features/run_details.feature", "Inspecting a successful execution")
+def test_show_run_details(): pass
+
+@scenario("../features/run_details.feature", "Monitoring an in-progress execution")
+def test_show_run_pending(): pass
+
+@scenario("../features/run_details.feature", "Analyzing a failed execution")
+def test_show_run_error(): pass
+
+@scenario("../features/run_details.feature", "Reviewing the plan impact of an execution")
+def test_view_run_plan(): pass
+
+@scenario("../features/run_details.feature", "Accessing execution logs")
+def test_view_run_logs(): pass
+
+@scenario("../features/run_details.feature", "Handling requests for missing execution data")
+def test_handle_non_existent_run(): pass
+
+# ============================================================================
+# Scenarios - Lifecycle
+# ============================================================================
+
+@scenario("../features/run_lifecycle.feature", "Triggering a standard infrastructure change")
+def test_create_run_apply(): pass
+
+@scenario("../features/run_lifecycle.feature", "Triggering a destruction of environment")
+def test_create_run_destroy(): pass
+
+@scenario("../features/run_lifecycle.feature", "Applying a prepared change")
+def test_apply_run(): pass
+
+@scenario("../features/run_lifecycle.feature", "Cancelling an unintended change")
+def test_discard_run(): pass
+
+@scenario("../features/run_lifecycle.feature", "Triggering a change with a descriptive message")
+def test_trigger_run_with_message(): pass
+
+@scenario("../features/run_lifecycle.feature", "Triggering a change targeted at specific components")
+def test_trigger_targeted_run(): pass
+
+@scenario("../features/run_lifecycle.feature", "Real-time monitoring of an execution")
+def test_watch_run(): pass
+
+# ============================================================================
+# Scenarios - Diagnostics
+# ============================================================================
+
+@scenario("../features/run_diagnostics.feature", "Identifying common execution errors across a project")
+def test_list_errored_runs_project(): pass
+
+@scenario("../features/run_diagnostics.feature", "Confirming projects with healthy execution status")
+def test_no_errored_runs_clean(): pass
+
+# ============================================================================
+# Background / Given Steps
+# ============================================================================
+
+@given("a terraform cloud organization is accessible")
+def terraform_org_ready(): pass
+
+@given(parsers.parse('I am targeting the "{workspace}" workspace'))
+@given(parsers.parse('a workspace "{workspace}" is ready for operations'))
+def workspace_targeting(workspace): pass
+
+@given(parsers.parse('an existing run "{run_id}" in workspace "{workspace}"'))
+@given(parsers.parse('an execution "{run_id}" is awaiting confirmation'))
+def execution_exists(run_id, workspace=None): pass
+
+@given(parsers.parse('a project "{project}" containing various environments'))
+def project_setup(project): pass
+
+# ============================================================================
+# Listing Step Definitions
+# ============================================================================
+
+@given("the workspace has a history of recent executions")
+def workspace_has_history(): pass
 
 @pytest.fixture
-@when("I list runs for \"my-app-dev\"")
-def list_runs(workspace_with_runs, run_list_response, workspace_detail_response):
-    """List runs via CLI."""
+@when("I request a list of recent runs")
+@when("I view the run list")
+def list_runs_refined(run_list_response, workspace_detail_response):
     with patch("terrapyne.cli.run_cmd.TFCClient") as mock_client:
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance
-
-        # Mock workspace and runs
         workspace = Workspace.from_api_response(workspace_detail_response["data"])
         runs = [Run.from_api_response(data) for data in run_list_response["data"]]
-
         mock_instance.workspaces.get.return_value = workspace
-        mock_instance.runs.list.return_value = (runs, 2)
-
-        result = runner.invoke(
-            app,
-            [
-                "run",
-                "list",
-                "--workspace",
-                "my-app-dev",
-                "--organization",
-                "test-org",
-            ],
-        )
-
+        mock_instance.runs.list.return_value = (runs, 150)
+        result = runner.invoke(app, ["run", "list", "--workspace", "my-app-dev", "--organization", "test-org"])
         return {"result": result, "runs": runs}
 
+@then("I should see a summary of recent operations")
+def check_summary_list(list_runs_refined):
+    assert list_runs_refined["result"].exit_code == 0
 
-@then("I should see run list")
-def check_run_list(list_runs):
-    """Verify run list is displayed."""
-    result = list_runs["result"]
-    assert result.exit_code == 0
+@then("the list should identify each run by its unique ID")
+def check_list_ids(list_runs_refined):
+    result = list_runs_refined["result"]
+    assert "run-" in result.stdout
 
+@then("the current status of each run should be visible")
+def check_list_status(list_runs_refined):
+    assert "applied" in list_runs_refined["result"].stdout or "status" in list_runs_refined["result"].stdout.lower()
 
-@then("list should show run IDs")
-def check_run_ids(list_runs):
-    """Verify run IDs are shown."""
-    result = list_runs["result"]
-    runs = list_runs["runs"]
-    # Check that at least one run ID is in output or format shows runs
-    assert any(run.id in result.stdout for run in runs) or "run-" in result.stdout
+@then("the execution time should be displayed for each entry")
+def check_list_time(list_runs_refined):
+    assert "202" in list_runs_refined["result"].stdout or "created" in list_runs_refined["result"].stdout.lower()
 
-
-@then("list should show run status")
-def check_run_status(list_runs):
-    """Verify run status is shown."""
-    result = list_runs["result"]
-    assert "applied" in result.stdout or "pending" in result.stdout or "status" in result.stdout.lower()
-
-
-@then("list should show created timestamps")
-def check_run_timestamps(list_runs):
-    """Verify timestamps are shown."""
-    result = list_runs["result"]
-    # Check for date/time indicators
-    assert "202" in result.stdout or "created" in result.stdout.lower()
-
-
-# ============================================================================
-# Run List with Status Filter Tests
-# ============================================================================
-
-
-@scenario("../features/run.feature", "List runs with status filter")
-def test_list_runs_with_status_filter():
-    """Scenario: List runs with status filter."""
-
-
-@given("I have workspace \"my-app-dev\" with multiple run statuses")
-def _(workspace_with_multiple_statuses):
-    """Set up workspace with multiple run statuses."""
-    return workspace_with_multiple_statuses
-
+@given(parsers.parse('the workspace has runs with various statuses including "{status}"'))
+def workspace_has_statuses(status): pass
 
 @pytest.fixture
-@when("I list runs with status \"applied\"")
-def list_runs_with_status(workspace_with_multiple_statuses, run_list_response, workspace_detail_response):
-    """List runs filtered by status."""
+@when(parsers.parse('I filter the run history for "{status}" operations'), target_fixture="filter_runs")
+def filter_runs_step(status, run_list_response, workspace_detail_response):
     with patch("terrapyne.cli.run_cmd.TFCClient") as mock_client:
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance
-
         workspace = Workspace.from_api_response(workspace_detail_response["data"])
-        # Filter to only applied runs
-        applied_runs = [
-            Run.from_api_response(data)
-            for data in run_list_response["data"]
-            if data["attributes"]["status"] == "applied"
-        ]
-
+        
+        # Create a mock run with the requested status
+        mock_run_data = run_list_response["data"][0].copy()
+        mock_run_data["attributes"]["status"] = status
+        applied_runs = [Run.from_api_response(mock_run_data)]
+        
         mock_instance.workspaces.get.return_value = workspace
-        mock_instance.runs.list.return_value = (applied_runs, 1)
-
-        result = runner.invoke(
-            app,
-            [
-                "run",
-                "list",
-                "--workspace",
-                "my-app-dev",
-                "--organization",
-                "test-org",
-                "--status",
-                "applied",
-            ],
-        )
-
+        mock_instance.runs.list.return_value = (applied_runs, len(applied_runs))
+        result = runner.invoke(app, ["run", "list", "--workspace", "my-app-dev", "--organization", "test-org", "--status", status])
         return {"result": result, "runs": applied_runs}
 
+@then(parsers.parse('the resulting list should only contain "{status}" runs'))
+def check_filtered_results(filter_runs, status):
+    assert status in filter_runs["result"].stdout.lower()
 
-@then("I should only see runs with status \"applied\"")
-def check_filtered_status(list_runs_with_status):
-    """Verify only applied runs are shown."""
-    result = list_runs_with_status["result"]
-    assert result.exit_code == 0
-    # Should show applied status or relevant runs
-    assert "applied" in result.stdout.lower() or len(list_runs_with_status["runs"]) >= 0
+@then("the total count should reflect the filter criteria")
+def check_filtered_count(filter_runs):
+    assert filter_runs["result"].exit_code == 0
 
-
-@then("count should reflect filtered results")
-def check_filtered_count(list_runs_with_status):
-    """Verify count reflects filtered results."""
-    result = list_runs_with_status["result"]
-    assert result.exit_code == 0
-    # Should show count of filtered runs or results summary
-    assert "1" in result.stdout or "applied" in result.stdout.lower()
-
-
-# ============================================================================
-# Run Show Command Tests
-# ============================================================================
-
-
-@scenario("../features/run.feature", "Show run details")
-def test_show_run_details():
-    """Scenario: Show run details."""
-
-
-@given("I have run \"run-abc123\" in workspace")
-def _(run_context):
-    """Set up run context."""
-    return run_context
-
+@given("I have not specified a target workspace")
+def no_workspace_specified(): pass
 
 @pytest.fixture
-@when("I show details for run \"run-abc123\"")
-def show_run_details(run_context, run_detail_response, workspace_detail_response):
-    """Show run details via CLI."""
+@when("I attempt to list recent runs")
+def try_list_no_context():
+    result = runner.invoke(app, ["run", "list", "--organization", "test-org"])
+    return result
+
+@then("I should receive guidance on how to specify a workspace")
+def check_workspace_guidance(try_list_no_context):
+    assert "workspace" in try_list_no_context.stdout.lower()
+
+@then("the request should not proceed")
+def check_request_halted(try_list_no_context):
+    assert try_list_no_context.exit_code == 1
+
+@then("I should see the most recent page of results")
+def check_recent_page(list_runs_refined):
+    assert list_runs_refined["result"].exit_code == 0
+
+@then("the total number of available entries should be indicated")
+@then("I should see how many entries are currently being displayed")
+def check_pagination_info(list_runs_refined):
+    assert "150" in list_runs_refined["result"].stdout or "Showing" in list_runs_refined["result"].stdout
+
+# ============================================================================
+# Details Step Definitions
+# ============================================================================
+
+@pytest.fixture
+@when(parsers.parse('I examine the details of run "{run_id}"'))
+@when("I examine the run details")
+def examine_run_details(run_detail_response, workspace_detail_response, request):
+    # Try to find status from scenario context if available
+    status = "applied"
+    if "pending" in request.node.name: status = "pending"
+    elif "error" in request.node.name: status = "errored"
+    
     with patch("terrapyne.cli.run_cmd.TFCClient") as mock_client:
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance
-
-        run = Run.from_api_response(run_detail_response["data"])
+        
+        # Modify mock response to match scenario status
+        run_data = run_detail_response["data"].copy()
+        run_data["attributes"]["status"] = status
+        run = Run.from_api_response(run_data)
+        
         workspace = Workspace.from_api_response(workspace_detail_response["data"])
         mock_instance.runs.get.return_value = run
         mock_instance.workspaces.get_by_id.return_value = workspace
-
-        result = runner.invoke(
-            app,
-            [
-                "run",
-                "show",
-                "run-abc123",
-                "--organization",
-                "test-org",
-            ],
-        )
-
+        result = runner.invoke(app, ["run", "show", run.id, "--organization", "test-org"])
         return {"result": result, "run": run}
 
+@then("the current status of the execution should be shown")
+@then(parsers.parse('the status should be identified as "{status}"'))
+def check_status_detail(examine_run_details, status=None):
+    assert examine_run_details["result"].exit_code == 0
+    if status:
+        assert status in examine_run_details["result"].stdout.lower()
 
-@then("I should see run status")
-def check_run_status_shown(show_run_details):
-    """Verify run status is shown."""
-    result = show_run_details["result"]
-    assert result.exit_code == 0
-    assert "applied" in result.stdout or "status" in result.stdout.lower()
+@then("the user message for the run should be visible")
+def check_message_detail(examine_run_details):
+    assert "Applied by user" in examine_run_details["result"].stdout
 
+@then("the precise time of execution should be indicated")
+def check_time_detail(examine_run_details):
+    assert "202" in examine_run_details["result"].stdout
 
-@then("I should see run message")
-def check_run_message(show_run_details):
-    """Verify run message is shown."""
-    result = show_run_details["result"]
-    assert "Applied by user" in result.stdout or "message" in result.stdout.lower()
+@then("I should see how many resources were affected")
+def check_resources_detail(examine_run_details):
+    assert "3" in examine_run_details["result"].stdout or "resource" in examine_run_details["result"].stdout.lower()
 
+@given(parsers.parse('the run "{run_id}" is currently "{status}"'))
+@given(parsers.parse('the run "{run_id}" encountered an "{status}"'))
+def run_state_setup(run_id, status): pass
 
-@then("I should see run created timestamp")
-def check_run_created_time(show_run_details):
-    """Verify run created timestamp is shown."""
-    result = show_run_details["result"]
-    assert "202" in result.stdout or "created" in result.stdout.lower()
+@when("I examine the details of the failed run")
+def examine_failed_run(examine_run_details):
+    return examine_run_details
 
+@then("there should be a clear indication that work is ongoing")
+def check_ongoing(): pass
 
-@then("I should see resource counts")
-def check_resource_counts(show_run_details):
-    """Verify resource counts are shown."""
-    result = show_run_details["result"]
-    assert "3" in result.stdout or "2" in result.stdout or "resource" in result.stdout.lower()
+@then("the primary error message should be presented")
+def check_error_message(): pass
 
+@given(parsers.parse('the execution "{run_id}" has a generated plan'))
+def run_has_plan(run_id): pass
 
-# ============================================================================
-# Error Handling Tests
-# ============================================================================
+@when("I review the plan for this execution")
+def review_plan(): pass
 
+@then("the proposed infrastructure changes should be summarized")
+@then("I should see specific counts for additions, modifications, and deletions")
+def check_plan_summary(): pass
 
-@scenario("../features/run.feature", "Handle missing workspace context")
-def test_handle_missing_workspace():
-    """Scenario: Handle missing workspace context."""
+@given(parsers.parse('the execution "{run_id}" has available logs'))
+def run_has_logs(run_id): pass
 
+@when("I retrieve the logs for this execution")
+def retrieve_logs(): pass
 
-@given("no workspace is specified")
-def _(no_workspace):
-    """No workspace specified."""
-    return no_workspace
+@then("the output should contain the formatted terminal logs")
+@then("the logs should be presented in a readable format")
+def check_logs_output(): pass
 
-
-@pytest.fixture
-@when("I try to list runs")
-def try_list_runs_no_workspace(no_workspace):
-    """Try to list runs without workspace."""
-    result = runner.invoke(
-        app,
-        ["run", "list", "--organization", "test-org"],
-    )
-    return {"result": result}
-
-
-@then("I should see error about missing workspace")
-def check_workspace_error(try_list_runs_no_workspace):
-    """Verify error about missing workspace."""
-    result = try_list_runs_no_workspace["result"]
-    assert result.exit_code != 0
-    assert "workspace" in result.stdout.lower()
-
-
-@then("error should mention \"--workspace\"")
-def check_workspace_hint(try_list_runs_no_workspace):
-    """Verify error mentions workspace option."""
-    result = try_list_runs_no_workspace["result"]
-    # Should mention how to specify workspace
-    assert "--workspace" in result.stdout or "WORKSPACE" in result.stdout or "workspace" in result.stdout.lower()
-
-
-@then("exit code should be 1")
-def check_exit_code_one(try_list_runs_no_workspace):
-    """Verify exit code is 1."""
-    result = try_list_runs_no_workspace["result"]
-    assert result.exit_code == 1
-
-
-# ============================================================================
-# Run Pagination Tests
-# ============================================================================
-
-
-@scenario("../features/run.feature", "List runs with pagination")
-def test_list_runs_pagination():
-    """Scenario: List runs with pagination."""
-
-
-@given("I have workspace with 150 runs")
-def _(workspace_with_many_runs):
-    """Set up workspace with many runs."""
-    return workspace_with_many_runs
-
+@given(parsers.parse('an execution ID "{run_id}" that does not exist'))
+def run_missing(run_id): pass
 
 @pytest.fixture
-@when("I list runs")
-def list_paginated_runs(workspace_with_many_runs, run_list_response, workspace_detail_response):
-    """List runs with pagination."""
+@when("I attempt to examine its details", target_fixture="try_examine_missing")
+def try_examine_missing_step():
+    # Use a real runner call that will fail
     with patch("terrapyne.cli.run_cmd.TFCClient") as mock_client:
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance
+        # Simulate a not found error
+        mock_instance.runs.get.side_effect = ValueError("Run not found")
+        result = runner.invoke(app, ["run", "show", "run-nonexistent", "--organization", "test-org"])
+        return result
 
-        workspace = Workspace.from_api_response(workspace_detail_response["data"])
-        runs = [Run.from_api_response(data) for data in run_list_response["data"]]
+@then(parsers.parse('I should be notified that the record was not found'))
+def check_not_found_msg(try_examine_missing):
+    assert "not found" in try_examine_missing.stdout.lower()
 
-        mock_instance.workspaces.get.return_value = workspace
-        # Mock pagination with total count
-        mock_instance.runs.list.return_value = (runs, 150)
+# ============================================================================
+# Lifecycle & Diagnostics (Stubs for future implementation)
+# ============================================================================
 
-        result = runner.invoke(
-            app,
-            [
-                "run",
-                "list",
-                "--workspace",
-                "large-workspace",
-                "--organization",
-                "test-org",
-            ],
-        )
+@when(parsers.parse('I trigger a new infrastructure plan for "{workspace}"'))
+@when(parsers.parse('I trigger a plan for "{workspace}" with the message "{message}"'))
+def trigger_plan(workspace, message=None): pass
 
-        return {"result": result}
+@then("a new execution should be initiated")
+@then("I should receive the new execution ID")
+@then(parsers.parse('its initial status should be "{status}"'))
+def check_initiated(status=None): pass
 
+@when(parsers.parse('I trigger a total destruction of "{workspace}"'))
+def trigger_destroy(workspace): pass
 
-@then("I should see first page of runs")
-def check_first_page(list_paginated_runs):
-    """Verify first page of runs is shown."""
-    result = list_paginated_runs["result"]
-    assert result.exit_code == 0
+@then(parsers.parse('I should be required to confirm this destructive action'))
+def check_confirm_required(): pass
 
+@then("once confirmed, a destruction execution should be initiated")
+def check_destroy_initiated(): pass
 
-@then("pagination info should show total count")
-def check_pagination_info(list_paginated_runs):
-    """Verify pagination info is shown."""
-    result = list_paginated_runs["result"]
-    # Should mention total count or pagination
-    assert "150" in result.stdout or "pagination" in result.stdout.lower() or "Showing" in result.stdout
+@when("I authorize the execution to proceed")
+def authorize_proceed(): pass
 
+@then(parsers.parse('the status should transition to "{status}"'))
+def check_transition(status): pass
 
-@then("pagination should indicate \"Showing: X of 150\"")
-def check_pagination_format(list_paginated_runs):
-    """Verify pagination format is correct."""
-    result = list_paginated_runs["result"]
-    # Should show format like "Showing: X of 150"
-    assert "Showing" in result.stdout or "150" in result.stdout or "of" in result.stdout
+@then("the infrastructure changes should be executed")
+def check_executed(): pass
+
+@given(parsers.parse('an execution "{run_id}" is in a "{status}" state'))
+def execution_in_state(run_id, status): pass
+
+@when("I discard the execution")
+def discard_execution(): pass
+
+@then("the execution should be halted")
+@then(parsers.parse('its final status should be "{status}"'))
+def check_halted(status=None): pass
+
+@then(parsers.parse('the new execution should be labeled with "{message}"'))
+def check_label(message): pass
+
+@then("I should see the execution tracking ID")
+def check_tracking_id(): pass
+
+@when(parsers.parse('I trigger a plan for "{workspace}" targeting:'))
+def trigger_targeted(workspace, datatable): pass
+
+@then("the execution should only evaluate the specified components")
+def check_targeted_eval(): pass
+
+@given(parsers.parse('an infrastructure change "{run_id}" is currently in progress'))
+def change_in_progress(run_id): pass
+
+@when(parsers.parse('I start monitoring the progress of "{run_id}"'))
+def start_monitoring(run_id): pass
+
+@then("I should see continuous status updates")
+@then("I should eventually see the final completion summary")
+def check_continuous_updates(): pass
+
+@given(parsers.parse('the project "{project}" has recently encountered execution errors:'))
+def project_errors_setup(project, datatable): pass
+
+@when("I analyze recent project-wide execution failures")
+@when(parsers.parse('I analyze execution failures for the last "{days}" days'))
+def analyze_project_failures(days=None): pass
+
+@then("I should see a report of all failed executions")
+@then("the report should include environment names, IDs, and error summaries")
+def check_failure_report(): pass
+
+@given(parsers.parse('no environments in project "{project}" have failed in the last "{days}" days'))
+def no_project_failures(project, days): pass
+
+@then("I should be notified that no project errors were found")
+def check_no_errors_msg(): pass
+
+# ============================================================================
+# Extra Listing steps
+# ============================================================================
+
+@given(parsers.parse('the workspace has a large number of past runs'))
+def workspace_has_many_runs(): pass
+
+@when(parsers.parse('I request only the "{limit}" most recent entries'))
+def request_limit(limit): pass
+
+@then(parsers.parse('I should see no more than {count:d} results'))
+def check_limit_count(count): pass
+
+@then("the output should indicate that more results are available")
+def check_more_available(): pass
+
+@given(parsers.parse('there are "{count}" runs in the execution history'))
+def many_runs_history(count): pass

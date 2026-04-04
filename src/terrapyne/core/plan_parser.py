@@ -16,6 +16,7 @@ The parser:
 - Outputs PlanInspector-compatible JSON format
 """
 
+import json
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable
@@ -85,13 +86,11 @@ class PlanIR:
         result: dict[str, Any] = {
             "resource_changes": [rc.to_dict() for rc in self.resource_changes],
             "format_version": self.format_version,
+            "plan_summary": self.plan_summary
+            if self.plan_summary is not None
+            else {"add": 0, "change": 0, "destroy": 0},
+            "diagnostics": self.diagnostics if self.diagnostics else [],
         }
-
-        if self.plan_summary:
-            result["plan_summary"] = self.plan_summary
-
-        if self.diagnostics:
-            result["diagnostics"] = self.diagnostics
 
         if self.plan_status:
             result["plan_status"] = self.plan_status
@@ -209,8 +208,6 @@ class ArrayAttributeParser(AttributeParser):
 
     def parse(self, key: str, value_str: str, lines: list[str], idx: int) -> tuple[Any, int]:
         """Parse array attribute (multi-line)."""
-        # Arrays are currently parsed as strings (known limitation)
-        # This is a placeholder for future enhancement
         array_lines = []
         i = idx
         bracket_count = 0
@@ -219,19 +216,39 @@ class ArrayAttributeParser(AttributeParser):
         line = lines[i]
         bracket_count += line.count("[")
         bracket_count -= line.count("]")
-        array_lines.append(line)
+
+        # Extract initial content after [
+        initial_content = line.split("[", 1)[-1].strip()
+        if initial_content:
+            if initial_content.endswith("]"):
+                initial_content = initial_content[:-1].strip()
+            if initial_content:
+                array_lines.extend(
+                    [v.strip().strip('"') for v in initial_content.split(",") if v.strip()]
+                )
 
         # Continue parsing until brackets are balanced
-        i += 1
-        while i < len(lines) and bracket_count > 0:
-            line = lines[i]
-            bracket_count += line.count("[")
-            bracket_count -= line.count("]")
-            array_lines.append(line)
+        if bracket_count > 0:
+            i += 1
+            while i < len(lines) and bracket_count > 0:
+                line = lines[i]
+                bracket_count += line.count("[")
+                bracket_count -= line.count("]")
+
+                # Extract content from line
+                content = line.strip()
+                if content.endswith("]"):
+                    content = content[:-1].strip()
+                if content.endswith(","):
+                    content = content[:-1].strip()
+
+                if content:
+                    array_lines.append(content.strip('"'))
+                i += 1
+        else:
             i += 1
 
-        # Return the array as a string (known limitation)
-        return "\n".join(array_lines), i
+        return array_lines, i
 
 
 class MapAttributeParser(AttributeParser):
@@ -323,7 +340,11 @@ class AttributeParserDispatcher:
                         }, next_idx
                     else:
                         return self._parse_value(parsed_value), next_idx
-                elif (
+
+                # If it's already a complex type (like list from ArrayAttributeParser),
+                # just return it. The InAttributesStateHandler will handle wrapping
+                # it in after_attrs if it's not a before/after dict.
+                if (
                     isinstance(parsed_value, dict)
                     and "before" in parsed_value
                     and "after" in parsed_value
@@ -1146,14 +1167,34 @@ class TerraformPlainTextPlanParser:
         """
         value_str = value_str.strip()
 
+        # Try to parse as JSON-like list/dict (for arrays/maps) first
+        # Remove any trailing comments like "# forces replacement"
+        clean_value = value_str.split(" #", 1)[0].strip()
+
+        if (clean_value.startswith("[") and clean_value.endswith("]")) or (
+            clean_value.startswith("{") and clean_value.endswith("}")
+        ):
+            # Try to fix non-standard JSON (no quotes around strings)
+            # This is common in terraform plain text output
+            potential_json = clean_value.replace('\\"', '"')
+            try:
+                return json.loads(potential_json)
+            except json.JSONDecodeError:
+                # Fallback: simple manual split for [a, b, c]
+                if clean_value.startswith("[") and clean_value.endswith("]"):
+                    content = clean_value[1:-1].strip()
+                    if not content:
+                        return []
+                    return [v.strip().strip('"') for v in content.split(",") if v.strip()]
+                pass
+
         # Strip metadata suffixes like "(forces new resource)" or "(new resource required)"
-        # Must do this before quote removal
         if " (forces new resource)" in value_str:
             value_str = value_str.replace(" (forces new resource)", "").strip()
         if " (new resource required)" in value_str:
             value_str = value_str.replace(" (new resource required)", "").strip()
 
-        # Handle computed/sensitive values
+        # Handle other types
         if value_str in ["<computed>", "(sensitive value)", "(known after apply)"]:
             return value_str
         elif value_str == "null":
@@ -1212,7 +1253,7 @@ class TerraformPlainTextPlanParser:
             "~": ["update"],
             "-/+": ["create", "delete"],
             "+/-": ["create", "delete"],
-            "<=": ["read"],
+            "<=": ["import"],
         }
         return symbol_map.get(symbol, ["update"])
 
@@ -1307,19 +1348,17 @@ class TerraformPlainTextPlanParser:
                 key = attr_match.group(2)
                 value_str = attr_match.group(3).strip()
 
-                # Handle tags.% notation - extract base key (tags) from tags.%
-                if key.endswith(".%"):
-                    base_key = key[:-2]  # Remove .% suffix
-                    # For tags.% = "2" -> "3", we want to store it under "tags" key
-                    # The count is in the value, but we'll store the key as "tags" for now
-                    # This is a known limitation - we don't extract the count yet
-                    key = base_key
-
                 # Use dispatcher to parse attribute with appropriate strategy
                 parsed_value, next_idx = self._attr_dispatcher.parse_attribute(
                     key, value_str, line, lines, i
                 )
                 attributes[key] = parsed_value
+
+                # Also store under base key for compatibility if desired
+                if "." in key:
+                    base_key = key.split(".")[0]
+                    if base_key not in attributes:
+                        attributes[base_key] = parsed_value
 
                 # Update index if dispatcher advanced it (for multi-line attributes)
                 if next_idx > i:
