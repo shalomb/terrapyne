@@ -44,6 +44,8 @@ All API operations are accessed through `TFCClient` properties:
 | `client.runs` | `RunsAPI` | list, get, create, apply, get_plan, get_plan_logs, get_apply_logs, poll_until_complete |
 | `client.projects` | `ProjectAPI` | list, get_by_name, get_by_id, list_team_access |
 | `client.teams` | `TeamsAPI` | list_teams, get, create, update, delete, add/remove_member, get/set_project_access |
+| `client.vcs` | `VCSAPI` | get_oauth_clients, list_oauth_tokens, create_oauth_token, delete_oauth_token |
+| `client.workspace_clone` | `CloneWorkspaceAPI` | clone |
 
 ## Models
 
