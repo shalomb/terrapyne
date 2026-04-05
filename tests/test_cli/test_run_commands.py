@@ -1,5 +1,6 @@
 """CLI tests for run commands - Refined for Adzic Index."""
 
+from datetime import datetime, UTC, timedelta
 import pytest
 from pytest_bdd import given, scenario, then, when, parsers
 from typer.testing import CliRunner
@@ -363,7 +364,6 @@ def check_continuous_updates(): pass
 
 @given(parsers.parse('the project "{project}" has recently encountered execution errors:'), target_fixture="project_errors_setup")
 def project_errors_setup_step(project, datatable):
-    from datetime import datetime, UTC, timedelta
     # Set dates to very recent to ensure they pass the 'days' filter
     now = datetime.now(UTC)
     setup = []
