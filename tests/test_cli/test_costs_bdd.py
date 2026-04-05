@@ -1,9 +1,7 @@
 """BDD tests for cost estimate commands."""
-import re
-from unittest.mock import MagicMock
-
-from pytest_bdd import given, parsers, scenario, then, when
 import pytest
+from unittest.mock import MagicMock, patch
+from pytest_bdd import given, parsers, scenario, then, when
 from typer.testing import CliRunner
 
 from terrapyne.cli.main import app
@@ -18,7 +16,8 @@ def mock_api_client():
     with patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_ws_client, \
          patch("terrapyne.cli.project_cmd.TFCClient") as mock_prj_client, \
          patch("terrapyne.cli.workspace_cmd.validate_context") as mock_ws_ctx, \
-         patch("terrapyne.cli.project_cmd.validate_context") as mock_prj_ctx:
+         patch("terrapyne.cli.project_cmd.validate_context") as mock_prj_ctx, \
+         patch("terrapyne.cli.project_cmd.resolve_project_context") as mock_resolve:
         
         mock_instance = MagicMock()
         mock_ws_client.return_value.__enter__.return_value = mock_instance
@@ -33,6 +32,16 @@ def mock_api_client():
             
         mock_ws_ctx.side_effect = ws_validate
         mock_prj_ctx.side_effect = prj_validate
+        
+        # Default mock for resolve_project_context
+        from terrapyne.models.project import Project
+        default_prj = Project(id="prj-test", name="Default Project", organization={"name": "test-org"})
+        mock_resolve.return_value = ("test-org", default_prj)
+        
+        # Common mocks
+        mock_instance.runs.list.return_value = ([], 0)
+        mock_instance.workspaces.list.return_value = ([], 0)
+        mock_instance.workspaces.get_variables.return_value = []
         
         yield mock_instance
 
@@ -79,18 +88,20 @@ def workspace_exists(mock_api_client: MagicMock, workspace_name: str) -> None:
         project={"id": "prj-test", "name": "Default Project"},
     )
     mock_api_client.workspaces.get_by_name.return_value = ws
+    mock_api_client.workspaces.get.return_value = ws
 
 @given(parsers.parse('the latest run for "{workspace_name}" has a cost estimate of ${monthly} monthly with a ${delta} delta'))
 def latest_run_has_cost_estimate(mock_api_client: MagicMock, workspace_name: str, monthly: str, delta: str) -> None:
     mock_api_client.runs.get_latest_cost_estimate.return_value = {
-        "proposed-monthly-cost": f"{monthly}.00", "prior-monthly-cost": "0.0", "delta-monthly-cost": f"{delta}.00", "matched-resources-count": 1, "unmatched-resources-count": 0, "resources": {"matched": [], "unmatched": []},
+        "monthly": f"{monthly}.00",
         "delta": f"{delta}.00"
     }
 
 @given(parsers.parse('the latest run for "{workspace_name}" has a cost estimate of ${monthly} monthly with a -${delta} delta'))
 def latest_run_has_cost_estimate_decrease(mock_api_client: MagicMock, workspace_name: str, monthly: str, delta: str) -> None:
     mock_api_client.runs.get_latest_cost_estimate.return_value = {
-        "proposed-monthly-cost": f"{monthly}.00", "prior-monthly-cost": "0.0", "delta-monthly-cost": f"-{delta}.00", "matched-resources-count": 1, "unmatched-resources-count": 0, "resources": {"matched": [], "unmatched": []}
+        "monthly": f"{monthly}.00",
+        "delta": f"-{delta}.00"
     }
 
 @given(parsers.parse('the latest run for "{workspace_name}" has no cost estimate'))
@@ -100,7 +111,8 @@ def latest_run_no_cost_estimate(mock_api_client: MagicMock, workspace_name: str)
 @given(parsers.parse('the latest run for "{workspace_name}" has an invalid cost estimate string'))
 def latest_run_invalid_cost_estimate(mock_api_client: MagicMock, workspace_name: str) -> None:
     mock_api_client.runs.get_latest_cost_estimate.return_value = {
-        "proposed-monthly-cost": "invalid_cost", "prior-monthly-cost": "0.0", "delta-monthly-cost": "invalid_delta", "matched-resources-count": 0, "unmatched-resources-count": 0, "resources": {"matched": [], "unmatched": []}
+        "monthly": "invalid_cost",
+        "delta": "invalid_delta"
     }
 
 @given(parsers.parse('a Terraform Cloud project "{project_name}" exists'))
@@ -111,7 +123,9 @@ def project_exists(mock_api_client: MagicMock, project_name: str) -> None:
         name=project_name,
         organization={"name": "test-org"},
     )
-    mock_api_client.projects.get_by_name.return_value = prj
+    with patch("terrapyne.cli.project_cmd.resolve_project_context") as mock_resolve:
+        mock_resolve.return_value = ("test-org", prj)
+        yield
 
 @given(parsers.parse('the project "{project_name}" contains workspaces with cost estimates totaling ${total_monthly} monthly'))
 def project_workspaces_have_cost_estimates(mock_api_client: MagicMock, project_name: str, total_monthly: str) -> None:
@@ -122,9 +136,9 @@ def project_workspaces_have_cost_estimates(mock_api_client: MagicMock, project_n
     
     def get_costs(workspace_id, **kwargs):
         if workspace_id == "ws-1":
-            return {"proposed-monthly-cost": str(int(total_monthly) // 2) + ".00", "delta-monthly-cost": "0.0", "matched-resources-count": 0, "unmatched-resources-count": 0, "resources": {"matched": [], "unmatched": []}}
+            return {"monthly": str(int(total_monthly) // 2) + ".00", "delta": "0.0"}
         elif workspace_id == "ws-2":
-            return {"proposed-monthly-cost": str(int(total_monthly) - int(total_monthly) // 2) + ".00", "delta-monthly-cost": "0.0", "matched-resources-count": 0, "unmatched-resources-count": 0, "resources": {"matched": [], "unmatched": []}}
+            return {"monthly": str(int(total_monthly) - int(total_monthly) // 2) + ".00", "delta": "0.0"}
         return None
         
     mock_api_client.runs.get_latest_cost_estimate.side_effect = get_costs
@@ -136,7 +150,8 @@ def project_workspaces_invalid_cost_estimates(mock_api_client: MagicMock, projec
         1
     )
     mock_api_client.runs.get_latest_cost_estimate.return_value = {
-        "proposed-monthly-cost": "invalid_string", "delta-monthly-cost": "0.0", "matched-resources-count": 0, "unmatched-resources-count": 0, "resources": {"matched": [], "unmatched": []}
+        "monthly": "invalid_string",
+        "delta": "invalid_delta"
     }
 
 @given(parsers.parse('the project "{project_name}" contains no workspaces'))
@@ -146,7 +161,7 @@ def project_contains_no_workspaces(mock_api_client: MagicMock, project_name: str
 # --- When Steps ---
 
 @when(parsers.parse('I run "{command}"'), target_fixture="cli_result")
-def run_command(mock_api_client: MagicMock, command: str) -> object:
+def run_command(command: str):
     args = command.replace("tfc ", "").split()
     return runner.invoke(app, args, catch_exceptions=False)
 
@@ -166,7 +181,7 @@ def output_shows_cost_delta(cli_result: object, expected_delta: str) -> None:
 
 @then("the output should indicate no cost estimates are available")
 def output_indicates_no_cost_estimates(cli_result: object) -> None:
-    assert "No finished cost estimates" in cli_result.stdout
+    assert "No cost estimates available" in cli_result.stdout
 
 @then(parsers.parse('the output should show the total project estimated monthly cost of "{expected_cost}"'))
 def output_shows_total_project_cost(cli_result: object, expected_cost: str) -> None:

@@ -3,7 +3,7 @@
 import builtins
 from datetime import UTC
 from pathlib import Path
-from typing import Annotated, Any, cast
+from typing import Annotated, cast
 
 import typer
 from rich.console import Console
@@ -774,7 +774,7 @@ def workspace_costs(
         unmatched = ce.get("unmatched-resources-count", 0)
 
         # Resource breakdown by type
-        resources: dict[str, Any] = ce.get("resources") or {}
+        resources = ce.get("resources", {})
         by_type: dict[str, float] = {}
         for r in resources.get("matched", []):
             rtype = r["type"]

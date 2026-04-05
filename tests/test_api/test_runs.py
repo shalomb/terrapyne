@@ -302,7 +302,7 @@ class TestRunRetrieval:
         run = api.get(run_id)
 
         # Verify API call
-        mock_client.get.assert_called_once_with(f"/runs/{run_id}")
+        mock_client.get.assert_called_once_with(f"/runs/{run_id}", params={})
 
         # Verify returned run
         assert run.id == run_id

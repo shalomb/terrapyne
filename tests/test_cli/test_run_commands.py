@@ -122,6 +122,7 @@ def list_runs_refined(run_list_response, workspace_detail_response):
         workspace = Workspace.from_api_response(workspace_detail_response["data"])
         runs = [Run.from_api_response(data) for data in run_list_response["data"]]
         mock_instance.workspaces.get.return_value = workspace
+        mock_instance.runs.list.return_value = ([], 0)
         mock_instance.runs.list.return_value = (runs, 150)
         result = runner.invoke(app, ["run", "list", "--workspace", "my-app-dev", "--organization", "test-org"])
         return {"result": result, "runs": runs}
@@ -160,6 +161,7 @@ def filter_runs_step(status, run_list_response, workspace_detail_response):
         applied_runs = [Run.from_api_response(mock_run_data)]
         
         mock_instance.workspaces.get.return_value = workspace
+        mock_instance.runs.list.return_value = ([], 0)
         mock_instance.runs.list.return_value = (applied_runs, len(applied_runs))
         result = runner.invoke(app, ["run", "list", "--workspace", "my-app-dev", "--organization", "test-org", "--status", status])
         return {"result": result, "runs": applied_runs}

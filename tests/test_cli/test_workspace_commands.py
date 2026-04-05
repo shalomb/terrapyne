@@ -135,6 +135,7 @@ def show_workspace_details(workspace_context, workspace_detail_response):
         # Mock the API response
         workspace = Workspace.from_api_response(workspace_detail_response["data"])
         mock_instance.workspaces.get.return_value = workspace
+        mock_instance.runs.list.return_value = ([], 0)
         mock_instance.workspaces.get_variables.return_value = []
 
         result = runner.invoke(
@@ -253,6 +254,7 @@ def show_vcs_config(workspace_with_vcs, workspace_detail_response):
 
         workspace = Workspace.from_api_response(workspace_detail_response["data"])
         mock_instance.workspaces.get.return_value = workspace
+        mock_instance.runs.list.return_value = ([], 0)
 
         result = runner.invoke(
             app,
@@ -316,6 +318,7 @@ def show_vcs_no_connection(workspace_without_vcs):
         }
         workspace = Workspace.from_api_response(ws_data)
         mock_instance.workspaces.get.return_value = workspace
+        mock_instance.runs.list.return_value = ([], 0)
 
         result = runner.invoke(
             app,
@@ -380,6 +383,7 @@ def clone_basic_settings(clone_setup, workspace_cloned_response):
         # Mock workspace get (source)
         source_ws = Workspace.from_api_response(clone_setup["source_workspace"]["data"])
         mock_instance.workspaces.get.return_value = source_ws
+        mock_instance.runs.list.return_value = ([], 0)
 
         # Mock workspace post (create target)
         target_ws = Workspace.from_api_response(workspace_cloned_response["data"])
@@ -507,6 +511,7 @@ def clone_with_variables(
         # Mock workspace get (source)
         source_ws = Workspace.from_api_response(workspace_prod_response["data"])
         mock_instance.workspaces.get.return_value = source_ws
+        mock_instance.runs.list.return_value = ([], 0)
 
         # Mock target workspace creation
         target_ws = Workspace.from_api_response(workspace_cloned_response["data"])
@@ -639,6 +644,7 @@ def clone_with_vcs(workspace_prod_response, workspace_cloned_response):
         source_ws = Workspace.from_api_response(workspace_prod_response["data"])
         target_ws = Workspace.from_api_response(workspace_cloned_response["data"])
         mock_instance.workspaces.get.return_value = source_ws
+        mock_instance.runs.list.return_value = ([], 0)
 
         clone_result = {
             "status": "success",
@@ -894,6 +900,7 @@ def clone_with_force(workspace_prod_response, workspace_cloned_response):
         source_ws = Workspace.from_api_response(workspace_prod_response["data"])
         target_ws = Workspace.from_api_response(workspace_cloned_response["data"])
         mock_instance.workspaces.get.return_value = source_ws
+        mock_instance.runs.list.return_value = ([], 0)
 
         clone_result = {
             "status": "success",
@@ -976,6 +983,7 @@ def clone_detailed_output(workspace_prod_response, workspace_cloned_response):
         source_ws = Workspace.from_api_response(workspace_prod_response["data"])
         target_ws = Workspace.from_api_response(workspace_cloned_response["data"])
         mock_instance.workspaces.get.return_value = source_ws
+        mock_instance.runs.list.return_value = ([], 0)
 
         clone_result = {
             "status": "success",
@@ -1088,6 +1096,7 @@ def clone_settings_only(workspace_prod_response, workspace_cloned_response):
         source_ws = Workspace.from_api_response(workspace_prod_response["data"])
         target_ws = Workspace.from_api_response(workspace_cloned_response["data"])
         mock_instance.workspaces.get.return_value = source_ws
+        mock_instance.runs.list.return_value = ([], 0)
 
         clone_result = {
             "status": "success",

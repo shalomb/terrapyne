@@ -1,7 +1,7 @@
 """Rich table formatters for TFC data."""
 
+import datetime
 from collections.abc import Sequence
-from datetime import UTC, datetime
 
 from rich.console import Console
 from rich.table import Table
@@ -47,48 +47,6 @@ def render_workspace_detail(workspace: Workspace) -> None:
     """
     renderer = WorkspaceDetailRenderer()
     renderer.render(workspace, console_instance=console)
-
-
-def render_workspace_dashboard(
-    workspace: Workspace, latest_run: Run | None = None, active_runs_count: int = 0
-) -> None:
-    """Render a comprehensive workspace dashboard snapshot.
-
-    Args:
-        workspace: Workspace instance
-        latest_run: Most recent run instance
-        active_runs_count: Number of queued or in-progress runs
-    """
-    # 1. Main Details Table
-    render_workspace_detail(workspace)
-
-    # 2. Health & Activity Snapshot
-    console.print()
-    snap_table = Table(title="Health & Activity Snapshot", show_header=False, box=None)
-    snap_table.add_column("Property", style="bold cyan", width=25)
-    snap_table.add_column("Value")
-
-    # Determine health from latest run
-    health_status = "Unknown (no runs found)"
-    if latest_run:
-        status = latest_run.status
-        if status.is_successful:
-            health_status = f"🟢 Healthy (last run {status.value})"
-        elif status.is_error:
-            health_status = f"🔴 Unhealthy (last run {status.value})"
-        else:
-            health_status = f"🟡 Warning (last run {status.value})"
-
-    snap_table.add_row("Health", health_status)
-    snap_table.add_row("Queued Runs", str(active_runs_count))
-
-    # VCS Commit Info
-    if latest_run and latest_run.commit_sha:
-        author = latest_run.commit_author or "Unknown"
-        snap_table.add_row("Latest Commit", f"{latest_run.commit_sha[:7]} ({author})")
-        snap_table.add_row("Commit Message", latest_run.commit_message or "N/A")
-
-    console.print(snap_table)
 
 
 def render_workspace_variables(variables: Sequence[WorkspaceVariable]) -> None:
@@ -204,8 +162,8 @@ def render_run_detail(
     renderer.render(run, console_instance=console)
 
 
-def _format_datetime(dt: datetime) -> str:
-    """Format datetime for display.
+def _format_datetime(dt: datetime.datetime) -> str:
+    """Format datetime.datetime for display.
 
     Args:
         dt: Datetime object
@@ -213,11 +171,11 @@ def _format_datetime(dt: datetime) -> str:
     Returns:
         Formatted string
     """
-    return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+    return dt.strftime("%Y-%m-%d %H:%M:%S datetime.UTC")
 
 
-def _format_relative_time(dt: datetime) -> str:
-    """Format datetime as relative time (e.g., '2h ago').
+def _format_relative_time(dt: datetime.datetime) -> str:
+    """Format datetime.datetime as relative time (e.g., '2h ago').
 
     Args:
         dt: Datetime object
@@ -225,10 +183,10 @@ def _format_relative_time(dt: datetime) -> str:
     Returns:
         Relative time string
     """
-    now = datetime.now(UTC)
+    now = datetime.datetime.now(datetime.UTC)
     # Ensure dt is timezone-aware
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=UTC)
+        dt = dt.replace(tzinfo=datetime.UTC)
 
     delta = now - dt
 
@@ -306,33 +264,27 @@ def render_vcs_repos(repos: list[dict], verbose: bool = False) -> None:
     table.add_column("URL", style="blue")
 
     for repo in repos:
-        workspace_count = str(len(repo.get("workspaces", [])))
-        row = [repo["identifier"], workspace_count]
+        workspace_count = str(len(repo["workspaces"]))
+
         if verbose:
-            row.append(", ".join(repo.get("workspaces", [])))
-        row.append(repo.get("url", "N/A"))
-        table.add_row(*row)
+            workspace_names = ", ".join(repo["workspaces"])
+            table.add_row(
+                repo["identifier"],
+                workspace_count,
+                workspace_names,
+                repo["url"] or "N/A",
+            )
+        else:
+            table.add_row(
+                repo["identifier"],
+                workspace_count,
+                repo["url"] or "N/A",
+            )
 
     console.print(table)
 
-
-def render_project_detail(project: Project, workspaces: Sequence[Workspace]) -> None:
-    """Render project details and workspaces.
-
-    Args:
-        project: Project instance
-        workspaces: List of workspaces in project
-    """
-    # 1. Project details
-    renderer = ProjectDetailRenderer()
-    renderer.render(project, console_instance=console)
-
-    # 2. Workspaces table
-    if workspaces:
-        console.print()
-        render_workspaces(workspaces, title=f"Workspaces in {project.name}")
-    else:
-        console.print("\n[dim](No workspaces in this project)[/dim]")
+    repo_word = "repository" if len(repos) == 1 else "repositories"
+    console.print(f"\n[dim]Showing: {len(repos)} {repo_word}[/dim]")
 
 
 def render_projects(
@@ -347,10 +299,28 @@ def render_projects(
         projects: List of project instances
         title: Table title
         total_count: Optional total count from API metadata
-        workspace_counts: Optional mapping of project ID to workspace count
+        workspace_counts: Optional dict mapping project_id -> actual workspace count
     """
     renderer = ProjectTableRenderer(workspace_counts=workspace_counts)
     renderer.render(projects, title=title, total_count=total_count, console_instance=console)
+
+
+def render_project_detail(project: Project, workspaces: Sequence[Workspace]) -> None:
+    """Render detailed project information with workspace list.
+
+    Args:
+        project: Project instance
+        workspaces: List of workspace instances in the project
+    """
+    renderer = ProjectDetailRenderer(workspace_count=len(workspaces))
+    renderer.render(project, console_instance=console)
+
+    # Render workspaces list
+    if workspaces:
+        console.print()  # Blank line for separation
+        render_workspaces(workspaces, f"Workspaces in {project.name}")
+    else:
+        console.print("\n[dim](No workspaces)[/dim]")
 
 
 def render_project_team_access(
@@ -374,20 +344,47 @@ def render_project_team_access(
 
     table.add_column("Team", style="cyan")
     table.add_column("Access Level")
-    table.add_column("Runs")
-    table.add_column("Variables")
-    table.add_column("State Versions")
-    table.add_column("Sentinel")
+    table.add_column("Project Settings", justify="center")
+    table.add_column("Project Teams", justify="center")
+    table.add_column("Workspace Create", justify="center")
 
     for access in team_access_list:
-        wa = access.workspace_access
+        # Team name with ID fallback
+        if access.team_name:
+            team_display = f"{access.team_name}\n[dim]{access.team_id}[/dim]"
+        else:
+            team_display = access.team_id
+
+        # Access level with color coding
+        access_colors = {
+            "read": "blue",
+            "write": "green",
+            "maintain": "yellow",
+            "admin": "red",
+            "custom": "magenta",
+        }
+        access_color = access_colors.get(access.access, "white")
+        access_display = f"[{access_color}]{access.access.upper()}[/{access_color}]"
+
+        # Project permissions
+        proj_settings = "N/A"
+        proj_teams = "N/A"
+        if access.project_access:
+            proj_settings = access.project_access.settings
+            proj_teams = access.project_access.teams
+
+        # Workspace create permission
+        workspace_create = "N/A"
+        if access.workspace_access:
+            workspace_create = "✅" if access.workspace_access.create else "❌"
+
         table.add_row(
-            access.team_name or access.team_id,
-            access.access,
-            wa.runs if wa else "-",
-            wa.variables if wa else "-",
-            wa.state_versions if wa else "-",
-            wa.sentinel_mocks if wa else "-",
+            team_display,
+            access_display,
+            proj_settings,
+            proj_teams,
+            workspace_create,
         )
 
     console.print(table)
+    console.print(f"\n[dim]Showing: {len(team_access_list)} team(s)[/dim]")

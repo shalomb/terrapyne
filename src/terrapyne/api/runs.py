@@ -29,6 +29,7 @@ class RunsAPI:
         workspace_id: str,
         limit: int = 20,
         status: str | None = None,
+        include: str | None = None,
     ) -> tuple[builtins.list[Run], int | None]:
         """List runs for a workspace.
 
@@ -36,15 +37,30 @@ class RunsAPI:
             workspace_id: Workspace ID
             limit: Maximum number of runs to return
             status: Filter by run status (e.g., "applied", "errored")
+            include: Relationships to include (e.g., "configuration-version")
 
         Returns:
             Tuple of (list of Run instances (most recent first), total count or None)
         """
         path = f"/workspaces/{workspace_id}/runs"
 
-        params = {}
+        params: dict[str, Any] = {}
         if status:
             params["filter[status]"] = status
+        if include:
+            params["include"] = include
+
+        if include:
+            params.update({"page[number]": 1, "page[size]": min(limit, 100)})
+            response = self.client.get(path, params=params)
+            runs = []
+            included = response.get("included", [])
+            for item in response.get("data", []):
+                runs.append(Run.from_api_response(item, included))
+                if len(runs) >= limit:
+                    break
+            total_count = response.get("meta", {}).get("pagination", {}).get("total-count")
+            return runs, total_count
 
         items_iterator, total_count = self.client.paginate_with_meta(
             path, params=params, page_size=min(limit, 100)
@@ -59,43 +75,27 @@ class RunsAPI:
         return runs, total_count
 
     def get_latest_cost_estimate(self, workspace_id: str) -> dict[str, Any] | None:
-        """Get the latest finished cost estimate for a workspace.
-
-        Walks recent runs until one with a finished cost estimate is found.
-        Returns the full cost estimate attributes including resource breakdown.
-        """
+        """Get the cost estimate for the latest run in a workspace."""
         response = self.client.get(
-            f"/workspaces/{workspace_id}/runs",
-            {"include": "cost_estimate", "page[size]": 10},
+            f"/workspaces/{workspace_id}/runs", {"include": "cost_estimate", "page[size]": 1}
         )
 
         runs = response.get("data", [])
         if not runs:
             return None
 
-        cost_by_id = {
-            inc["id"]: inc["attributes"]
-            for inc in response.get("included", [])
-            if inc.get("type") == "cost-estimates"
-        }
-
-        for run in runs:
-            ce_rel = run.get("relationships", {}).get("cost-estimate", {}).get("data")
-            if not ce_rel:
-                continue
-            ce = cost_by_id.get(ce_rel["id"], {})
-            if ce.get("status") == "finished" and ce.get("proposed-monthly-cost"):
-                # Fetch full resource breakdown via direct endpoint
-                ce_full = self.client.get(f"/cost-estimates/{ce_rel['id']}")
-                return ce_full["data"]["attributes"]
+        for inc in response.get("included", []):
+            if inc.get("type") == "cost-estimates":
+                return inc.get("attributes", {})
 
         return None
 
-    def get(self, run_id: str) -> Run:
+    def get(self, run_id: str, include: str | None = None) -> Run:
         """Get run by ID.
 
         Args:
             run_id: Run ID
+            include: Relationships to include
 
         Returns:
             Run instance
@@ -104,9 +104,10 @@ class RunsAPI:
             httpx.HTTPStatusError: If run not found
         """
         path = f"/runs/{run_id}"
+        params = {"include": include} if include else {}
 
-        response = self.client.get(path)
-        return Run.from_api_response(response["data"])
+        response = self.client.get(path, params=params)
+        return Run.from_api_response(response["data"], response.get("included", []))
 
     def create(
         self,
@@ -296,15 +297,12 @@ class RunsAPI:
         while True:
             run = self.get(run_id)
 
-            # Call callback if provided
             if callback:
                 callback(run)
 
-            # Check if terminal
             if run.status.is_terminal:
                 return run
 
-            # Check timeout
             elapsed = time.time() - start_time
             if elapsed >= max_wait:
                 raise TimeoutError(

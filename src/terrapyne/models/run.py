@@ -117,24 +117,33 @@ class Run(BaseModel):
     # Apply relationship
     apply_id: str | None = None
 
+    # Commit info (extracted from configuration-version)
+    commit_sha: str | None = Field(None, alias="commit-sha")
+    commit_message: str | None = Field(None, alias="commit-message")
+    commit_author: str | None = Field(None, alias="commit-author")
+
     model_config = ConfigDict(populate_by_name=True)
 
     @classmethod
-    def from_api_response(cls, data: dict[str, Any]) -> "Run":
+    def from_api_response(
+        cls, data: dict[str, Any], included: list[dict[str, Any]] | None = None
+    ) -> "Run":
         """Create run from TFC API response.
 
         Args:
             data: API response data dict
+            included: Optional list of included resources from the API response
 
         Returns:
             Run instance
         """
         attrs = data.get("attributes", {})
 
-        # Extract workspace ID from relationships
+        # Extract relationships
         workspace_id = None
         plan_id = None
         apply_id = None
+        config_version_id = None
         relationships = data.get("relationships", {})
         if relationships.get("workspace", {}).get("data"):
             workspace_id = relationships["workspace"]["data"].get("id")
@@ -142,6 +151,24 @@ class Run(BaseModel):
             plan_id = relationships["plan"]["data"].get("id")
         if relationships.get("apply", {}).get("data"):
             apply_id = relationships["apply"]["data"].get("id")
+        if relationships.get("configuration-version", {}).get("data"):
+            config_version_id = relationships["configuration-version"]["data"].get("id")
+
+        # Extract commit info from included data
+        commit_sha = None
+        commit_message = None
+        commit_author = None
+        if included and config_version_id:
+            for item in included:
+                if (
+                    item.get("type") == "configuration-versions"
+                    and item.get("id") == config_version_id
+                ):
+                    c_attrs = item.get("attributes", {})
+                    commit_sha = c_attrs.get("commit-sha")
+                    commit_message = c_attrs.get("commit-message")
+                    commit_author = c_attrs.get("commit-author")
+                    break
 
         return cls.model_construct(
             id=data["id"],
@@ -161,6 +188,9 @@ class Run(BaseModel):
             workspace_id=workspace_id,
             plan_id=plan_id,
             apply_id=apply_id,
+            commit_sha=commit_sha,
+            commit_message=commit_message,
+            commit_author=commit_author,
         )
 
     @property
