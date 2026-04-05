@@ -1,6 +1,7 @@
 """Tests for Terraform plain text plan parser."""
 
 import pytest
+from unittest.mock import patch, MagicMock
 from terrapyne.core.plan_parser import TerraformPlainTextPlanParser
 
 
@@ -55,6 +56,24 @@ Plan: 1 to add, 0 to change, 0 to destroy.
 
 class TestPlanParser:
     """Test plan parser integration."""
+
+    def test_state_machine_is_used_for_resource_parsing(self, sample_plan_create):
+        """Confirm that the state machine path is used and _parse_resource is never called."""
+        parser = TerraformPlainTextPlanParser(sample_plan_create)
+        
+        # Mock the state machine's parse_resources method to verify it's called
+        with patch.object(parser._state_machine, 'parse_resources', wraps=parser._state_machine.parse_resources) as mock_parse:
+            # Also mock _parse_resource to ensure it's never called
+            with patch.object(parser, '_parse_resource', side_effect=AssertionError("_parse_resource should not be called")) as mock_old_parse:
+                result = parser.parse()
+                
+                # State machine should be used
+                mock_parse.assert_called()
+                # Old method should never be called
+                mock_old_parse.assert_not_called()
+                
+                # And we should get valid results
+                assert len(result["resource_changes"]) == 1
 
     def test_parse_basic_plan(self, sample_plan_create):
         """Test parsing basic create plan."""
