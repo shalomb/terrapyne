@@ -113,7 +113,7 @@ class TestStateOutputsRaw:
             )
 
         assert result.exit_code == 1
-        assert "not found" in result.stdout
+        assert "not found" in result.stderr
 
     def test_raw_mutually_exclusive_with_format_json(self):
         """--raw with --format json raises error."""
@@ -138,7 +138,7 @@ class TestStateOutputsRaw:
             )
 
         assert result.exit_code == 1
-        assert "mutually exclusive" in result.stdout
+        assert "mutually exclusive" in result.stderr
 
     def test_raw_requires_output_name(self):
         """--raw requires a specific output name as argument."""
@@ -151,7 +151,7 @@ class TestStateOutputsRaw:
             )
 
         assert result.exit_code == 1
-        assert "Output name required" in result.stdout
+        assert "Output name required" in result.stderr
 
     def test_raw_with_workspace_id_fails(self):
         """--raw rejects workspace IDs as arguments."""
@@ -165,7 +165,7 @@ class TestStateOutputsRaw:
             )
 
         assert result.exit_code == 1
-        assert "not workspace ID" in result.stdout
+        assert "not workspace ID" in result.stderr
 
     def test_raw_with_state_version_id_fails(self):
         """--raw rejects state version IDs as arguments."""
@@ -179,7 +179,7 @@ class TestStateOutputsRaw:
             )
 
         assert result.exit_code == 1
-        assert "not workspace ID" in result.stdout
+        assert "not workspace ID" in result.stderr
 
     def test_normal_mode_still_works(self):
         """Normal output list mode still works without --raw."""

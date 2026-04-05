@@ -180,7 +180,7 @@ def state_outputs(
 
     # Validate that --raw is not combined with other formats
     if raw and output_format != "table":
-        console.print("[red]Error: --raw is mutually exclusive with --format[/red]")
+        Console(stderr=True).print("[red]Error: --raw is mutually exclusive with --format[/red]")
         raise typer.Exit(1)
 
     with TFCClient(organization=org) as client:
@@ -210,7 +210,7 @@ def state_outputs(
             sv = client.state_versions.get_current(ws.id)
             state_version_id = sv.id
         else:
-            console.print(
+            Console(stderr=True).print(
                 "[red]Error: Provide a workspace name, workspace ID, or state version ID[/red]"
             )
             raise typer.Exit(1)
@@ -220,13 +220,13 @@ def state_outputs(
     if name:
         output = next((o for o in outputs if o.name == name), None)
         if not output:
-            console.print(f"[red]Error: Output '{name}' not found.[/red]")
+            Console(stderr=True).print(f"[red]Error: Output '{name}' not found.[/red]")
             raise typer.Exit(1)
 
         if raw:
             # Print value directly without formatting
             if output.sensitive:
-                console.print(
+                Console(stderr=True).print(
                     "[yellow]Warning: Output is sensitive, use --format=json to see the value[/yellow]"
                 )
                 raise typer.Exit(1)

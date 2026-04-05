@@ -121,4 +121,4 @@ def exit_code_is(cli_result, code):
 @then(parsers.parse("stderr contains {text}"))
 def stderr_contains(cli_result, text):
     expected = text.strip('"')
-    assert expected in cli_result.stdout, f"Expected '{expected}' in output, got: {cli_result.stdout}"
+    assert expected in cli_result.stderr, f"Expected '{expected}' in stderr, got: {cli_result.stderr}\nStdout: {cli_result.stdout}"
