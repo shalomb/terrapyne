@@ -627,6 +627,13 @@ class CloneWorkspaceAPI:
             VCSTokenRequiredError: If VCS clone needs explicit token
             Exception: On API errors
         """
+        # Check for not-yet-implemented features early
+        if with_team_access:
+            raise NotImplementedError(
+                "Team access cloning (with_team_access=True) is not yet implemented. "
+                "Please check back in a future release."
+            )
+
         org = self.client.get_organization(organization)
 
         # Validate arguments
