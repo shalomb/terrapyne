@@ -15,12 +15,25 @@ runner = CliRunner()
 @pytest.fixture
 def mock_api_client():
     from unittest.mock import patch
-
+    from terrapyne.models.project import Project
+    
+    # Create a mapping to store projects by name for this test
+    projects_by_name = {}
+    
+    def mock_resolve_project(client, org=None, project_name=None):
+        """Mock resolve_project_context to return mocked projects."""
+        if project_name and project_name in projects_by_name:
+            return "test-org", projects_by_name[project_name]
+        # Return a default project if not found (will cause error in the actual test)
+        prj = Project(id="prj-default", name=project_name or "default", organization={"name": "test-org"})
+        return "test-org", prj
+    
     with (
         patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_ws_client,
         patch("terrapyne.cli.project_cmd.TFCClient") as mock_prj_client,
         patch("terrapyne.cli.workspace_cmd.validate_context") as mock_ws_ctx,
         patch("terrapyne.cli.project_cmd.validate_context") as mock_prj_ctx,
+        patch("terrapyne.cli.project_cmd.resolve_project_context") as mock_resolve_ctx,
     ):
         mock_instance = MagicMock()
         mock_ws_client.return_value.__enter__.return_value = mock_instance
@@ -53,6 +66,10 @@ def mock_api_client():
         mock_instance.paginate_with_meta.side_effect = paginate_side_effect
         # Also store fixture_data on the mock for steps to access
         mock_instance._fixture_data = fixture_data
+        
+        # Attach the projects dict to the mock for access in steps
+        mock_instance._test_projects = projects_by_name
+        mock_resolve_ctx.side_effect = mock_resolve_project
 
         def ws_validate(org, ws=None, **kwargs):
             return "test-org", ws
@@ -62,7 +79,7 @@ def mock_api_client():
 
         mock_ws_ctx.side_effect = ws_validate
         mock_prj_ctx.side_effect = prj_validate
-
+        
         yield mock_instance
 
 
@@ -192,6 +209,9 @@ def project_exists(mock_api_client: MagicMock, project_name: str) -> None:
     from terrapyne.models.project import Project
 
     prj_model = Project.from_api_response(prj_api_response)
+    
+    # Store the project in the test mapping
+    mock_api_client._test_projects[project_name] = prj_model
 
     # Store in fixture data so paginate_with_meta can find it
     mock_api_client._fixture_data["projects"][project_name] = prj_api_response
