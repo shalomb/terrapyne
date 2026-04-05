@@ -43,12 +43,11 @@ def workspace_exists_in_project(mock_api_client: MagicMock, workspace_name: str,
 
 @given(parsers.parse('the workspace "{workspace_name}" has {count:d} runs currently queued or in progress'))
 def workspace_has_queued_runs(mock_api_client: MagicMock, workspace_name: str, count: int):
-    # The CLI calls runs.list multiple times for active statuses.
-    # We'll mock the list call to return the count for those.
     def mock_runs_list(workspace_id=None, **kwargs):
         if kwargs.get("status"):
-            # Return count only for one of the statuses to reach the target count
-            if kwargs.get("status") == "pending":
+            # Check if any of the active statuses are present in the status string
+            active_statuses = ["pending", "fetching", "queued", "planning", "applying"]
+            if any(s in kwargs.get("status") for s in active_statuses):
                 return ([], count)
             return ([], 0)
         return ([], 0)

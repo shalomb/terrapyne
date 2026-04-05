@@ -138,10 +138,9 @@ def workspace_show(
                 latest_run = runs[0]
 
             # Count active runs
-            active_statuses = ["pending", "fetching", "queued", "planning", "applying"]
-            for status in active_statuses:
-                _, count = client.runs.list(ws.id, status=status)
-                active_runs_count += count or 0
+            active_statuses = "pending,fetching,queued,planning,applying"
+            _, count = client.runs.list(ws.id, status=active_statuses)
+            active_runs_count = count or 0
         except Exception as e:
             console.print(f"\n[yellow]Warning:[/yellow] Unable to fetch run activity: {e}")
 
