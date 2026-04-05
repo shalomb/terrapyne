@@ -98,3 +98,21 @@ Feature: Project Operations
     Then I should see pagination info
     And pagination should show total count
     And count should show "Showing: X of 100 projects"
+
+  Scenario: Show project details using client.projects property
+    Given a TFCClient with mocked projects property
+    When I call project show command
+    Then the command should succeed
+    And client.workspaces property should be called, not WorkspaceAPI constructor
+
+  Scenario: List teams using client.projects property
+    Given a TFCClient with mocked projects property for teams
+    When I call project teams command
+    Then teams command should succeed
+    And client.projects.list_team_access should be called, not ProjectAPI constructor
+
+  Scenario: List projects using client.projects property
+    Given a TFCClient with mocked projects property for list
+    When I call project list command
+    Then list command should succeed
+    And client.projects.list should be called, not ProjectAPI constructor

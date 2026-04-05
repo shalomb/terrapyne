@@ -9,8 +9,6 @@ import typer
 from rich.console import Console
 
 from terrapyne.api.client import TFCClient
-from terrapyne.api.projects import ProjectAPI
-from terrapyne.api.workspaces import WorkspaceAPI
 from terrapyne.cli.utils import (
     handle_cli_errors,
     resolve_project_context,
@@ -44,9 +42,8 @@ def list_projects(
     org, _ = validate_context(organization)
 
     client = TFCClient(organization=org)
-    project_api = ProjectAPI(client)
 
-    projects_iter, total_count = project_api.list(org, search=search)
+    projects_iter, total_count = client.projects.list(org, search=search)
     projects = list(projects_iter)[:limit]
 
     if not projects:
@@ -54,7 +51,7 @@ def list_projects(
         sys.exit(0)
 
     # Get actual workspace counts
-    workspace_counts = {} if search else project_api.get_workspace_counts(org)
+    workspace_counts = {} if search else client.projects.get_workspace_counts(org)
 
     if output_format == "json":
         from terrapyne.cli.utils import emit_json
@@ -105,9 +102,8 @@ def find_projects(
     org, _ = validate_context(organization)
 
     client = TFCClient(organization=org)
-    project_api = ProjectAPI(client)
 
-    projects_iter, total_count = project_api.list(org, search=pattern)
+    projects_iter, total_count = client.projects.list(org, search=pattern)
     projects = list(projects_iter)[:limit]
 
     if not projects:
@@ -140,10 +136,8 @@ def show_project(
         # Resolve project from name or context
         org, project = resolve_project_context(client, org, project_name)
 
-        workspace_api = WorkspaceAPI(client)
-
         # Get workspaces in project
-        workspaces_iter, _ = workspace_api.list(org, project_id=project.id)
+        workspaces_iter, _ = client.workspaces.list(org, project_id=project.id)
         workspaces = list(workspaces_iter)
 
         render_project_detail(project, workspaces)
@@ -173,10 +167,8 @@ def list_project_teams(
         # Resolve project from name or context
         org, project = resolve_project_context(client, org, project_name)
 
-        project_api = ProjectAPI(client)
-
         # List team access
-        team_access_list = project_api.list_team_access(project.id)
+        team_access_list = client.projects.list_team_access(project.id)
 
         render_project_team_access(team_access_list, project.name)
 

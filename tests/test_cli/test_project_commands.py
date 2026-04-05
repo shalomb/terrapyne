@@ -67,17 +67,21 @@ def _(org_context):
 @when("I list all projects")
 def list_all_projects(org_context, project_list_response):
     """List projects via CLI."""
+    from unittest.mock import PropertyMock
+    
     projects = [
         Project.from_api_response(data) for data in project_list_response["data"]
     ]
 
-    # CLI uses ProjectAPI(client) directly, not client.projects
-    with patch("terrapyne.cli.project_cmd.TFCClient"), \
-         patch("terrapyne.cli.project_cmd.ProjectAPI") as mock_api_class:
-        mock_api = MagicMock()
-        mock_api_class.return_value = mock_api
-        mock_api.list.return_value = (iter(projects), len(projects))
-        mock_api.get_workspace_counts.return_value = {}
+    # CLI now uses client.projects property
+    mock_client = MagicMock()
+    mock_projects = MagicMock()
+    type(mock_client).projects = PropertyMock(return_value=mock_projects)
+    mock_projects.list.return_value = (iter(projects), len(projects))
+    mock_projects.get_workspace_counts.return_value = {}
+
+    with patch("terrapyne.cli.project_cmd.TFCClient") as mock_client_class:
+        mock_client_class.return_value = mock_client
 
         result = runner.invoke(
             app, ["project", "list", "--organization", "test-org"]
@@ -136,20 +140,23 @@ def _(project_context):
 @when("I show details for project \"my-infrastructure\"")
 def show_project_details(project_context, project_detail_response):
     """Show project details via CLI."""
+    from unittest.mock import PropertyMock
+    
     project = Project.from_api_response(project_detail_response["data"])
 
-    # CLI uses ProjectAPI(client) and WorkspaceAPI(client) directly
-    with patch("terrapyne.cli.project_cmd.TFCClient"), \
-         patch("terrapyne.cli.project_cmd.resolve_project_context") as mock_resolve, \
-         patch("terrapyne.cli.project_cmd.ProjectAPI") as mock_api_class, \
-         patch("terrapyne.cli.project_cmd.WorkspaceAPI") as mock_ws_class:
-        mock_resolve.return_value = ("test-org", project)
-        mock_api = MagicMock()
-        mock_api_class.return_value = mock_api
-        mock_api.get_by_name.return_value = project
-        mock_ws = MagicMock()
-        mock_ws_class.return_value = mock_ws
-        mock_ws.list.return_value = (iter([]), 0)
+    # CLI now uses client.projects and client.workspaces properties
+    mock_client = MagicMock()
+    mock_projects = MagicMock()
+    mock_workspaces = MagicMock()
+    type(mock_client).projects = PropertyMock(return_value=mock_projects)
+    type(mock_client).workspaces = PropertyMock(return_value=mock_workspaces)
+    mock_projects.get_by_name.return_value = project
+    mock_workspaces.list.return_value = (iter([]), 0)
+    mock_client.__enter__ = lambda self: self
+    mock_client.__exit__ = lambda self, *args: None
+
+    with patch("terrapyne.cli.project_cmd.TFCClient") as mock_client_class:
+        mock_client_class.return_value = mock_client
 
         result = runner.invoke(
             app,
@@ -219,21 +226,25 @@ def _(project_context):
 @when("I list team access for project")
 def list_team_access(project_context, project_detail_response, team_project_access_response):
     """List team access via CLI."""
+    from unittest.mock import PropertyMock
+    
     project = Project.from_api_response(project_detail_response["data"])
     team_access = [
         TeamProjectAccess.from_api_response(data)
         for data in team_project_access_response["data"]
     ]
 
-    # CLI uses ProjectAPI(client) directly — command name is 'teams' not 'access'
-    with patch("terrapyne.cli.project_cmd.TFCClient"), \
-         patch("terrapyne.cli.project_cmd.resolve_project_context") as mock_resolve, \
-         patch("terrapyne.cli.project_cmd.ProjectAPI") as mock_api_class:
-        mock_resolve.return_value = ("test-org", project)
-        mock_api = MagicMock()
-        mock_api_class.return_value = mock_api
-        mock_api.get_by_name.return_value = project
-        mock_api.list_team_access.return_value = team_access
+    # CLI now uses client.projects property
+    mock_client = MagicMock()
+    mock_projects = MagicMock()
+    type(mock_client).projects = PropertyMock(return_value=mock_projects)
+    mock_projects.get_by_name.return_value = project
+    mock_projects.list_team_access.return_value = team_access
+    mock_client.__enter__ = lambda self: self
+    mock_client.__exit__ = lambda self, *args: None
+
+    with patch("terrapyne.cli.project_cmd.TFCClient") as mock_client_class:
+        mock_client_class.return_value = mock_client
 
         result = runner.invoke(
             app,

@@ -38,11 +38,15 @@ def workspace_with_runs():
 
 @given("projects exist in the organization", target_fixture="mock_client")
 def projects_exist():
+    from unittest.mock import PropertyMock
     m = MagicMock()
     api = MagicMock()
-    api.list.return_value = (iter([Project.model_construct(id="prj-1", name="proj", created_at=None, resource_count=5)]), 1)
+    # Use side_effect to return a fresh tuple with fresh iterator each time
+    def list_projects(*args, **kwargs):
+        return (iter([Project.model_construct(id="prj-1", name="proj", created_at=None, resource_count=5)]), 1)
+    api.list.side_effect = list_projects
     api.get_workspace_counts.return_value = {}
-    m.projects = api
+    type(m).projects = PropertyMock(return_value=api)
     return m
 
 @given("teams exist in the organization", target_fixture="mock_client")
@@ -80,9 +84,9 @@ def req_run_list(mock_client):
 
 @when("I request the project list as JSON", target_fixture="cli_result")
 def req_proj_list(mock_client):
-    with patch("terrapyne.cli.project_cmd.TFCClient") as c, patch("terrapyne.cli.project_cmd.ProjectAPI") as a:
-        a.return_value = mock_client.projects
-        c.return_value.__enter__.return_value = mock_client
+    with patch("terrapyne.cli.project_cmd.TFCClient") as c:
+        # project list doesn't use context manager, so return the client directly
+        c.return_value = mock_client
         return runner.invoke(app, ["project", "list", "-o", "test-org", "--format", "json"])
 
 @when("I request the team list as JSON", target_fixture="cli_result")

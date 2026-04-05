@@ -80,18 +80,22 @@ def given_workspace_without_vcs(vcs_context):
 @when("I show VCS configuration")
 def show_vcs_configuration(vcs_context):
     """Show VCS configuration — dispatches based on context."""
+    from unittest.mock import PropertyMock
+    
     workspace_data = vcs_context.get("workspace_data", {})
     workspace_name = vcs_context.get("workspace", "my-app-dev")
     org = vcs_context.get("org", "test-org")
 
-    with patch("terrapyne.cli.vcs_cmd.TFCClient"), \
-         patch("terrapyne.cli.vcs_cmd.WorkspaceAPI") as mock_ws_class, \
+    workspace = Workspace.from_api_response(workspace_data["data"])
+    mock_client = MagicMock()
+    mock_workspaces = MagicMock()
+    type(mock_client).workspaces = PropertyMock(return_value=mock_workspaces)
+    mock_workspaces.get.return_value = workspace
+
+    with patch("terrapyne.cli.vcs_cmd.TFCClient") as mock_client_class, \
          patch("terrapyne.cli.vcs_cmd.VCSAPI") as mock_vcs_class:
 
-        workspace = Workspace.from_api_response(workspace_data["data"])
-        mock_ws = MagicMock()
-        mock_ws_class.return_value = mock_ws
-        mock_ws.get.return_value = workspace
+        mock_client_class.return_value = mock_client
 
         mock_vcs = MagicMock()
         mock_vcs_class.return_value = mock_vcs

@@ -10,7 +10,6 @@ from rich.console import Console
 
 from terrapyne.api.client import TFCClient
 from terrapyne.api.vcs import VCSAPI
-from terrapyne.api.workspaces import WorkspaceAPI
 from terrapyne.cli.utils import handle_cli_errors, validate_context
 from terrapyne.utils.rich_tables import render_vcs_detail, render_vcs_repos
 
@@ -37,8 +36,7 @@ def show_vcs(
     vcs_api = VCSAPI(client)
 
     # Get workspace ID
-    workspaces_api = WorkspaceAPI(client)
-    workspace_obj = workspaces_api.get(workspace_name or "", org)  # type: ignore[arg-type]
+    workspace_obj = client.workspaces.get(workspace_name or "", org)  # type: ignore[arg-type]
 
     # Get VCS config
     vcs = vcs_api.get_workspace_vcs(workspace_obj.id)
@@ -66,8 +64,7 @@ def update_branch(
     vcs_api = VCSAPI(client)
 
     # Get workspace
-    workspaces_api = WorkspaceAPI(client)
-    workspace_obj = workspaces_api.get(workspace_name or "", org)  # type: ignore[arg-type]
+    workspace_obj = client.workspaces.get(workspace_name or "", org)  # type: ignore[arg-type]
 
     # Get current VCS config
     current_vcs = vcs_api.get_workspace_vcs(workspace_obj.id)

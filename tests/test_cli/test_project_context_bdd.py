@@ -12,6 +12,8 @@ runner = CliRunner()
 
 @pytest.fixture
 def mock_api_client():
+    from unittest.mock import PropertyMock
+    
     with patch("terrapyne.cli.project_cmd.TFCClient") as mock_prj_client_class, \
          patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_ws_client_class, \
          patch("terrapyne.cli.project_cmd.validate_context") as mock_prj_validate, \
@@ -26,7 +28,12 @@ def mock_api_client():
         mock_ws_validate.return_value = ("test-org", "app-dev")
         
         # Mock common attributes
-        mock_instance.workspaces.get_variables.return_value = []
+        mock_workspaces = MagicMock()
+        mock_projects = MagicMock()
+        type(mock_instance).workspaces = PropertyMock(return_value=mock_workspaces)
+        type(mock_instance).projects = PropertyMock(return_value=mock_projects)
+        
+        mock_workspaces.get_variables.return_value = []
         mock_instance.paginate_with_meta.return_value = (iter([]), 0)
         mock_instance.paginate.return_value = iter([])
         
@@ -60,9 +67,19 @@ def workspace_belongs_to_project(mock_api_client: MagicMock, workspace_name: str
         project_id=f"prj-{project_name}",
         project_name=project_name
     )
+    proj = Project(
+        id=f"prj-{project_name}",
+        name=project_name,
+        description=f"Project {project_name}",
+        created_at="2025-03-13T00:00:00Z"
+    )
     
     # Mock workspaces.get
     mock_api_client.workspaces.get.return_value = ws
+    
+    # Mock projects methods
+    mock_api_client.projects.get_by_name.return_value = proj
+    mock_api_client.projects.get_by_id.return_value = proj
 
     # Setup mock responses based on path
     def mock_get(path, **kwargs):
@@ -143,7 +160,7 @@ def workspace_belongs_to_project(mock_api_client: MagicMock, workspace_name: str
     mock_api_client.paginate_with_meta.side_effect = mock_paginate_meta
     
     # Mock workspaces list return value
-    mock_api_client.workspaces.list.return_value = ([ws], 1)
+    mock_api_client.workspaces.list.return_value = (iter([ws]), 1)
     
     # Mock team access (for teams command)
     from terrapyne.models.team_access import TeamProjectAccess
