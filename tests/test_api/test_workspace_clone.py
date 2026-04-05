@@ -495,17 +495,17 @@ class TestCloneWorkflowIntegration:
 
     def test_full_clone_source_not_found(self, api, mock_client):
         """Test clone fails when source workspace not found."""
+        from terrapyne.api.workspace_clone import WorkspaceNotFoundError
+        
         # Mock 404 response for source lookup
         mock_client.get.side_effect = Exception("404 not found")
 
-        result = api.clone(
-            source_workspace_name="non-existent",
-            target_workspace_name="target",
-            organization="test-org",
-        )
-
-        assert result["status"] == "error"
-        assert "error" in result
+        with pytest.raises(WorkspaceNotFoundError):
+            api.clone(
+                source_workspace_name="non-existent",
+                target_workspace_name="target",
+                organization="test-org",
+            )
 
     def test_full_clone_target_exists_without_force(self, api, mock_client):
         """Test clone fails when target exists without force flag."""
@@ -521,18 +521,21 @@ class TestCloneWorkflowIntegration:
             "attributes": {"name": "staging-app"},
         }
 
+        from terrapyne.api.workspace_clone import WorkspaceAlreadyExistsError
+        
         # First get is source, second get is target (exists and force=False)
         mock_client.get.side_effect = [{"data": source_ws_data}, {"data": existing_target_data}]
 
-        result = api.clone(
-            source_workspace_name="prod-app",
-            target_workspace_name="staging-app",
-            organization="test-org",
-            force=False,
-        )
+        with pytest.raises(WorkspaceAlreadyExistsError) as exc_info:
+            api.clone(
+                source_workspace_name="prod-app",
+                target_workspace_name="staging-app",
+                organization="test-org",
+                force=False,
+            )
 
-        assert result["status"] == "error"
-        assert "exists" in result["error"].lower() or "already" in result["error"].lower()
+        error_str = str(exc_info.value).lower()
+        assert "exists" in error_str or "already" in error_str
 
     def test_full_clone_target_exists_with_force(self, api, mock_client):
         """Test clone succeeds with force flag when target exists."""
@@ -570,14 +573,14 @@ class TestCloneWorkflowIntegration:
         """Test clone fails when source and target names are the same."""
         # This should fail during validation before any API calls
         # No need to mock get() since validate_clone_args raises immediately
-        result = api.clone(
-            source_workspace_name="same-app",
-            target_workspace_name="same-app",
-            organization="test-org",
-        )
+        with pytest.raises(ValueError) as exc_info:
+            api.clone(
+                source_workspace_name="same-app",
+                target_workspace_name="same-app",
+                organization="test-org",
+            )
 
-        assert result["status"] == "error"
-        error_lower = result["error"].lower()
+        error_lower = str(exc_info.value).lower()
         assert "same" in error_lower or "identical" in error_lower or "different" in error_lower
 
 
