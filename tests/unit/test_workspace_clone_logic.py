@@ -828,6 +828,59 @@ class TestConflictResolution:
             raise RuntimeError("Variable clone failed, workspace 'target' created but incomplete")
 
 
+class TestCloneWithTeamAccess:
+    """Test handling of with_team_access parameter."""
+
+    @pytest.fixture
+    def mock_client(self):
+        """Create a mock TFC client."""
+        return MagicMock(spec=TFCClient)
+
+    def test_clone_raises_not_implemented_for_with_team_access(self, mock_client):
+        """clone() should raise NotImplementedError when with_team_access=True is passed."""
+        from terrapyne.api.workspace_clone import CloneWorkspaceAPI
+        
+        source_data = {
+            "id": "ws-src",
+            "type": "workspaces",
+            "attributes": {
+                "name": "source",
+                "terraform_version": "1.5.0",
+                "execution_mode": "remote",
+                "auto_apply": False,
+                "lock": False,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-10T12:00:00Z",
+            },
+        }
+        
+        mock_client.get_organization.return_value = "test-org"
+        
+        # Mock get to return source workspace but not find target
+        def mock_get_side_effect(path):
+            if "target" in path:
+                # target doesn't exist
+                raise Exception("404 Not found")
+            # source exists
+            return {"data": source_data}
+        
+        mock_client.get.side_effect = mock_get_side_effect
+        
+        clone_api = CloneWorkspaceAPI(mock_client)
+        
+        # WHEN: clone is called with with_team_access=True
+        # THEN: should raise NotImplementedError
+        with pytest.raises(NotImplementedError) as exc_info:
+            clone_api.clone(
+                source_workspace_name="source",
+                target_workspace_name="target",
+                organization="test-org",
+                with_team_access=True
+            )
+        
+        assert "team_access" in str(exc_info.value).lower() or "not" in str(exc_info.value).lower()
+
+
 class TestCloneExceptionHandling:
     """Test that clone method properly propagates exceptions instead of swallowing them."""
 
