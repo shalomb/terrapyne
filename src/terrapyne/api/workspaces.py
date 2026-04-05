@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from typing import Any
 
 from terrapyne.api.client import TFCClient
 from terrapyne.models.variable import WorkspaceVariable
@@ -140,8 +141,6 @@ class WorkspaceAPI:
         Raises:
             httpx.HTTPStatusError: If API request fails
         """
-        from typing import Any
-
         path = "/vars"
 
         attributes: dict[str, Any] = {
@@ -192,8 +191,6 @@ class WorkspaceAPI:
         Raises:
             httpx.HTTPStatusError: If API request fails
         """
-        from typing import Any
-
         path = f"/vars/{variable_id}"
 
         # Build attributes dict with only provided values
