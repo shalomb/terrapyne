@@ -81,14 +81,14 @@ def validate_context(
             "Specify: --organization ORGANIZATION or run in terraform directory."
         )
 
-    if require_workspace:
+    if workspace or require_workspace:
         ws = resolve_workspace(workspace)
-        if not ws:
+        if not ws and require_workspace:
             raise ValueError(
                 "No workspace specified and could not detect from context. "
                 "Specify: WORKSPACE or run in terraform directory."
             )
-        return org, ws  # type: ignore[return-value]
+        return org, ws if ws else None  # type: ignore[return-value]
 
     return org, None
 
