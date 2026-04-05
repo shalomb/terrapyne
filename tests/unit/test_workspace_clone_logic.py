@@ -826,3 +826,77 @@ class TestConflictResolution:
         # Error should propagate with context
         with pytest.raises(RuntimeError):
             raise RuntimeError("Variable clone failed, workspace 'target' created but incomplete")
+
+
+class TestCloneExceptionHandling:
+    """Test that clone method properly propagates exceptions instead of swallowing them."""
+
+    @pytest.fixture
+    def mock_client(self):
+        """Create a mock TFC client."""
+        return MagicMock(spec=TFCClient)
+
+    def test_clone_propagates_exception_from_validate_clone_args(self, mock_client):
+        """clone() should propagate exceptions from validate_clone_args instead of swallowing them."""
+        # GIVEN: validate_clone_args raises an exception
+        from terrapyne.api.workspace_clone import CloneWorkspaceAPI, WorkspaceNotFoundError
+        
+        mock_client.get_organization.return_value = "test-org"
+        mock_client.get.side_effect = Exception("Source workspace not found")
+        
+        clone_api = CloneWorkspaceAPI(mock_client)
+        
+        # WHEN: calling clone with nonexistent source workspace
+        # THEN: should raise the exception (not return a dict with error status)
+        with pytest.raises(WorkspaceNotFoundError):
+            clone_api.clone(
+                source_workspace_name="nonexistent",
+                target_workspace_name="target",
+                organization="test-org"
+            )
+
+    def test_clone_propagates_exception_from_inner_failure(self, mock_client):
+        """clone() should propagate exceptions from internal operations, not return error dict."""
+        # GIVEN: an inner operation (like workspace creation) raises an exception
+        from terrapyne.api.workspace_clone import CloneWorkspaceAPI
+        
+        source_data = {
+            "id": "ws-src",
+            "type": "workspaces",
+            "attributes": {
+                "name": "source",
+                "terraform_version": "1.5.0",
+                "execution_mode": "remote",
+                "auto_apply": False,
+                "lock": False,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-10T12:00:00Z",
+            },
+        }
+        
+        mock_client.get_organization.return_value = "test-org"
+        
+        # Mock get to return source workspace but not find target (so create will be attempted)
+        def mock_get_side_effect(path):
+            if "target" in path:
+                # target doesn't exist
+                raise Exception("404 Not found")
+            # source exists
+            return {"data": source_data}
+        
+        mock_client.get.side_effect = mock_get_side_effect
+        # Post fails when creating workspace
+        mock_client.post.side_effect = Exception("API rate limit exceeded")
+        
+        clone_api = CloneWorkspaceAPI(mock_client)
+        
+        # WHEN: an inner operation fails
+        # THEN: should raise the exception (not return {"status": "error"})
+        with pytest.raises(Exception) as exc_info:
+            clone_api.clone(
+                source_workspace_name="source",
+                target_workspace_name="target",
+                organization="test-org"
+            )
+        
+        assert "API rate limit exceeded" in str(exc_info.value)
