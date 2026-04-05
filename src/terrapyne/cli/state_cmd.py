@@ -178,6 +178,11 @@ def state_outputs(
     """List outputs from a state version or show a single output."""
     org, ws_name = validate_context(organization, workspace)
 
+    # Validate that --raw is not combined with other formats
+    if raw and output_format != "table":
+        console.print("[red]Error: --raw is mutually exclusive with --format[/red]")
+        raise typer.Exit(1)
+
     with TFCClient(organization=org) as client:
         state_version_id = None
 
@@ -198,7 +203,6 @@ def state_outputs(
                         name = target  # Shift target to name
                     else:
                         raise
-
             sv = client.state_versions.get_current(ws.id)
             state_version_id = sv.id
         elif ws_name:
@@ -223,217 +227,27 @@ def state_outputs(
             # Print value directly without formatting
             if output.sensitive:
                 console.print(
-                    "[yellow]Warning: Output is sensitive, cannot show raw value[/yellow]"
+                    "[yellow]Warning: Output is sensitive, use --format=json to see the value[/yellow]"
                 )
                 raise typer.Exit(1)
+            # Use print() instead of console.print() for raw shell friendliness
             print(output.value)
             return
 
-        if output_format == "json":
-            print(
-                json.dumps(
-                    {
-                        "name": output.name,
-                        "value": output.value,
-                        "type": output.type,
-                        "sensitive": output.sensitive,
-                    },
-                    indent=2,
-                )
-            )
-            return
-
-        table = Table(title=f"Output: {name}")
-        table.add_column("Property")
-        table.add_column("Value")
-        val = "(sensitive)" if output.sensitive else str(output.value)
-        table.add_row("Name", output.name)
-        table.add_row("Value", val)
-        table.add_row("Type", output.type or "N/A")
-        table.add_row("Sensitive", "yes" if output.sensitive else "no")
-        console.print(table)
-        return
+        outputs = [output]
 
     if output_format == "json":
-        print(
-            json.dumps(
-                [
-                    {"name": o.name, "value": o.value, "type": o.type, "sensitive": o.sensitive}
-                    for o in outputs
-                ],
-                indent=2,
-            )
-        )
+        data = {o.name: o.value for o in outputs}
+        print(json.dumps(data, indent=2))
         return
 
-    table = Table(title="State Outputs")
-    table.add_column("Name")
-    table.add_column("Value")
+    table = Table(title=f"Outputs for {state_version_id}")
+    table.add_column("Name", style="cyan")
     table.add_column("Type", style="dim")
-    table.add_column("Sensitive")
+    table.add_column("Value")
 
     for o in outputs:
-        val = "(sensitive)" if o.sensitive else str(o.value)
-        table.add_row(o.name, val, o.type or "", "yes" if o.sensitive else "")
+        val = "[sensitive]" if o.sensitive else str(o.value)
+        table.add_row(o.name, o.type, val)
 
     console.print(table)
-
-
-@app.command("inventory")
-def state_inventory(
-    workspace: str | None = typer.Argument(None, help="Workspace name"),
-    organization: str | None = typer.Option(None, "-o", "--organization"),
-    fields: str | None = typer.Option(
-        None, "--fields", help="Comma-separated fields (e.g. type,tags.Name,id,arn)"
-    ),
-    type_filter: str | None = typer.Option(
-        None, "--type", help="Filter resource types (comma-separated)"
-    ),
-    mode: str = typer.Option("managed", "--mode", help="Resource mode: managed, data"),
-    module: str | None = typer.Option(None, "--module", help="Filter by module path substring"),
-    output_format: str = typer.Option(
-        "table", "--format", "-f", help="Output format: table, markdown, json"
-    ),
-) -> None:
-    """Show current resource inventory from latest state."""
-    org, ws_name = validate_context(organization, workspace, require_workspace=True)
-    field_list = _parse_fields(fields)
-    type_set = _parse_types(type_filter)
-
-    with TFCClient(organization=org) as client:
-        ws = client.workspaces.get(ws_name or "", org)
-        sv = client.state_versions.get_current(ws.id)
-        state = client.state_versions.download_from_url(_require_download_url(sv))
-
-    instances = parse_state_resources(state, types=type_set, mode=mode, module_pattern=module)
-    rows = extract_rows(instances, field_list)
-
-    _render_rows(rows, field_list, output_format, title=f"Resources in {ws_name}")
-
-
-@app.command("diff")
-def state_diff(
-    workspace: str | None = typer.Argument(None, help="Workspace name"),
-    organization: str | None = typer.Option(None, "-o", "--organization"),
-    since: str = typer.Option(..., "--since", help="Date to diff from (ISO format: YYYY-MM-DD)"),
-    fields: str | None = typer.Option(None, "--fields", help="Comma-separated fields"),
-    type_filter: str | None = typer.Option(None, "--type", help="Filter resource types"),
-    mode: str = typer.Option("managed", "--mode"),
-    module: str | None = typer.Option(None, "--module"),
-    output_format: str = typer.Option(
-        "table", "--format", "-f", help="Output format: table, markdown, json, diff"
-    ),
-    diff_cmd: str | None = typer.Option(
-        None,
-        "--diff-cmd",
-        help="External diff program (e.g. 'delta', 'git diff --no-index --color')",
-    ),
-) -> None:
-    """Show resources added/removed since a date."""
-    org, ws_name = validate_context(organization, workspace, require_workspace=True)
-    since_dt = _parse_since(since)
-    field_list = _parse_fields(fields)
-    type_set = _parse_types(type_filter)
-
-    with TFCClient(organization=org) as client:
-        ws = client.workspaces.get(ws_name or "", org)
-
-        # Current state
-        sv_new = client.state_versions.get_current(ws.id)
-        state_new = client.state_versions.download_from_url(_require_download_url(sv_new))
-
-        # State before the given date
-        sv_old = client.state_versions.find_version_before(ws.id, since_dt)
-        state_old = (
-            client.state_versions.download_from_url(_require_download_url(sv_old)) if sv_old else {}
-        )
-
-    new_instances = parse_state_resources(
-        state_new, types=type_set, mode=mode, module_pattern=module
-    )
-    old_instances = (
-        parse_state_resources(state_old, types=type_set, mode=mode, module_pattern=module)
-        if state_old
-        else []
-    )
-
-    if output_format == "diff":
-        output = format_diff_unified(old_instances, new_instances, field_list, diff_cmd=diff_cmd)
-        print(output, end="")
-        return
-
-    result = diff_state_resources(old_instances, new_instances)
-
-    since_label = since_dt.strftime("%Y-%m-%d")
-    old_serial = f" (serial {sv_old.serial})" if sv_old else " (no prior state)"
-    console.print(
-        f"[dim]Comparing current (serial {sv_new.serial}) vs state before {since_label}{old_serial}[/dim]\n"
-    )
-
-    if not result.added and not result.removed:
-        console.print(f"[green]No resource changes since {since_label}[/green]")
-        return
-
-    if result.added:
-        rows = extract_rows(result.added, field_list)
-        _render_rows(
-            rows, field_list, output_format, title=f"Added ({len(result.added)})", action="+"
-        )
-
-    if result.removed:
-        rows = extract_rows(result.removed, field_list)
-        _render_rows(
-            rows, field_list, output_format, title=f"Removed ({len(result.removed)})", action="-"
-        )
-
-
-def _render_rows(
-    rows: list[dict[str, str]],
-    fields: list[str],
-    output_format: str,
-    title: str = "",
-    action: str | None = None,
-) -> None:
-    """Render rows in the requested format."""
-    if output_format == "json":
-        if action:
-            for row in rows:
-                row["_action"] = action
-        print(json.dumps(rows, indent=2))
-
-    elif output_format == "markdown":
-        cols = ["#"]
-        if action:
-            cols.append("")
-        cols.extend(fields)
-        header = "| " + " | ".join(cols) + " |"
-        separator = "| " + " | ".join("---" for _ in cols) + " |"
-
-        if title:
-            console.print(f"\n**{title}**\n")
-        print(header)
-        print(separator)
-        for i, row in enumerate(rows, 1):
-            prefix = f" {action} |" if action else ""
-            vals = " | ".join(row.get(f, "") for f in fields)
-            print(f"| {i} |{prefix} {vals} |")
-
-    else:  # table (default)
-        table = Table(title=title)
-        table.add_column("#", style="dim", justify="right")
-        if action:
-            table.add_column("", width=1)
-        for f in fields:
-            table.add_column(f)
-
-        for i, row in enumerate(rows, 1):
-            action_cell = (
-                "[green]+[/green]" if action == "+" else "[red]-[/red]" if action == "-" else ""
-            )
-            cells = [str(i)]
-            if action:
-                cells.append(action_cell)
-            cells.extend(row.get(f, "") for f in fields)
-            table.add_row(*cells)
-
-        console.print(table)
