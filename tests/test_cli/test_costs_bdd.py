@@ -93,15 +93,17 @@ def workspace_exists(mock_api_client: MagicMock, workspace_name: str) -> None:
 @given(parsers.parse('the latest run for "{workspace_name}" has a cost estimate of ${monthly} monthly with a ${delta} delta'))
 def latest_run_has_cost_estimate(mock_api_client: MagicMock, workspace_name: str, monthly: str, delta: str) -> None:
     mock_api_client.runs.get_latest_cost_estimate.return_value = {
-        "monthly": f"{monthly}.00",
-        "delta": f"{delta}.00"
+        "proposed-monthly-cost": f"{monthly}.00",
+        "delta-monthly-cost": f"{delta}.00",
+        "prior-monthly-cost": "0.00"
     }
 
 @given(parsers.parse('the latest run for "{workspace_name}" has a cost estimate of ${monthly} monthly with a -${delta} delta'))
 def latest_run_has_cost_estimate_decrease(mock_api_client: MagicMock, workspace_name: str, monthly: str, delta: str) -> None:
     mock_api_client.runs.get_latest_cost_estimate.return_value = {
-        "monthly": f"{monthly}.00",
-        "delta": f"-{delta}.00"
+        "proposed-monthly-cost": f"{monthly}.00",
+        "delta-monthly-cost": f"-{delta}.00",
+        "prior-monthly-cost": str(int(monthly) + int(delta)) + ".00"
     }
 
 @given(parsers.parse('the latest run for "{workspace_name}" has no cost estimate'))
@@ -111,8 +113,8 @@ def latest_run_no_cost_estimate(mock_api_client: MagicMock, workspace_name: str)
 @given(parsers.parse('the latest run for "{workspace_name}" has an invalid cost estimate string'))
 def latest_run_invalid_cost_estimate(mock_api_client: MagicMock, workspace_name: str) -> None:
     mock_api_client.runs.get_latest_cost_estimate.return_value = {
-        "monthly": "invalid_cost",
-        "delta": "invalid_delta"
+        "proposed-monthly-cost": "invalid_cost",
+        "delta-monthly-cost": "invalid_delta"
     }
 
 @given(parsers.parse('a Terraform Cloud project "{project_name}" exists'))
@@ -136,9 +138,9 @@ def project_workspaces_have_cost_estimates(mock_api_client: MagicMock, project_n
     
     def get_costs(workspace_id, **kwargs):
         if workspace_id == "ws-1":
-            return {"monthly": str(int(total_monthly) // 2) + ".00", "delta": "0.0"}
+            return {"proposed-monthly-cost": str(int(total_monthly) // 2) + ".00", "delta-monthly-cost": "0.0"}
         elif workspace_id == "ws-2":
-            return {"monthly": str(int(total_monthly) - int(total_monthly) // 2) + ".00", "delta": "0.0"}
+            return {"proposed-monthly-cost": str(int(total_monthly) - int(total_monthly) // 2) + ".00", "delta-monthly-cost": "0.0"}
         return None
         
     mock_api_client.runs.get_latest_cost_estimate.side_effect = get_costs
@@ -150,8 +152,8 @@ def project_workspaces_invalid_cost_estimates(mock_api_client: MagicMock, projec
         1
     )
     mock_api_client.runs.get_latest_cost_estimate.return_value = {
-        "monthly": "invalid_string",
-        "delta": "invalid_delta"
+        "proposed-monthly-cost": "invalid_string",
+        "delta-monthly-cost": "invalid_delta"
     }
 
 @given(parsers.parse('the project "{project_name}" contains no workspaces'))
@@ -173,16 +175,34 @@ def command_succeeds(cli_result: object) -> None:
 
 @then(parsers.parse('the output should show an estimated monthly cost of "{expected_cost}"'))
 def output_shows_monthly_cost(cli_result: object, expected_cost: str) -> None:
-    assert expected_cost in cli_result.stdout
+    # Handle comma formatting for thousands
+    if len(expected_cost.replace("$", "").split(".")[0]) >= 4:
+        val = expected_cost.replace("$", "")
+        formatted_cost = f"${int(val.split('.')[0]):,}.{val.split('.')[1]}"
+        assert formatted_cost in cli_result.stdout
+    else:
+        assert expected_cost in cli_result.stdout
 
 @then(parsers.parse('the output should show a cost delta of "{expected_delta}"'))
 def output_shows_cost_delta(cli_result: object, expected_delta: str) -> None:
-    assert expected_delta in cli_result.stdout
+    # Handle comma formatting for thousands
+    if len(expected_delta.replace("$", "").split(".")[0]) >= 4:
+        val = expected_delta.replace("$", "")
+        formatted_delta = f"${int(val.split('.')[0]):,}.{val.split('.')[1]}"
+        assert formatted_delta in cli_result.stdout
+    else:
+        assert expected_delta in cli_result.stdout
 
 @then("the output should indicate no cost estimates are available")
 def output_indicates_no_cost_estimates(cli_result: object) -> None:
-    assert "No cost estimates available" in cli_result.stdout
+    assert "No finished cost estimates found in recent runs" in cli_result.stdout
 
 @then(parsers.parse('the output should show the total project estimated monthly cost of "{expected_cost}"'))
 def output_shows_total_project_cost(cli_result: object, expected_cost: str) -> None:
-    assert expected_cost in cli_result.stdout
+    # Handle comma formatting for thousands
+    if len(expected_cost.replace("$", "").split(".")[0]) >= 4:
+        val = expected_cost.replace("$", "")
+        formatted_cost = f"${int(val.split('.')[0]):,}.{val.split('.')[1]}"
+        assert formatted_cost in cli_result.stdout
+    else:
+        assert expected_cost in cli_result.stdout

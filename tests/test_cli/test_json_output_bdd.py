@@ -56,6 +56,7 @@ def workspace_named(name):
     m = MagicMock()
     m.workspaces.get.return_value = Workspace.model_construct(id="ws-abc", name=name, terraform_version="1.9.0", created_at=None, updated_at=None, auto_apply=False, execution_mode="remote", locked=False, tag_names=[], project_id=None)
     m.workspaces.get_variables.return_value = []
+    m.runs.list.return_value = ([], 0)
     return m
 
 @given(parsers.parse('a run "{run_id}" exists'), target_fixture="mock_client")
@@ -93,7 +94,9 @@ def req_team_list(mock_client):
 
 @when("I request the workspace detail as JSON", target_fixture="cli_result")
 def req_ws_show(mock_client):
-    with patch("terrapyne.cli.workspace_cmd.TFCClient") as c:
+    with patch("terrapyne.cli.workspace_cmd.TFCClient") as c, \
+         patch("terrapyne.cli.workspace_cmd.validate_context") as v:
+        v.return_value = ("test-org", "my-app-dev")
         c.return_value.__enter__.return_value = mock_client
         return runner.invoke(app, ["workspace", "show", "my-app-dev", "-o", "test-org", "--format", "json"])
 

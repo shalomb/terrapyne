@@ -1,5 +1,6 @@
 """CLI tests for run commands - Refined for Adzic Index."""
 
+import datetime
 import pytest
 from pytest_bdd import given, scenario, then, when, parsers
 from typer.testing import CliRunner
@@ -385,9 +386,11 @@ def analyze_project_failures_step(project_errors_setup):
     from terrapyne.models.run import RunStatus
     from terrapyne.models.project import Project
     project = project_errors_setup["project"]
-    with patch("terrapyne.cli.run_cmd.TFCClient") as mock_client:
+    with patch("terrapyne.cli.run_cmd.TFCClient") as mock_client, \
+         patch("terrapyne.cli.run_cmd.validate_context") as mock_validate:
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance
+        mock_validate.return_value = ("test-org", None)
 
         # 1. Mock projects.list
         proj = Project.model_construct(id="proj-123", name=project)
@@ -398,7 +401,7 @@ def analyze_project_failures_step(project_errors_setup):
         for r in project_errors_setup["runs"]:
             if not any(w.name == r['workspace'] for w in workspaces):
                 workspaces.append(Workspace.model_construct(id=f"ws-{r['workspace']}", name=r['workspace']))
-        mock_instance.workspaces.list.return_value = (iter(workspaces), len(workspaces))
+        mock_instance.workspaces.list.return_value = (workspaces, len(workspaces))
 
         # 3. Mock runs.list for each workspace
         def mock_runs_list(workspace_id, limit=50, status=None):
@@ -410,7 +413,7 @@ def analyze_project_failures_step(project_errors_setup):
                         id=r['run_id'],
                         status=RunStatus.ERRORED,
                         message=r['message'],
-                        created_at=datetime.fromisoformat(r['created_at'].replace('Z', '+00:00'))
+                        created_at=datetime.datetime.fromisoformat(r['created_at'].replace('Z', '+00:00'))
                     ))
             return (ws_runs, len(ws_runs))
         

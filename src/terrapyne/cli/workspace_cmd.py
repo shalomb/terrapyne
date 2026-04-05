@@ -13,7 +13,6 @@ from terrapyne.cli.utils import handle_cli_errors, validate_context
 from terrapyne.models.variable import WorkspaceVariable
 from terrapyne.utils.browser import get_workspace_url, open_url_in_browser
 from terrapyne.utils.rich_tables import (
-    render_workspace_detail,
     render_workspace_variables,
     render_workspace_vcs,
     render_workspaces,
@@ -128,6 +127,24 @@ def workspace_show(
 
     with TFCClient(organization=org) as client:
         ws = client.workspaces.get(cast(str, ws_name), org)
+
+        # 1. Fetch data for dashboard (Health & Activity)
+        latest_run = None
+        active_runs_count = 0
+        try:
+            # Get latest run with config-version for commit info
+            runs, _ = client.runs.list(ws.id, limit=1, include="configuration-version")
+            if runs:
+                latest_run = runs[0]
+
+            # Count active runs
+            active_statuses = ["pending", "fetching", "queued", "planning", "applying"]
+            for status in active_statuses:
+                _, count = client.runs.list(ws.id, status=status)
+                active_runs_count += count or 0
+        except Exception as e:
+            console.print(f"\n[yellow]Warning:[/yellow] Unable to fetch run activity: {e}")
+
         if output_format == "json":
             from terrapyne.cli.utils import emit_json
 
@@ -142,21 +159,35 @@ def workspace_show(
                     "created_at": ws.created_at,
                     "project_id": ws.project_id,
                     "tag_names": ws.tag_names,
+                    "latest_run": (
+                        {
+                            "id": latest_run.id,
+                            "status": latest_run.status,
+                            "commit_sha": latest_run.commit_sha,
+                        }
+                        if latest_run
+                        else None
+                    ),
+                    "active_runs_count": active_runs_count,
                 }
             )
             return
 
-        # Render workspace details
-        render_workspace_detail(ws)
+        # 2. Render dashboard
+        from terrapyne.utils.rich_tables import render_workspace_dashboard
 
-        # Fetch and render variables
+        render_workspace_dashboard(
+            workspace=ws, latest_run=latest_run, active_runs_count=active_runs_count
+        )
+
+        # 3. Fetch and render variables
         try:
             variables = client.workspaces.get_variables(ws.id)
             render_workspace_variables(variables)
         except Exception as e:
             console.print(f"\n[yellow]Warning:[/yellow] Unable to fetch variables: {e}")
 
-        # Render VCS configuration
+        # 4. Render VCS configuration
         render_workspace_vcs(ws)
 
 
