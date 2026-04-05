@@ -7,7 +7,7 @@ including error handling, context detection, and pagination.
 import pytest
 from pytest_bdd import given, scenario, then, when
 from typer.testing import CliRunner
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, PropertyMock
 
 from terrapyne.cli.main import app
 from terrapyne.models.workspace import Workspace
@@ -407,29 +407,28 @@ def clone_basic_settings(clone_setup, workspace_cloned_response):
             "message": "Successfully cloned workspace 'prod-app' to 'staging-app'",
         }
 
-        with patch("terrapyne.api.workspace_clone.CloneWorkspaceAPI") as mock_clone_api:
-            mock_clone_instance = MagicMock()
-            mock_clone_api.return_value = mock_clone_instance
-            mock_clone_instance.clone.return_value = clone_result
+        # Mock workspace_clone property
+        mock_clone_instance = MagicMock()
+        type(mock_instance).workspace_clone = PropertyMock(return_value=mock_clone_instance)
+        mock_clone_instance.clone.return_value = clone_result
 
-            result = runner.invoke(
-                app,
-                [
-                    "workspace",
-                    "clone",
-                    "prod-app",
-                    "staging-app",
-                    "--organization",
-                    "test-org",
-                ],
-            )
+        result = runner.invoke(
+            app,
+            [
+                "workspace",
+                "clone",
+                "prod-app",
+                "staging-app",
+                "--organization",
+                "test-org",
+            ],
+        )
 
-            return {
-                "result": result,
-                "source_ws": source_ws,
-                "target_ws": target_ws,
-                "mock_clone_api": mock_clone_api,
-            }
+        return {
+            "result": result,
+            "source_ws": source_ws,
+            "target_ws": target_ws,
+        }
 
 
 @then("new workspace \"staging-app\" should be created")
@@ -548,29 +547,29 @@ def clone_with_variables(
             "message": "Successfully cloned workspace 'prod-app' to 'staging-app'",
         }
 
-        with patch("terrapyne.api.workspace_clone.CloneWorkspaceAPI") as mock_clone_api:
-            mock_clone_instance = MagicMock()
-            mock_clone_api.return_value = mock_clone_instance
-            mock_clone_instance.clone.return_value = clone_result
+        # Mock workspace_clone property
+        mock_clone_instance = MagicMock()
+        type(mock_instance).workspace_clone = PropertyMock(return_value=mock_clone_instance)
+        mock_clone_instance.clone.return_value = clone_result
 
-            result = runner.invoke(
-                app,
-                [
-                    "workspace",
-                    "clone",
-                    "prod-app",
-                    "staging-app",
-                    "--organization",
-                    "test-org",
-                    "--with-variables",
-                ],
-            )
+        result = runner.invoke(
+            app,
+            [
+                "workspace",
+                "clone",
+                "prod-app",
+                "staging-app",
+                "--organization",
+                "test-org",
+                "--with-variables",
+            ],
+        )
 
-            return {
-                "result": result,
-                "variables": variables,
-                "clone_result": clone_result,
-            }
+        return {
+            "result": result,
+            "variables": variables,
+            "clone_result": clone_result,
+        }
 
 
 @then("new workspace \"staging-app\" should be created")
@@ -668,25 +667,25 @@ def clone_with_vcs(workspace_prod_response, workspace_cloned_response):
             "message": "Successfully cloned workspace 'prod-app' to 'staging-app'",
         }
 
-        with patch("terrapyne.api.workspace_clone.CloneWorkspaceAPI") as mock_clone_api:
-            mock_clone_instance = MagicMock()
-            mock_clone_api.return_value = mock_clone_instance
-            mock_clone_instance.clone.return_value = clone_result
+        # Mock workspace_clone property
+        mock_clone_instance = MagicMock()
+        type(mock_instance).workspace_clone = PropertyMock(return_value=mock_clone_instance)
+        mock_clone_instance.clone.return_value = clone_result
 
-            result = runner.invoke(
-                app,
-                [
-                    "workspace",
-                    "clone",
-                    "prod-app",
-                    "staging-app",
-                    "--organization",
-                    "test-org",
-                    "--with-vcs",
-                ],
-            )
+        result = runner.invoke(
+            app,
+            [
+                "workspace",
+                "clone",
+                "prod-app",
+                "staging-app",
+                "--organization",
+                "test-org",
+                "--with-vcs",
+            ],
+        )
 
-            return {"result": result, "source_ws": source_ws}
+        return {"result": result, "source_ws": source_ws}
 
 
 @then("workspace \"staging-app\" should have same VCS configuration")
@@ -747,24 +746,24 @@ def clone_source_not_found():
             "organization": "test-org",
         }
 
-        with patch("terrapyne.api.workspace_clone.CloneWorkspaceAPI") as mock_clone_api:
-            mock_clone_instance = MagicMock()
-            mock_clone_api.return_value = mock_clone_instance
-            mock_clone_instance.clone.return_value = clone_result
+        # Mock workspace_clone property
+        mock_clone_instance = MagicMock()
+        type(mock_instance).workspace_clone = PropertyMock(return_value=mock_clone_instance)
+        mock_clone_instance.clone.return_value = clone_result
 
-            result = runner.invoke(
-                app,
-                [
-                    "workspace",
-                    "clone",
-                    "non-existent",
-                    "target-app",
-                    "--organization",
-                    "test-org",
-                ],
-            )
+        result = runner.invoke(
+            app,
+            [
+                "workspace",
+                "clone",
+                "non-existent",
+                "target-app",
+                "--organization",
+                "test-org",
+            ],
+        )
 
-            return {"result": result}
+        return {"result": result}
 
 
 @then("I should see error message containing \"not found\"")
@@ -823,24 +822,24 @@ def clone_target_exists(workspace_prod_response):
             "organization": "test-org",
         }
 
-        with patch("terrapyne.api.workspace_clone.CloneWorkspaceAPI") as mock_clone_api:
-            mock_clone_instance = MagicMock()
-            mock_clone_api.return_value = mock_clone_instance
-            mock_clone_instance.clone.return_value = clone_result
+        # Mock workspace_clone property
+        mock_clone_instance = MagicMock()
+        type(mock_instance).workspace_clone = PropertyMock(return_value=mock_clone_instance)
+        mock_clone_instance.clone.return_value = clone_result
 
-            result = runner.invoke(
-                app,
-                [
-                    "workspace",
-                    "clone",
-                    "prod-app",
-                    "existing-target",
-                    "--organization",
-                    "test-org",
-                ],
-            )
+        result = runner.invoke(
+            app,
+            [
+                "workspace",
+                "clone",
+                "prod-app",
+                "existing-target",
+                "--organization",
+                "test-org",
+            ],
+        )
 
-            return {"result": result}
+        return {"result": result}
 
 
 @then("I should see error message containing \"already exists\"")
@@ -910,25 +909,25 @@ def clone_with_force(workspace_prod_response, workspace_cloned_response):
             },
         }
 
-        with patch("terrapyne.api.workspace_clone.CloneWorkspaceAPI") as mock_clone_api:
-            mock_clone_instance = MagicMock()
-            mock_clone_api.return_value = mock_clone_instance
-            mock_clone_instance.clone.return_value = clone_result
+        # Mock workspace_clone property
+        mock_clone_instance = MagicMock()
+        type(mock_instance).workspace_clone = PropertyMock(return_value=mock_clone_instance)
+        mock_clone_instance.clone.return_value = clone_result
 
-            result = runner.invoke(
-                app,
-                [
-                    "workspace",
-                    "clone",
-                    "prod-app",
-                    "existing-target",
-                    "--organization",
-                    "test-org",
-                    "--force",
-                ],
-            )
+        result = runner.invoke(
+            app,
+            [
+                "workspace",
+                "clone",
+                "prod-app",
+                "existing-target",
+                "--organization",
+                "test-org",
+                "--force",
+            ],
+        )
 
-            return {"result": result}
+        return {"result": result}
 
 
 @then("workspace \"existing-target\" should be updated")
@@ -1001,26 +1000,26 @@ def clone_detailed_output(workspace_prod_response, workspace_cloned_response):
             },
         }
 
-        with patch("terrapyne.api.workspace_clone.CloneWorkspaceAPI") as mock_clone_api:
-            mock_clone_instance = MagicMock()
-            mock_clone_api.return_value = mock_clone_instance
-            mock_clone_instance.clone.return_value = clone_result
+        # Mock workspace_clone property
+        mock_clone_instance = MagicMock()
+        type(mock_instance).workspace_clone = PropertyMock(return_value=mock_clone_instance)
+        mock_clone_instance.clone.return_value = clone_result
 
-            result = runner.invoke(
-                app,
-                [
-                    "workspace",
-                    "clone",
-                    "prod-app",
-                    "staging-app",
-                    "--organization",
-                    "test-org",
-                    "--with-variables",
-                    "--with-vcs",
-                ],
-            )
+        result = runner.invoke(
+            app,
+            [
+                "workspace",
+                "clone",
+                "prod-app",
+                "staging-app",
+                "--organization",
+                "test-org",
+                "--with-variables",
+                "--with-vcs",
+            ],
+        )
 
-            return {"result": result}
+        return {"result": result}
 
 
 @then("output should show \"Cloning workspace: prod-app → staging-app\"")
@@ -1103,24 +1102,24 @@ def clone_settings_only(workspace_prod_response, workspace_cloned_response):
             },
         }
 
-        with patch("terrapyne.api.workspace_clone.CloneWorkspaceAPI") as mock_clone_api:
-            mock_clone_instance = MagicMock()
-            mock_clone_api.return_value = mock_clone_instance
-            mock_clone_instance.clone.return_value = clone_result
+        # Mock workspace_clone property
+        mock_clone_instance = MagicMock()
+        type(mock_instance).workspace_clone = PropertyMock(return_value=mock_clone_instance)
+        mock_clone_instance.clone.return_value = clone_result
 
-            result = runner.invoke(
-                app,
-                [
-                    "workspace",
-                    "clone",
-                    "prod-app",
-                    "staging-app",
-                    "--organization",
-                    "test-org",
-                ],
-            )
+        result = runner.invoke(
+            app,
+            [
+                "workspace",
+                "clone",
+                "prod-app",
+                "staging-app",
+                "--organization",
+                "test-org",
+            ],
+        )
 
-            return {"result": result}
+        return {"result": result}
 
 
 @then("workspace \"staging-app\" should be created with prod-app settings")

@@ -13,6 +13,8 @@ if TYPE_CHECKING:
     from terrapyne.api.runs import RunsAPI
     from terrapyne.api.state_versions import StateVersionsAPI
     from terrapyne.api.teams import TeamsAPI
+    from terrapyne.api.vcs import VCSAPI
+    from terrapyne.api.workspace_clone import CloneWorkspaceAPI
     from terrapyne.api.workspaces import WorkspaceAPI
 
 
@@ -88,6 +90,20 @@ class TFCClient:
         from terrapyne.api.state_versions import StateVersionsAPI
 
         return StateVersionsAPI(self)
+
+    @property
+    def vcs(self) -> "VCSAPI":
+        """Get VCS API instance."""
+        from terrapyne.api.vcs import VCSAPI
+
+        return VCSAPI(self)
+
+    @property
+    def workspace_clone(self) -> "CloneWorkspaceAPI":
+        """Get workspace clone API instance."""
+        from terrapyne.api.workspace_clone import CloneWorkspaceAPI
+
+        return CloneWorkspaceAPI(self)
 
     @retry(
         stop=stop_after_attempt(3),

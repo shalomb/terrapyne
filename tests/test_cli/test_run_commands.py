@@ -1,5 +1,6 @@
 """CLI tests for run commands - Refined for Adzic Index."""
 
+from datetime import datetime
 import pytest
 from pytest_bdd import given, scenario, then, when, parsers
 from typer.testing import CliRunner

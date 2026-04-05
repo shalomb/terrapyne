@@ -47,7 +47,7 @@ Feature: Cost Estimates
     And the project "finops-project" contains workspaces with cost estimates totaling $1500 monthly
     When I run "tfc project costs finops-project"
     Then the command should succeed
-    And the output should show the total project estimated monthly cost of "$1500.00"
+    And the output should show the total project estimated monthly cost of "$1,500.00"
 
   Scenario: Aggregate costs across a project with no workspaces
     Given a Terraform Cloud project "empty-project" exists

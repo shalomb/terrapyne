@@ -92,13 +92,12 @@ def show_vcs_configuration(vcs_context):
     type(mock_client).workspaces = PropertyMock(return_value=mock_workspaces)
     mock_workspaces.get.return_value = workspace
 
-    with patch("terrapyne.cli.vcs_cmd.TFCClient") as mock_client_class, \
-         patch("terrapyne.cli.vcs_cmd.VCSAPI") as mock_vcs_class:
-
+    with patch("terrapyne.cli.vcs_cmd.TFCClient") as mock_client_class:
         mock_client_class.return_value = mock_client
-
+        mock_client.__enter__.return_value = mock_client
+        
         mock_vcs = MagicMock()
-        mock_vcs_class.return_value = mock_vcs
+        type(mock_client).vcs = PropertyMock(return_value=mock_vcs)
 
         if vcs_context.get("has_vcs"):
             # Build a real VCSConnection so Rich can render it
@@ -203,13 +202,17 @@ def given_vcs_oauth_token(vcs_context):
 @when("I list available repositories")
 def list_available_repositories(vcs_context):
     """List available repositories via CLI."""
+    from unittest.mock import PropertyMock
     org = vcs_context.get("org", "test-org")
 
-    with patch("terrapyne.cli.vcs_cmd.TFCClient"), \
-         patch("terrapyne.cli.vcs_cmd.VCSAPI") as mock_vcs_class:
+    with patch("terrapyne.cli.vcs_cmd.TFCClient") as mock_client_class:
+        mock_client = MagicMock()
+        mock_client_class.return_value = mock_client
+        mock_client.__enter__.return_value = mock_client
 
         mock_vcs = MagicMock()
-        mock_vcs_class.return_value = mock_vcs
+        type(mock_client).vcs = PropertyMock(return_value=mock_vcs)
+
         mock_vcs.list_repositories.return_value = [
             {"identifier": "myorg/repo-one", "url": "https://github.com/myorg/repo-one", "workspaces": ["ws-a"]},
             {"identifier": "myorg/repo-two", "url": "https://github.com/myorg/repo-two", "workspaces": ["ws-b", "ws-c"]},
@@ -220,9 +223,10 @@ def list_available_repositories(vcs_context):
             ["vcs", "repos", "--organization", org],
         )
 
-    vcs_context["result"] = result
-    return vcs_context
-
+        return {
+            "result": result,
+            "org": org,
+        }
 
 @then("I should see repository list")
 def check_repo_list(list_available_repositories):

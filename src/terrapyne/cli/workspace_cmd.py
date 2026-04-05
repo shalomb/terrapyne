@@ -491,8 +491,6 @@ def workspace_health(
         terrapyne workspace health  # auto-detect from context
     """
 
-    from terrapyne.api.vcs import VCSAPI
-
     org, ws_name = validate_context(organization, workspace, require_workspace=True)
 
     with TFCClient(organization=org) as client:
@@ -502,8 +500,7 @@ def workspace_health(
         latest_run = runs[0] if runs else None
 
         # VCS
-        vcs_api = VCSAPI(client)
-        vcs = vcs_api.get_workspace_vcs(ws.id)
+        vcs = client.vcs.get_workspace_vcs(ws.id)
 
     # Render health dashboard
     console.print(f"\n[bold]{ws.name}[/bold]  [dim]({ws.id})[/dim]\n")
@@ -687,11 +684,7 @@ def workspace_clone(
     console.print(f"\n[dim]Cloning workspace:[/dim] {source} → {target}")
 
     with TFCClient(organization=org) as client:
-        from terrapyne.api.workspace_clone import CloneWorkspaceAPI
-
-        clone_api = CloneWorkspaceAPI(client)
-
-        result = clone_api.clone(
+        result = client.workspace_clone.clone(
             source_workspace_name=source,
             target_workspace_name=target,
             organization=org,

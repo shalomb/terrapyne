@@ -133,3 +133,76 @@ def test_list_projects_via_client_property(project_list_response):
         # Verify that client.projects.list was called
         assert mock_projects.list.called, \
             "client.projects.list() was not called. Did you replace ProjectAPI(client) with client.projects?"
+
+
+def test_vcs_list_via_client_property():
+    """Test that vcs list command uses client.vcs property."""
+    # Create a mock TFCClient
+    mock_client = MagicMock()
+    
+    # Mock the vcs property
+    mock_vcs = MagicMock()
+    type(mock_client).vcs = PropertyMock(return_value=mock_vcs)
+    mock_vcs.list_repositories.return_value = []
+    
+    # Patch TFCClient constructor
+    with patch("terrapyne.cli.vcs_cmd.TFCClient") as mock_tfc_client_class:
+        mock_tfc_client_class.return_value.__enter__.return_value = mock_client
+        mock_tfc_client_class.return_value.__exit__.return_value = None
+        
+        result = runner.invoke(
+            app,
+            ["vcs", "repos", "--organization", "test-org"],
+        )
+        
+        # Verify command succeeded
+        if result.exit_code != 0:
+            print(f"VCS repos failed with exit code {result.exit_code}")
+            print(f"STDOUT: {result.stdout}")
+            if hasattr(result, "stderr"):
+                print(f"STDERR: {result.stderr}")
+
+        assert result.exit_code == 0, \
+            f"Command failed: {result.stdout}"
+        
+        # Verify that client.vcs.list_repositories was called
+        assert mock_vcs.list_repositories.called, \
+            "client.vcs.list_repositories() was not called. Did you replace VCSAPI(client) with client.vcs?"
+
+
+def test_workspace_clone_via_client_property():
+    """Test that workspace clone command uses client.workspace_clone property."""
+    # Create a mock TFCClient
+    mock_client = MagicMock()
+    
+    # Mock the workspace_clone property
+    mock_clone = MagicMock()
+    type(mock_client).workspace_clone = PropertyMock(return_value=mock_clone)
+    mock_clone.clone.return_value = {
+        "status": "success", 
+        "message": "Cloned!",
+        "target_workspace_id": "ws-target",
+        "results": {"variables": None, "vcs": None}
+    }
+    
+    # Patch TFCClient constructor
+    with patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_tfc_client_class:
+        mock_tfc_client_class.return_value.__enter__.return_value = mock_client
+        mock_tfc_client_class.return_value.__exit__.return_value = None
+        
+        result = runner.invoke(
+            app,
+            ["workspace", "clone", "source", "target", "--organization", "test-org"],
+        )
+        
+        # Verify command succeeded
+        if result.exit_code != 0:
+            print(f"Workspace clone failed with exit code {result.exit_code}")
+            print(f"STDOUT: {result.stdout}")
+
+        assert result.exit_code == 0, \
+            f"Command failed: {result.stdout}"
+        
+        # Verify that client.workspace_clone.clone was called
+        assert mock_clone.clone.called, \
+            "client.workspace_clone.clone() was not called. Did you replace CloneWorkspaceAPI(client) with client.workspace_clone?"
