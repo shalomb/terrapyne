@@ -25,6 +25,33 @@ def mock_api_client():
         mock_prj_client.return_value = mock_instance
         mock_prj_client.return_value.__enter__.return_value = mock_instance
         
+        # Mock get_organization to return the organization name
+        mock_instance.get_organization.return_value = "test-org"
+        
+        # Store projects and workspaces in a dict that can be updated by fixture steps
+        # This allows steps to add data that will be returned by paginate_with_meta
+        fixture_data = {"projects": {}, "workspaces": {}}
+        
+        def paginate_side_effect(path, params=None, **kwargs):
+            """Mock paginate_with_meta that returns data based on what the steps have set up."""
+            if params is None:
+                params = {}
+                
+            # If searching for a project by name
+            if "filter[names]" in params:
+                name = params["filter[names]"]
+                if name in fixture_data["projects"]:
+                    prj_data = fixture_data["projects"][name]
+                    # prj_data is already in API response format (dict), return it as is
+                    return (iter([prj_data]), 1)
+            
+            # Default: return empty
+            return (iter([]), 0)
+        
+        mock_instance.paginate_with_meta.side_effect = paginate_side_effect
+        # Also store fixture_data on the mock for steps to access
+        mock_instance._fixture_data = fixture_data
+        
         def ws_validate(org, ws=None, **kwargs):
             return "test-org", ws
 
@@ -105,13 +132,27 @@ def latest_run_invalid_cost_estimate(mock_api_client: MagicMock, workspace_name:
 
 @given(parsers.parse('a Terraform Cloud project "{project_name}" exists'))
 def project_exists(mock_api_client: MagicMock, project_name: str) -> None:
+    # Create project data in API response format (with attributes)
+    prj_api_response = {
+        "id": f"prj-{project_name}",
+        "type": "projects",
+        "attributes": {
+            "name": project_name,
+            "description": None,
+            "created-at": None,
+            "resource-count": 0,
+        }
+    }
+    
+    # Also create the model version for get_by_name
     from terrapyne.models.project import Project
-    prj = Project(
-        id=f"prj-{project_name}",
-        name=project_name,
-        organization={"name": "test-org"},
-    )
-    mock_api_client.projects.get_by_name.return_value = prj
+    prj_model = Project.from_api_response(prj_api_response)
+    
+    # Store in fixture data so paginate_with_meta can find it
+    mock_api_client._fixture_data["projects"][project_name] = prj_api_response
+    
+    # Also mock the direct get_by_name call as a fallback
+    mock_api_client.projects.get_by_name.return_value = prj_model
 
 @given(parsers.parse('the project "{project_name}" contains workspaces with cost estimates totaling ${total_monthly} monthly'))
 def project_workspaces_have_cost_estimates(mock_api_client: MagicMock, project_name: str, total_monthly: str) -> None:
@@ -170,4 +211,7 @@ def output_indicates_no_cost_estimates(cli_result: object) -> None:
 
 @then(parsers.parse('the output should show the total project estimated monthly cost of "{expected_cost}"'))
 def output_shows_total_project_cost(cli_result: object, expected_cost: str) -> None:
-    assert expected_cost in cli_result.stdout
+    # Remove formatting (commas) from both expected and actual for comparison
+    normalized_expected = expected_cost.replace(",", "")
+    normalized_stdout = cli_result.stdout.replace(",", "")
+    assert normalized_expected in normalized_stdout

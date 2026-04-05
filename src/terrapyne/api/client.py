@@ -1,6 +1,7 @@
 """Terraform Cloud API client."""
 
 from collections.abc import Iterator
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -54,35 +55,35 @@ class TFCClient:
         """Context manager exit."""
         self.close()
 
-    @property
+    @cached_property
     def workspaces(self) -> "WorkspaceAPI":
         """Get workspace API instance."""
         from terrapyne.api.workspaces import WorkspaceAPI
 
         return WorkspaceAPI(self)
 
-    @property
+    @cached_property
     def runs(self) -> "RunsAPI":
         """Get runs API instance."""
         from terrapyne.api.runs import RunsAPI
 
         return RunsAPI(self)
 
-    @property
+    @cached_property
     def projects(self) -> "ProjectAPI":
         """Get project API instance."""
         from terrapyne.api.projects import ProjectAPI
 
         return ProjectAPI(self)
 
-    @property
+    @cached_property
     def teams(self) -> "TeamsAPI":
         """Get teams API instance."""
         from terrapyne.api.teams import TeamsAPI
 
         return TeamsAPI(self)
 
-    @property
+    @cached_property
     def state_versions(self) -> "StateVersionsAPI":
         """Get state versions API instance."""
         from terrapyne.api.state_versions import StateVersionsAPI

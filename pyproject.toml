@@ -1,6 +1,6 @@
 [project]
 name = "terrapyne"
-version = "0.0.1"
+version = "0.1.0"
 description = "Wrapper around terraform"
 readme = "README.md"
 requires-python = ">=3.12,<4.0"
@@ -78,7 +78,7 @@ addopts = [
     "-n",
     "auto",
     "--cov=src",
-    "--cov-fail-under=65",
+    "--cov-fail-under=67",
     "-m",
     "not e2e and not integration and not uat",
 ]

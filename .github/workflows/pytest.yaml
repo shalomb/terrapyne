@@ -49,4 +49,3 @@ jobs:
 
     - name: Tests + coverage
       run: uv run python -m pytest tests/ --cov=src --cov-report=term --no-header -q
-      continue-on-error: true   # coverage threshold failure is informational

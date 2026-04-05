@@ -7,7 +7,7 @@ Library Usage:
     runs, total = client.runs.list(workspace_id="ws-123")
 """
 
-__version__ = "0.0.1"
+__version__ = "0.1.0"
 
 from . import exceptions
 from .api.client import TFCClient

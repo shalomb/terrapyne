@@ -1,44 +1,21 @@
-"""Terrapyne SDK - Convenience namespace for all public APIs.
+"""Deprecated SDK namespace — use terrapyne directly.
 
-from terrapyne.sdk import TFCClient, RunsAPI, Plan
+This module is deprecated and will be removed in a future version.
+Please import from terrapyne directly instead:
+
+    # Old (deprecated)
+    from terrapyne.sdk import TFCClient
+
+    # New (recommended)
+    from terrapyne import TFCClient
 """
 
-from terrapyne import (
-    VCSAPI,
-    Plan,
-    Project,
-    ProjectAPI,
-    RemoteBackend,
-    Run,
-    RunsAPI,
-    Team,
-    TeamProjectAccess,
-    TeamsAPI,
-    TerraformCredentials,
-    TFCClient,
-    VCSConnection,
-    Workspace,
-    WorkspaceAPI,
-    WorkspaceVariable,
-    WorkspaceVCS,
-)
+import warnings
 
-__all__ = [
-    "TFCClient",
-    "RunsAPI",
-    "WorkspaceAPI",
-    "ProjectAPI",
-    "TeamsAPI",
-    "VCSAPI",
-    "Plan",
-    "Project",
-    "Run",
-    "Team",
-    "TeamProjectAccess",
-    "Workspace",
-    "WorkspaceVCS",
-    "WorkspaceVariable",
-    "VCSConnection",
-    "RemoteBackend",
-    "TerraformCredentials",
-]
+from terrapyne import *  # noqa: F401, F403
+
+warnings.warn(
+    "terrapyne.sdk is deprecated, import from terrapyne directly",
+    DeprecationWarning,
+    stacklevel=2,
+)
