@@ -78,7 +78,7 @@ addopts = [
     "-n",
     "auto",
     "--cov=src",
-    "--cov-fail-under=65",
+    "--cov-fail-under=67",
     "-m",
     "not e2e and not integration and not uat",
 ]
