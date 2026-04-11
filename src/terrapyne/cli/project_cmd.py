@@ -147,6 +147,16 @@ def show_project(
         workspaces_iter, _ = workspace_api.list(org, project_id=project.id)
         workspaces = list(workspaces_iter)
 
+        # Enrichment: Get active runs count across project
+        active_runs_count = 0
+        from terrapyne.models.run import RunStatus
+
+        active_statuses = ",".join(RunStatus.get_active_statuses())
+        for ws in workspaces:
+            with contextlib.suppress(Exception):
+                _, count = client.runs.list(ws.id, status=active_statuses, limit=1)
+                active_runs_count += count or 0
+
         if output_format == "json":
             from terrapyne.cli.utils import emit_json
 
@@ -158,6 +168,10 @@ def show_project(
                         "description": project.description,
                         "created_at": project.created_at,
                         "resource_count": project.resource_count,
+                    },
+                    "snapshot": {
+                        "workspace_count": len(workspaces),
+                        "active_runs_count": active_runs_count,
                     },
                     "workspaces": [
                         {
@@ -173,7 +187,7 @@ def show_project(
             )
             return
 
-        render_project_detail(project, workspaces)
+        render_project_detail(project, workspaces, active_runs_count=active_runs_count)
 
 
 @app.command(name="teams")

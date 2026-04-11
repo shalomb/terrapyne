@@ -316,18 +316,40 @@ def render_vcs_repos(repos: list[dict], verbose: bool = False) -> None:
     console.print(table)
 
 
-def render_project_detail(project: Project, workspaces: Sequence[Workspace]) -> None:
+def render_project_detail(
+    project: Project, workspaces: Sequence[Workspace], active_runs_count: int = 0
+) -> None:
     """Render project details and workspaces.
 
     Args:
         project: Project instance
         workspaces: List of workspaces in project
+        active_runs_count: Total active runs across all workspaces in project
     """
     # 1. Project details
     renderer = ProjectDetailRenderer()
     renderer.render(project, console_instance=console)
 
-    # 2. Workspaces table
+    # 2. Project Snapshot
+    console.print()
+    snap_table = Table(title="Project Snapshot", show_header=False, box=None)
+    snap_table.add_column("Property", style="bold cyan", width=25)
+    snap_table.add_column("Value")
+
+    snap_table.add_row("Workspaces", str(len(workspaces)))
+    snap_table.add_row("Active Runs", str(active_runs_count))
+
+    # Health summary
+    # For now, just show a count of locked workspaces as an indicator
+    locked_count = sum(1 for ws in workspaces if ws.locked)
+    health_str = "🟢 Healthy"
+    if locked_count > 0:
+        health_str = f"🟡 Warning ({locked_count} workspaces locked)"
+    snap_table.add_row("Status", health_str)
+
+    console.print(snap_table)
+
+    # 3. Workspaces table
     if workspaces:
         console.print()
         render_workspaces(workspaces, title=f"Workspaces in {project.name}")
