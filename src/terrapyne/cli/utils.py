@@ -12,6 +12,20 @@ from terrapyne.utils.context import resolve_organization, resolve_workspace
 F = TypeVar("F", bound=Callable[..., Any])
 console = Console()
 
+# Global debug state
+DEBUG_MODE = False
+
+
+def set_debug(enabled: bool) -> None:
+    """Set global debug mode."""
+    global DEBUG_MODE
+    DEBUG_MODE = enabled
+
+
+def is_debug() -> bool:
+    """Check if debug mode is enabled."""
+    return DEBUG_MODE
+
 
 def handle_cli_errors(func: F) -> F:
     """Decorator to handle common CLI errors.

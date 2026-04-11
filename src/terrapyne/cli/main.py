@@ -48,6 +48,14 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
+def debug_callback(value: bool) -> None:
+    """Enable debug mode."""
+    if value:
+        from terrapyne.cli.utils import set_debug
+
+        set_debug(True)
+
+
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
@@ -57,6 +65,13 @@ def main(
         callback=version_callback,
         is_eager=True,
         help="Show version and exit",
+    ),
+    debug: bool = typer.Option(
+        False,
+        "--debug",
+        callback=debug_callback,
+        is_eager=True,
+        help="Enable API call tracing",
     ),
 ) -> None:
     """Terraform Cloud CLI orchestrator for DevOps engineers.

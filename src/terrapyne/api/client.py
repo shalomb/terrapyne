@@ -1,6 +1,6 @@
 """Terraform Cloud API client."""
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -24,6 +24,7 @@ class TFCClient:
         host: str = "app.terraform.io",
         organization: str | None = None,
         credentials: TerraformCredentials | None = None,
+        debug: bool | None = None,
     ):
         """Initialize TFC client.
 
@@ -31,16 +32,60 @@ class TFCClient:
             host: TFC hostname (default: app.terraform.io)
             organization: TFC organization name
             credentials: Optional pre-loaded credentials (otherwise loaded from tfrc.json)
+            debug: Enable API call tracing (defaults to global CLI debug state)
         """
         self.host = host
         self.organization = organization
         self.creds = credentials or TerraformCredentials.load(host=host)
         self.base_url = f"https://{host}/api/v2"
+
+        if debug is None:
+            try:
+                from terrapyne.cli.utils import is_debug
+
+                debug = is_debug()
+            except ImportError:
+                debug = False
+
+        self.debug = debug
+
+        event_hooks: dict[str, list[Callable[..., Any]]] = {}
+        if debug:
+            event_hooks = {
+                "request": [self._log_request],
+                "response": [self._log_response],
+            }
+
         self.client = httpx.Client(
             headers=self.creds.get_headers(),
             timeout=30.0,
             follow_redirects=True,
+            event_hooks=event_hooks,  # type: ignore[arg-type]
         )
+
+    def _log_request(self, request: httpx.Request) -> None:
+        """Log API request for debugging."""
+        print(f"\n[DEBUG] API Request: {request.method} {request.url}")
+        if request.content:
+            try:
+                import json
+
+                body = json.loads(request.content)
+                print(f"[DEBUG] Body: {json.dumps(body, indent=2)}")
+            except Exception:
+                print(f"[DEBUG] Body: {request.content!r}")
+
+    def _log_response(self, response: httpx.Response) -> None:
+        """Log API response for debugging."""
+        print(f"[DEBUG] API Response: {response.status_code}")
+        try:
+            import json
+
+            body = response.json()
+            print(f"[DEBUG] Response: {json.dumps(body, indent=2)}")
+        except Exception:
+            if response.text:
+                print(f"[DEBUG] Response (text): {response.text[:500]}...")
 
     def close(self) -> None:
         """Close the HTTP client."""
