@@ -167,9 +167,11 @@ def state_outputs(
     target: str | None = typer.Argument(
         None, help="Workspace name, workspace ID (ws-*), or state version ID (sv-*)"
     ),
+    name: str | None = typer.Argument(None, help="Specific output name to show"),
     workspace: str | None = typer.Option(None, "-w", "--workspace"),
     organization: str | None = typer.Option(None, "-o", "--organization"),
     output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
+    raw: bool = typer.Option(False, "--raw", help="Print unquoted value for single output"),
 ) -> None:
     """List outputs from a state version."""
     org, ws_name = validate_context(organization, workspace)
@@ -199,6 +201,23 @@ def state_outputs(
             raise typer.Exit(1)
 
         outputs = client.state_versions.list_outputs(state_version_id)
+
+    # Filter by name if provided
+    if name:
+        outputs = [o for o in outputs if o.name == name]
+        if not outputs:
+            console.print(f"[red]Error: Output '{name}' not found.[/red]")
+            raise typer.Exit(1)
+
+    if raw:
+        if len(outputs) == 1:
+            print(outputs[0].value)
+            return
+        if len(outputs) > 1:
+            console.print("[red]Error: Multiple outputs found. Specify a name to use --raw.[/red]")
+            raise typer.Exit(1)
+        # No outputs
+        return
 
     if output_format == "json":
         print(
