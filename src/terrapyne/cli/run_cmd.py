@@ -182,6 +182,61 @@ def run_show(
         render_run_detail(run, workspace_name=workspace, organization=org, plan=plan)
 
 
+def _stream_run_logs(client: TFCClient, run_id: str) -> Run:
+    """Stream plan and apply logs for a run until completion."""
+    import time
+
+    last_plan_pos = 0
+    last_apply_pos = 0
+
+    console.print(f"\n[bold blue]Streaming logs for run {run_id}...[/bold blue]")
+
+    while True:
+        run = client.runs.get(run_id)
+
+        # Stream plan logs
+        if run.plan_id:
+            try:
+                logs = client.runs.get_plan_logs(run.plan_id)
+                new_content = logs[last_plan_pos:]
+                if new_content:
+                    print(new_content, end="", flush=True)
+                    last_plan_pos = len(logs)
+            except Exception:
+                pass
+
+        # Stream apply logs if applicable
+        if run.apply_id:
+            try:
+                logs = client.runs.get_apply_logs(run.apply_id)
+                new_content = logs[last_apply_pos:]
+                if new_content:
+                    print(new_content, end="", flush=True)
+                    last_apply_pos = len(logs)
+            except Exception:
+                pass
+
+        if run.status.is_terminal:
+            # Final log fetch to ensure we didn't miss the tail
+            if run.plan_id:
+                with suppress(Exception):
+                    logs = client.runs.get_plan_logs(run.plan_id)
+                    new_content = logs[last_plan_pos:]
+                    if new_content:
+                        print(new_content, end="", flush=True)
+
+            if run.apply_id:
+                with suppress(Exception):
+                    logs = client.runs.get_apply_logs(run.apply_id)
+                    new_content = logs[last_apply_pos:]
+                    if new_content:
+                        print(new_content, end="", flush=True)
+
+            return run
+
+        time.sleep(2)
+
+
 @app.command("plan")
 @handle_cli_errors
 def run_plan(
@@ -198,7 +253,8 @@ def run_plan(
         help="TFC organization (auto-detected from context if available)",
     ),
     message: str | None = typer.Option(None, "--message", "-m", help="Run description/message"),
-    wait: bool = typer.Option(True, "--wait/--no-wait", help="Poll until plan completes"),
+    watch: bool = typer.Option(True, "--watch/--no-watch", help="Watch progress until complete"),
+    stream: bool = typer.Option(True, "--stream/--no-stream", help="Stream logs during watch"),
 ):
     """Create a new plan (run) for a workspace.
 
@@ -211,8 +267,8 @@ def run_plan(
         # Create plan with message
         terrapyne run plan --message "Testing new config"
 
-        # Create plan without waiting for completion
-        terrapyne run plan --no-wait
+        # Create plan without watching
+        terrapyne run plan --no-watch
     """
     # Resolve workspace and organization
     org, workspace_name = validate_context(organization, workspace, require_workspace=True)
@@ -229,47 +285,40 @@ def run_plan(
         console.print(f"[green]✓[/green] Created run: {run.id}")
         console.print(f"[dim]Status:[/dim] {run.status.emoji} {run.status.value}")
 
-        if not wait:
+        if not watch:
             console.print(
                 f"\n[dim]View run at:[/dim] https://app.terraform.io/app/{org}/workspaces/{workspace_name}/runs/{run.id}"
             )
             return
 
-        # Poll until complete
-        console.print("\n[dim]Polling run status...[/dim]")
+        # Watch
+        if stream:
+            final_run = _stream_run_logs(client, run.id)
+        else:
+            console.print("\n[dim]Polling run status...[/dim]")
 
-        def print_status(r):
-            console.print(f"  {r.status.emoji} {r.status.value}", end="\r", style="dim")
+            def print_status(r):
+                console.print(f"  {r.status.emoji} {r.status.value}", end="\r", style="dim")
 
-        try:
             final_run = client.runs.poll_until_complete(run.id, callback=print_status)
-
-            # Clear the polling line
             console.print(" " * 80, end="\r")
 
-            # Fetch plan details for accurate resource counts
-            plan = None
-            if final_run.plan_id:
-                with suppress(Exception):
-                    plan = client.runs.get_plan(final_run.plan_id)
+        # Fetch plan details for accurate resource counts
+        plan = None
+        if final_run.plan_id:
+            with suppress(Exception):
+                plan = client.runs.get_plan(final_run.plan_id)
 
-            # Show final status
-            render_run_detail(final_run, workspace_name=workspace_name, organization=org, plan=plan)
+        # Show final status
+        render_run_detail(final_run, workspace_name=workspace_name, organization=org, plan=plan)
 
-            # Exit with appropriate code
-            if final_run.status.is_successful:
-                console.print("\n[green]✓ Plan completed successfully[/green]")
-                raise typer.Exit(0)
-            else:
-                console.print(f"\n[red]✗ Plan failed: {final_run.status.value}[/red]")
-                raise typer.Exit(1)
-
-        except TimeoutError as e:
-            console.print(f"\n[yellow]Warning:[/yellow] {e}")
-            console.print(
-                f"\n[dim]View run at:[/dim] https://app.terraform.io/app/{org}/workspaces/{workspace_name}/runs/{run.id}"
-            )
-            raise typer.Exit(1) from None
+        # Exit with appropriate code
+        if final_run.status.is_successful:
+            console.print("\n[green]✓ Plan completed successfully[/green]")
+            raise typer.Exit(0)
+        else:
+            console.print(f"\n[red]✗ Plan failed: {final_run.status.value}[/red]")
+            raise typer.Exit(1)
 
 
 @app.command("logs")
@@ -348,7 +397,8 @@ def run_apply(
     auto_approve: bool = typer.Option(
         False, "--auto-approve", help="Skip confirmation prompt (for CI/CD)"
     ),
-    wait: bool = typer.Option(True, "--wait/--no-wait", help="Poll until apply completes"),
+    watch: bool = typer.Option(True, "--watch/--no-watch", help="Watch progress until complete"),
+    stream: bool = typer.Option(True, "--stream/--no-stream", help="Stream logs during watch"),
 ):
     """Apply infrastructure changes.
 
@@ -361,8 +411,8 @@ def run_apply(
         # Create plan and auto-apply (CI/CD mode)
         terrapyne run apply --auto-approve --message "Deploy to production"
 
-        # Apply without waiting
-        terrapyne run apply run-abc123 --no-wait
+        # Apply without watching
+        terrapyne run apply run-abc123 --no-watch
     """
     org, _ = validate_context(organization)
 
@@ -397,41 +447,37 @@ def run_apply(
 
         console.print(f"[dim]Status:[/dim] {run.status.emoji} {run.status.value}")
 
-        if not wait:
+        if not watch:
             return
 
-        # Poll until complete
-        console.print("\n[dim]Polling apply status...[/dim]")
+        # Watch
+        if stream:
+            final_run = _stream_run_logs(client, run_id)
+        else:
+            console.print("\n[dim]Polling apply status...[/dim]")
 
-        def print_status(r):
-            console.print(f"  {r.status.emoji} {r.status.value}", end="\r", style="dim")
+            def print_status(r):
+                console.print(f"  {r.status.emoji} {r.status.value}", end="\r", style="dim")
 
-        try:
             final_run = client.runs.poll_until_complete(run_id, callback=print_status)
-
-            # Clear the polling line
             console.print(" " * 80, end="\r")
 
-            # Fetch plan details for accurate resource counts
-            plan = None
-            if final_run.plan_id:
-                with suppress(Exception):
-                    plan = client.runs.get_plan(final_run.plan_id)
+        # Fetch plan details for accurate resource counts
+        plan = None
+        if final_run.plan_id:
+            with suppress(Exception):
+                plan = client.runs.get_plan(final_run.plan_id)
 
-            # Show final status
-            render_run_detail(final_run, workspace_name=workspace, organization=org, plan=plan)
+        # Show final status
+        render_run_detail(final_run, workspace_name=workspace, organization=org, plan=plan)
 
-            # Exit with appropriate code
-            if final_run.status.value == "applied":
-                console.print("\n[green]✓ Apply completed successfully[/green]")
-                raise typer.Exit(0)
-            else:
-                console.print(f"\n[red]✗ Apply failed: {final_run.status.value}[/red]")
-                raise typer.Exit(1)
-
-        except TimeoutError as e:
-            console.print(f"\n[yellow]Warning:[/yellow] {e}")
-            raise typer.Exit(1) from None
+        # Exit with appropriate code
+        if final_run.status.value == "applied":
+            console.print("\n[green]✓ Apply completed successfully[/green]")
+            raise typer.Exit(0)
+        else:
+            console.print(f"\n[red]✗ Apply failed: {final_run.status.value}[/red]")
+            raise typer.Exit(1)
 
 
 @app.command("errors")
@@ -569,9 +615,8 @@ def run_trigger(
     auto_approve: Annotated[
         bool, typer.Option("--auto-approve", "-y", help="Skip confirmation")
     ] = False,
-    watch: Annotated[
-        bool, typer.Option("--watch", "-w", help="Watch progress until complete")
-    ] = False,
+    watch: bool = typer.Option(True, "--watch/--no-watch", help="Watch progress until complete"),
+    stream: bool = typer.Option(True, "--stream/--no-stream", help="Stream logs during watch"),
 ):
     """Trigger a new run with optional targeting or replacement.
 
@@ -634,30 +679,28 @@ def run_trigger(
             )
             return
 
-        # Watch progress
-        console.print("\n[dim]Watching run progress...[/dim]")
+        # Watch
+        if stream:
+            final_run = _stream_run_logs(client, run.id)
+        else:
+            console.print("\n[dim]Watching run progress...[/dim]")
 
-        def print_status(r):
-            console.print(f"  {r.status.emoji} {r.status.value}", end="\r", style="dim")
+            def print_status(r):
+                console.print(f"  {r.status.emoji} {r.status.value}", end="\r", style="dim")
 
-        try:
             final_run = client.runs.poll_until_complete(run.id, callback=print_status)
             console.print(" " * 80, end="\r")  # Clear line
 
-            # Show final summary
-            plan = None
-            if final_run.plan_id:
-                with suppress(Exception):
-                    plan = client.runs.get_plan(final_run.plan_id)
+        # Show final summary
+        plan = None
+        if final_run.plan_id:
+            with suppress(Exception):
+                plan = client.runs.get_plan(final_run.plan_id)
 
-            render_run_detail(final_run, workspace_name=workspace_name, organization=org, plan=plan)
+        render_run_detail(final_run, workspace_name=workspace_name, organization=org, plan=plan)
 
-            if not final_run.status.is_successful:
-                raise typer.Exit(1)
-
-        except TimeoutError as e:
-            console.print(f"\n[yellow]Warning:[/yellow] {e}")
-            raise typer.Exit(1) from None
+        if not final_run.status.is_successful:
+            raise typer.Exit(1)
 
 
 @app.command("watch")
@@ -680,39 +723,43 @@ def run_watch(
             help="TFC organization",
         ),
     ] = None,
+    stream: bool = typer.Option(True, "--stream/--no-stream", help="Stream logs"),
 ):
     """Watch run progress until terminal state.
 
     Examples:
-        # Watch a specific run
+        # Watch a specific run with log streaming
         terrapyne run watch run-abc123
+
+        # Watch without log streaming (status only)
+        terrapyne run watch run-abc123 --no-stream
     """
     org, workspace_name = validate_context(organization, workspace)
 
     with TFCClient(organization=org) as client:
         console.print(f"[dim]Watching run:[/dim] {run_id}")
 
-        def print_status(r):
-            console.print(f"  {r.status.emoji} {r.status.value}", end="\r", style="dim")
+        if stream:
+            final_run = _stream_run_logs(client, run_id)
+        else:
+            console.print("\n[dim]Watching run progress...[/dim]")
 
-        try:
+            def print_status(r):
+                console.print(f"  {r.status.emoji} {r.status.value}", end="\r", style="dim")
+
             final_run = client.runs.poll_until_complete(run_id, callback=print_status)
             console.print(" " * 80, end="\r")  # Clear line
 
-            # Show final summary
-            plan = None
-            if final_run.plan_id:
-                with suppress(Exception):
-                    plan = client.runs.get_plan(final_run.plan_id)
+        # Show final summary
+        plan = None
+        if final_run.plan_id:
+            with suppress(Exception):
+                plan = client.runs.get_plan(final_run.plan_id)
 
-            render_run_detail(final_run, workspace_name=workspace_name, organization=org, plan=plan)
+        render_run_detail(final_run, workspace_name=workspace_name, organization=org, plan=plan)
 
-            if not final_run.status.is_successful:
-                raise typer.Exit(1)
-
-        except TimeoutError as e:
-            console.print(f"\n[yellow]Warning:[/yellow] {e}")
-            raise typer.Exit(1) from None
+        if not final_run.status.is_successful:
+            raise typer.Exit(1)
 
 
 @app.command("parse-plan")
