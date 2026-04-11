@@ -23,15 +23,15 @@ For evaluating live TFC behavior, use the following workspace directory:
 | 17 | [BLOCKER] Restore test coverage to 65% (PR #36 Regression) | 🔴 | S | 4.0 | ✅ |
 | 18 | [BLOCKER] Fix Cost Estimate Regression (PR #36 logic error) | 🔴 | S | 4.0 | ✅ |
 | 19 | [BLOCKER] Remove broad exception silencing in `workspace_cmd.py` | 🔴 | S | 4.0 | ✅ |
-| 10 | `--wait` flag for `run trigger`/`apply` to stream logs & exit w/ code | 🔴 | M | 2.0 | TODO |
+| 10 | `--wait` flag for `run trigger`/`apply` to stream logs & exit w/ code | 🔴 | M | 2.0 | ✅ |
 | 14 | Restore test coverage minimum `fail-under` to 80% (Long-term goal) | 🔴 | M | 2.0 | TODO |
 | 20 | [MINOR] Use `RunStatus` enum instead of hardcoded strings | 🟡 | S | 2.0 | ✅ |
 | 9 | `--raw` flag for `state outputs` for single unquoted values | 🟡 | S | 2.0 | ✅ |
-| 13 | `--json` full structured output for `workspace show` and `project show` | 🟡 | S | 2.0 | TODO |
+| 13 | `--json` full structured output for `workspace show` and `project show` | 🟡 | S | 2.0 | ✅ |
 | 21 | [MINOR] Consolidate `workspace_show` API calls (Optimization) | 🟡 | M | 1.0 | ✅ |
 | 22 | [MINOR] Add strict validation to `Run.from_api_response` | 🟡 | M | 1.0 | ✅ |
-| 6 | `--debug` flag for API call tracing | 🟡 | M | 1.0 | TODO |
-| 1c | `tfc project show` 'single glance' snapshot | 🟡 | M | 1.0 | TODO |
+| 6 | `--debug` flag for API call tracing | 🟡 | M | 1.0 | ✅ |
+| 1c | `tfc project show` 'single glance' snapshot | 🟡 | M | 1.0 | ✅ |
 | 8 | Local file-based response cache | 🟢 | L | 0.3 | TODO |
 
 ## Task Details (Intent, Context, Success Criteria)

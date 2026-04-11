@@ -1,6 +1,11 @@
 """Terraform Cloud API client."""
 
+import hashlib
+import json
+import time
 from collections.abc import Callable, Iterator
+from contextlib import suppress
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -49,6 +54,9 @@ class TFCClient:
 
         self.debug = debug
 
+        self._cache_dir = Path.home() / ".cache" / "terrapyne"
+        self._cache_ttl = 300  # 5 minutes
+
         event_hooks: dict[str, list[Callable[..., Any]]] = {}
         if debug:
             event_hooks = {
@@ -86,6 +94,20 @@ class TFCClient:
         except Exception:
             if response.text:
                 print(f"[DEBUG] Response (text): {response.text[:500]}...")
+
+    def _get_cache_key(self, path: str, params: dict[str, Any] | None = None) -> str:
+        """Generate a stable cache key for a request."""
+        # Include organization in key if set
+        org = self.organization or "no-org"
+        key_data = f"{org}:{path}:{json.dumps(params, sort_keys=True)}"
+        return hashlib.md5(key_data.encode()).hexdigest()
+
+    def _invalidate_cache(self) -> None:
+        """Clear all cached responses."""
+        if self._cache_dir.exists():
+            for f in self._cache_dir.glob("*.json"):
+                with suppress(Exception):
+                    f.unlink()
 
     def close(self) -> None:
         """Close the HTTP client."""
@@ -140,12 +162,15 @@ class TFCClient:
         retry=retry_if_exception_type(httpx.HTTPStatusError),
         reraise=True,
     )
-    def get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
-        """GET request with retry logic.
+    def get(
+        self, path: str, params: dict[str, Any] | None = None, use_cache: bool = True
+    ) -> dict[str, Any]:
+        """GET request with retry logic and optional caching.
 
         Args:
             path: API path (e.g., "/organizations/my-org/workspaces")
             params: Query parameters
+            use_cache: Whether to use local response cache
 
         Returns:
             JSON response dict
@@ -153,10 +178,33 @@ class TFCClient:
         Raises:
             httpx.HTTPStatusError: On HTTP errors after retries
         """
+        cache_key = self._get_cache_key(path, params)
+        cache_file = self._cache_dir / f"{cache_key}.json"
+
+        if use_cache and cache_file.exists():
+            try:
+                with open(cache_file) as f:
+                    cache_data = json.load(f)
+                    if time.time() - cache_data["timestamp"] < self._cache_ttl:
+                        return cache_data["response"]
+            except Exception:
+                pass
+
         url = f"{self.base_url}{path}"
         response = self.client.get(url, params=params or {})
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+
+        # Update cache
+        if use_cache:
+            try:
+                self._cache_dir.mkdir(parents=True, exist_ok=True)
+                with open(cache_file, "w") as f:
+                    json.dump({"timestamp": time.time(), "response": data}, f)
+            except Exception:
+                pass
+
+        return data
 
     @retry(
         stop=stop_after_attempt(3),
@@ -177,6 +225,7 @@ class TFCClient:
         Raises:
             httpx.HTTPStatusError: On HTTP errors after retries
         """
+        self._invalidate_cache()
         url = f"{self.base_url}{path}"
         response = self.client.post(url, json=json_data or {})
         response.raise_for_status()
@@ -201,9 +250,36 @@ class TFCClient:
         Raises:
             httpx.HTTPStatusError: On HTTP errors after retries
         """
+        self._invalidate_cache()
         url = f"{self.base_url}{path}"
         response = self.client.patch(url, json=json_data or {})
         response.raise_for_status()
+        return response.json()
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(httpx.HTTPStatusError),
+        reraise=True,
+    )
+    def delete(self, path: str) -> dict[str, Any]:
+        """DELETE request with retry logic.
+
+        Args:
+            path: API path
+
+        Returns:
+            JSON response dict (usually empty for DELETE)
+
+        Raises:
+            httpx.HTTPStatusError: On HTTP errors after retries
+        """
+        self._invalidate_cache()
+        url = f"{self.base_url}{path}"
+        response = self.client.delete(url)
+        response.raise_for_status()
+        if response.status_code == 204:
+            return {}
         return response.json()
 
     def paginate(
