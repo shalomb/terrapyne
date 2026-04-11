@@ -47,6 +47,33 @@ class RunStatus(StrEnum):
     FORCE_CANCELED = "force_canceled"  # Terminal state
     DISCARDED = "discarded"  # Terminal state
 
+    @staticmethod
+    def get_active_statuses() -> list[str]:
+        """Get list of active (non-terminal) statuses."""
+        return [
+            RunStatus.PENDING,
+            RunStatus.FETCHING,
+            RunStatus.FETCHING_COMPLETED,
+            RunStatus.PRE_PLAN_RUNNING,
+            RunStatus.PRE_PLAN_COMPLETED,
+            RunStatus.QUEUED,
+            RunStatus.PLAN_QUEUED,
+            RunStatus.PLANNING,
+            RunStatus.COST_ESTIMATING,
+            RunStatus.COST_ESTIMATED,
+            RunStatus.POLICY_CHECKING,
+            RunStatus.POLICY_OVERRIDE,
+            RunStatus.POLICY_SOFT_FAILED,
+            RunStatus.POLICY_CHECKED,
+            RunStatus.POST_PLAN_RUNNING,
+            RunStatus.POST_PLAN_COMPLETED,
+            RunStatus.CONFIRMED,
+            RunStatus.APPLY_QUEUED,
+            RunStatus.APPLYING,
+            RunStatus.POST_APPLY_RUNNING,
+            RunStatus.POST_APPLY_COMPLETED,
+        ]
+
     @property
     def is_terminal(self) -> bool:
         """Check if status is terminal (run complete)."""
@@ -136,8 +163,17 @@ class Run(BaseModel):
 
         Returns:
             Run instance
+
+        Raises:
+            KeyError: If required fields (id, status) are missing
         """
+        # Validate core fields are present
+        if "id" not in data:
+            raise KeyError("Run API response missing 'id'")
+
         attrs = data.get("attributes", {})
+        if "status" not in attrs:
+            raise KeyError(f"Run {data['id']} API response missing 'status'")
 
         # Extract relationships
         workspace_id = None

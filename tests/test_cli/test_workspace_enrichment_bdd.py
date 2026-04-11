@@ -1,4 +1,5 @@
 """BDD tests for workspace dashboard enrichment."""
+from datetime import datetime
 import pytest
 from unittest.mock import MagicMock, patch
 from pytest_bdd import given, parsers, scenario, then, when
@@ -18,6 +19,37 @@ def mock_api_client():
         mock_instance = MagicMock()
         mock_client_class.return_value.__enter__.return_value = mock_instance
         
+        # Test state
+        test_state = {"latest_run": None, "active_count": 0}
+        mock_instance._test_state = test_state
+
+        def mock_runs_list(workspace_id=None, **kwargs):
+            state = mock_instance._test_state
+            latest_run = state["latest_run"]
+            active_count = state["active_count"]
+
+            # Handle consolidated call
+            if kwargs.get("limit") == 20:
+                runs = []
+                if latest_run:
+                    runs.append(latest_run)
+                
+                # Add dummy active runs if needed
+                for i in range(active_count):
+                    runs.append(Run(
+                        id=f"run-active-{i}",
+                        status=RunStatus.PLANNING,
+                    ))
+                return (runs, len(runs))
+            
+            # Handle fallback count call
+            if kwargs.get("status"):
+                return ([], active_count)
+                
+            return ([], 0)
+
+        mock_instance.runs.list.side_effect = mock_runs_list
+        
         # Mock organization resolution
         mock_validate.return_value = ("test-org", "app-prod")
         
@@ -32,48 +64,36 @@ def test_workspace_dashboard_snapshot() -> None:
 
 @given(parsers.parse('a Terraform Cloud workspace "{workspace_name}" exists in project "{project_name}"'))
 def workspace_exists_in_project(mock_api_client: MagicMock, workspace_name: str, project_name: str):
-    ws = Workspace(
+    ws = Workspace.model_construct(
         id=f"ws-{workspace_name}",
         name=workspace_name,
         project_id=f"prj-{project_name}",
         project_name=project_name,
-        vcs_repo=WorkspaceVCS(identifier="org/repo", branch="main")
+        vcs_repo=WorkspaceVCS.model_construct(identifier="org/repo", branch="main"),
+        terraform_version="N/A",
+        working_directory="/",
+        execution_mode="remote",
+        auto_apply=False,
+        locked=False,
+        created_at=datetime.now()
     )
     mock_api_client.workspaces.get.return_value = ws
+    mock_api_client.workspaces.get.side_effect = None
 
 @given(parsers.parse('the workspace "{workspace_name}" has {count:d} runs currently queued or in progress'))
 def workspace_has_queued_runs(mock_api_client: MagicMock, workspace_name: str, count: int):
-    def mock_runs_list(workspace_id=None, **kwargs):
-        if kwargs.get("status"):
-            # Check if any of the active statuses are present in the status string
-            active_statuses = ["pending", "fetching", "queued", "planning", "applying"]
-            if any(s in kwargs.get("status") for s in active_statuses):
-                return ([], count)
-            return ([], 0)
-        return ([], 0)
-        
-    mock_api_client.runs.list.side_effect = mock_runs_list
+    mock_api_client._test_state["active_count"] = count
 
 @given(parsers.parse('the latest run for "{workspace_name}" was "{status}" successfully'))
 def latest_run_status(mock_api_client: MagicMock, workspace_name: str, status: str):
-    run = Run(
+    run = Run.model_construct(
         id="run-123",
         status=RunStatus(status),
         commit_sha="a1b2c3d",
         commit_author="Alice",
         commit_message="feat: initial commit"
     )
-    
-    # Update the side effect to handle limit=1 call for the latest run
-    original_side_effect = mock_api_client.runs.list.side_effect
-    def mock_runs_list_enriched(workspace_id=None, **kwargs):
-        if kwargs.get("limit") == 1:
-            return ([run], 1)
-        if original_side_effect:
-            return original_side_effect(workspace_id, **kwargs)
-        return ([], 0)
-        
-    mock_api_client.runs.list.side_effect = mock_runs_list_enriched
+    mock_api_client._test_state["latest_run"] = run
 
 @given(parsers.parse('the workspace "{workspace_name}" is linked to "{repo}" branch "{branch}"'))
 def workspace_vcs_link(mock_api_client: MagicMock, workspace_name: str, repo: str, branch: str):

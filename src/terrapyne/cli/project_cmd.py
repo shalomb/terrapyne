@@ -132,6 +132,7 @@ def show_project(
         None, help="Project name (auto-detected from context if available)"
     ),
     organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
+    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ) -> None:
     """Show project details and workspaces."""
     org, _ = validate_context(organization)
@@ -145,6 +146,32 @@ def show_project(
         # Get workspaces in project
         workspaces_iter, _ = workspace_api.list(org, project_id=project.id)
         workspaces = list(workspaces_iter)
+
+        if output_format == "json":
+            from terrapyne.cli.utils import emit_json
+
+            emit_json(
+                {
+                    "project": {
+                        "id": project.id,
+                        "name": project.name,
+                        "description": project.description,
+                        "created_at": project.created_at,
+                        "resource_count": project.resource_count,
+                    },
+                    "workspaces": [
+                        {
+                            "id": ws.id,
+                            "name": ws.name,
+                            "terraform_version": ws.terraform_version,
+                            "execution_mode": ws.execution_mode,
+                            "locked": ws.locked,
+                        }
+                        for ws in workspaces
+                    ],
+                }
+            )
+            return
 
         render_project_detail(project, workspaces)
 

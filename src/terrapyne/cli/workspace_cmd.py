@@ -5,11 +5,13 @@ from datetime import UTC
 from pathlib import Path
 from typing import Annotated, Any, cast
 
+import httpx
 import typer
 from rich.console import Console
 
 from terrapyne.api.client import TFCClient
 from terrapyne.cli.utils import handle_cli_errors, validate_context
+from terrapyne.models.run import RunStatus
 from terrapyne.models.variable import WorkspaceVariable
 from terrapyne.utils.browser import get_workspace_url, open_url_in_browser
 from terrapyne.utils.rich_tables import (
@@ -132,42 +134,59 @@ def workspace_show(
         latest_run = None
         active_runs_count = 0
         try:
-            # Get latest run with config-version for commit info
-            runs, _ = client.runs.list(ws.id, limit=1, include="configuration-version")
+            # 1. Fetch recent runs (optimized: get latest + check for active in one go)
+            # We fetch 20 to get a good snapshot of activity
+            runs, total_count = client.runs.list(ws.id, limit=20, include="configuration-version")
             if runs:
                 latest_run = runs[0]
 
-            # Count active runs
-            active_statuses = "pending,fetching,queued,planning,applying"
-            _, count = client.runs.list(ws.id, status=active_statuses)
-            active_runs_count = count or 0
-        except Exception as e:
-            console.print(f"\n[yellow]Warning:[/yellow] Unable to fetch run activity: {e}")
+                # Count active runs in this window
+                active_list = RunStatus.get_active_statuses()
+                active_runs_count = sum(1 for r in runs if r.status in active_list)
+
+                # If we have 20 runs and we might have more active ones outside this window,
+                # we could do a dedicated count call, but for 'snapshot' purposes,
+                # showing "20+" or doing the extra call is a trade-off.
+                # Here we do the extra call only if the window is full and we need precision.
+                if len(runs) == 20 and total_count and total_count > 20:
+                    active_statuses = ",".join(active_list)
+                    _, count = client.runs.list(ws.id, status=active_statuses, limit=1)
+                    active_runs_count = count or 0
+        except httpx.HTTPStatusError as e:
+            console.print(
+                f"\n[yellow]Warning:[/yellow] Unable to fetch run activity (API error {e.response.status_code})"
+            )
 
         if output_format == "json":
             from terrapyne.cli.utils import emit_json
 
             emit_json(
                 {
-                    "id": ws.id,
-                    "name": ws.name,
-                    "terraform_version": ws.terraform_version,
-                    "execution_mode": ws.execution_mode,
-                    "locked": ws.locked,
-                    "auto_apply": ws.auto_apply,
-                    "created_at": ws.created_at,
-                    "project_id": ws.project_id,
-                    "tag_names": ws.tag_names,
-                    "latest_run": (
-                        {
-                            "id": latest_run.id,
-                            "status": latest_run.status,
-                            "commit_sha": latest_run.commit_sha,
-                        }
-                        if latest_run
-                        else None
-                    ),
-                    "active_runs_count": active_runs_count,
+                    "workspace": {
+                        "id": ws.id,
+                        "name": ws.name,
+                        "terraform_version": ws.terraform_version,
+                        "execution_mode": ws.execution_mode,
+                        "locked": ws.locked,
+                        "auto_apply": ws.auto_apply,
+                        "created_at": ws.created_at,
+                        "project_id": ws.project_id,
+                        "tag_names": ws.tag_names,
+                    },
+                    "activity": {
+                        "latest_run": (
+                            {
+                                "id": latest_run.id,
+                                "status": latest_run.status,
+                                "commit_sha": latest_run.commit_sha,
+                                "commit_author": latest_run.commit_author,
+                                "commit_message": latest_run.commit_message,
+                            }
+                            if latest_run
+                            else None
+                        ),
+                        "active_runs_count": active_runs_count,
+                    },
                 }
             )
             return

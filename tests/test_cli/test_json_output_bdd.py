@@ -126,4 +126,11 @@ def team_fields(cli_result):
 @then(parsers.parse('the result is a JSON object with key "id"'))
 def obj_with_id(cli_result):
     data = json.loads(cli_result.stdout)
-    assert isinstance(data, dict) and "id" in data
+    assert isinstance(data, dict)
+    # Support both flat (run) and nested (workspace) structures
+    if "workspace" in data:
+        assert "id" in data["workspace"]
+    elif "run" in data:
+        assert "id" in data["run"]
+    else:
+        assert "id" in data
