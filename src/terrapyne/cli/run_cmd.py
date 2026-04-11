@@ -194,6 +194,10 @@ def _stream_run_logs(client: TFCClient, run_id: str) -> Run:
     while True:
         run = client.runs.get(run_id)
 
+        # Show status if no logs are available yet
+        if not run.plan_id and not run.apply_id:
+            console.print(f"  {run.status.emoji} {run.status.value}...", end="\r", style="dim")
+
         # Stream plan logs
         if run.plan_id:
             try:

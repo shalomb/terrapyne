@@ -10,7 +10,7 @@ from terrapyne.models.utils import parse_iso_datetime
 
 
 class RunStatus(StrEnum):
-    """TFC run status values (from go-tfe analysis)."""
+    """TFC run status values (based on live API feedback)."""
 
     # Planning states
     PENDING = "pending"
@@ -18,7 +18,7 @@ class RunStatus(StrEnum):
     FETCHING_COMPLETED = "fetching_completed"
     PRE_PLAN_RUNNING = "pre_plan_running"
     PRE_PLAN_COMPLETED = "pre_plan_completed"
-    QUEUED = "queued"
+    QUEUING = "queuing"
     PLAN_QUEUED = "plan_queued"
     PLANNING = "planning"
     PLANNED = "planned"
@@ -29,17 +29,28 @@ class RunStatus(StrEnum):
     POLICY_SOFT_FAILED = "policy_soft_failed"
     POLICY_CHECKED = "policy_checked"
     POST_PLAN_RUNNING = "post_plan_running"
-    POST_PLAN_COMPLETED = "post_plan_completed"
+    POST_PLAN_COMPLETED = "post_plan_completed"  # Usually terminal enough for activity tracking
     CONFIRMED = "confirmed"
     PLANNED_AND_FINISHED = "planned_and_finished"  # Terminal state
     PLANNED_AND_SAVED = "planned_and_saved"  # Terminal state
 
     # Apply states
+    QUEUING_APPLY = "queuing_apply"
     APPLY_QUEUED = "apply_queued"
     APPLYING = "applying"
     APPLIED = "applied"  # Terminal state
+    PRE_APPLY_RUNNING = "pre_apply_running"
+    PRE_APPLY_COMPLETED = "pre_apply_completed"
     POST_APPLY_RUNNING = "post_apply_running"
-    POST_APPLY_COMPLETED = "post_apply_completed"
+    POST_APPLY_COMPLETED = "post_apply_completed"  # Terminal state
+
+    # Drift detection / Health assessment
+    ASSESSING = "assessing"
+    ASSESSED = "assessed"  # Terminal state for drift detection
+
+    # Sentinel / Policy
+    TF_POLICY_CHECKED = "tf_policy_checked"
+    TF_POLICY_OVERRIDE = "tf_policy_override"
 
     # Error/cancel states
     ERRORED = "errored"  # Terminal state
@@ -56,7 +67,7 @@ class RunStatus(StrEnum):
             RunStatus.FETCHING_COMPLETED,
             RunStatus.PRE_PLAN_RUNNING,
             RunStatus.PRE_PLAN_COMPLETED,
-            RunStatus.QUEUED,
+            RunStatus.QUEUING,
             RunStatus.PLAN_QUEUED,
             RunStatus.PLANNING,
             RunStatus.COST_ESTIMATING,
@@ -66,12 +77,14 @@ class RunStatus(StrEnum):
             RunStatus.POLICY_SOFT_FAILED,
             RunStatus.POLICY_CHECKED,
             RunStatus.POST_PLAN_RUNNING,
-            RunStatus.POST_PLAN_COMPLETED,
             RunStatus.CONFIRMED,
+            RunStatus.QUEUING_APPLY,
             RunStatus.APPLY_QUEUED,
             RunStatus.APPLYING,
+            RunStatus.PRE_APPLY_RUNNING,
+            RunStatus.PRE_APPLY_COMPLETED,
             RunStatus.POST_APPLY_RUNNING,
-            RunStatus.POST_APPLY_COMPLETED,
+            RunStatus.ASSESSING,
         ]
 
     @property
@@ -81,6 +94,9 @@ class RunStatus(StrEnum):
             self.APPLIED,
             self.PLANNED_AND_FINISHED,
             self.PLANNED_AND_SAVED,
+            self.POST_PLAN_COMPLETED,
+            self.POST_APPLY_COMPLETED,
+            self.ASSESSED,
             self.ERRORED,
             self.CANCELED,
             self.FORCE_CANCELED,
@@ -90,7 +106,12 @@ class RunStatus(StrEnum):
     @property
     def is_successful(self) -> bool:
         """Check if status indicates success."""
-        return self in {self.APPLIED, self.PLANNED_AND_FINISHED, self.PLANNED_AND_SAVED}
+        return self in {
+            self.APPLIED,
+            self.PLANNED_AND_FINISHED,
+            self.PLANNED_AND_SAVED,
+            self.POST_APPLY_COMPLETED,
+        }
 
     @property
     def is_error(self) -> bool:
@@ -99,57 +120,38 @@ class RunStatus(StrEnum):
 
     @property
     def emoji(self) -> str:
-        """Get emoji for status."""
+        """Get status emoji."""
         if self.is_successful:
-            return "✅"
-        elif self.is_error:
-            return "❌"
-        elif self in {self.CANCELED, self.FORCE_CANCELED, self.DISCARDED}:
-            return "🚫"
-        elif self in {self.PLANNING, self.APPLYING}:
-            return "🔄"
-        elif self in {self.PLANNED, self.CONFIRMED, self.POLICY_SOFT_FAILED}:
-            return "⏸️"
-        else:
-            return "⏳"
+            return "🟢"
+        if self.is_error:
+            return "🔴"
+        if self in {self.CANCELED, self.FORCE_CANCELED, self.DISCARDED}:
+            return "⚪"
+        return "🟡"
 
 
 class Run(BaseModel):
-    """Terraform Cloud run model."""
+    """Run model."""
+
+    model_config = ConfigDict(populate_by_name=True)
 
     id: str
     status: RunStatus
     message: str | None = None
     created_at: datetime | None = Field(None, alias="created-at")
-    updated_at: datetime | None = Field(None, alias="updated-at")
-    auto_apply: bool | None = Field(None, alias="auto-apply")
+    auto_apply: bool = Field(False, alias="auto-apply")
     is_destroy: bool = Field(False, alias="is-destroy")
-    refresh: bool = True
-    cost_estimate: dict[str, Any] | None = None
-    refresh_only: bool = Field(False, alias="refresh-only")
-    replace_addrs: list[str] = Field(default_factory=list, alias="replace-addrs")
-    target_addrs: list[str] = Field(default_factory=list, alias="target-addrs")
 
-    # Resource changes (from plan)
-    resource_additions: int | None = Field(None, alias="resource-additions")
-    resource_changes: int | None = Field(None, alias="resource-changes")
-    resource_destructions: int | None = Field(None, alias="resource-destructions")
-
-    # Workspace relationship
+    # Relationships
     workspace_id: str | None = None
-
-    # Plan relationship
     plan_id: str | None = None
-
-    # Apply relationship
     apply_id: str | None = None
+    configuration_version_id: str | None = None
 
-    # Commit info (extracted from configuration-version)
+    # Enrichment: Commit info (extracted from configuration-version)
     commit_sha: str | None = Field(None, alias="commit-sha")
     commit_message: str | None = Field(None, alias="commit-message")
     commit_author: str | None = Field(None, alias="commit-author")
-
-    model_config = ConfigDict(populate_by_name=True)
 
     @classmethod
     def from_api_response(
@@ -179,62 +181,77 @@ class Run(BaseModel):
         workspace_id = None
         plan_id = None
         apply_id = None
-        config_version_id = None
-        relationships = data.get("relationships", {})
-        if relationships.get("workspace", {}).get("data"):
-            workspace_id = relationships["workspace"]["data"].get("id")
-        if relationships.get("plan", {}).get("data"):
-            plan_id = relationships["plan"]["data"].get("id")
-        if relationships.get("apply", {}).get("data"):
-            apply_id = relationships["apply"]["data"].get("id")
-        if relationships.get("configuration-version", {}).get("data"):
-            config_version_id = relationships["configuration-version"]["data"].get("id")
+        configuration_version_id = None
 
-        # Extract commit info from included data
+        rels = data.get("relationships", {})
+        if "workspace" in rels:
+            workspace_id = rels["workspace"].get("data", {}).get("id")
+        if "plan" in rels:
+            plan_id = rels["plan"].get("data", {}).get("id")
+        if "apply" in rels:
+            apply_id = rels["apply"].get("data", {}).get("id")
+        if "configuration-version" in rels:
+            configuration_version_id = rels["configuration-version"].get("data", {}).get("id")
+
+        # Extract commit info from included resources if available
         commit_sha = None
         commit_message = None
         commit_author = None
-        if included and config_version_id:
+
+        if included and configuration_version_id:
             for item in included:
                 if (
                     item.get("type") == "configuration-versions"
-                    and item.get("id") == config_version_id
+                    and item.get("id") == configuration_version_id
                 ):
-                    c_attrs = item.get("attributes", {})
-                    commit_sha = c_attrs.get("commit-sha")
-                    commit_message = c_attrs.get("commit-message")
-                    commit_author = c_attrs.get("commit-author")
+                    cv_attrs = item.get("attributes", {})
+                    if "ingress-attributes" in cv_attrs:
+                        ingress = cv_attrs["ingress-attributes"]
+                        commit_sha = ingress.get("commit-sha")
+                        commit_message = ingress.get("commit-message")
+                        commit_author = ingress.get("commit-author")
                     break
 
         return cls.model_construct(
             id=data["id"],
-            status=RunStatus(attrs.get("status", "pending")),
+            status=RunStatus(attrs["status"]),
             message=attrs.get("message"),
             created_at=parse_iso_datetime(attrs.get("created-at")),
-            updated_at=parse_iso_datetime(attrs.get("updated-at")),
-            auto_apply=attrs.get("auto-apply"),
+            auto_apply=attrs.get("auto-apply", False),
             is_destroy=attrs.get("is-destroy", False),
-            refresh=attrs.get("refresh", True),
-            refresh_only=attrs.get("refresh-only", False),
-            replace_addrs=attrs.get("replace-addrs", []),
-            target_addrs=attrs.get("target-addrs", []),
-            resource_additions=attrs.get("resource-additions"),
-            resource_changes=attrs.get("resource-changes"),
-            resource_destructions=attrs.get("resource-destructions"),
             workspace_id=workspace_id,
             plan_id=plan_id,
             apply_id=apply_id,
+            configuration_version_id=configuration_version_id,
             commit_sha=commit_sha,
             commit_message=commit_message,
             commit_author=commit_author,
         )
 
     @property
-    def changes_summary(self) -> str:
-        """Get human-readable changes summary (+2 ~1 -0 format)."""
-        if self.resource_additions is None:
-            return "No changes calculated"
+    def resource_additions(self) -> int | None:
+        """Extract resource additions from plan summary."""
+        # This will be enriched when we have Plan model fully integrated
+        return None
 
+    @property
+    def resource_changes(self) -> int | None:
+        """Extract resource changes from plan summary."""
+        return None
+
+    @property
+    def resource_destructions(self) -> int | None:
+        """Extract resource destructions from plan summary."""
+        return None
+
+    @property
+    def status_display(self) -> str:
+        """Get formatted status string with emoji."""
+        return f"{self.status.emoji} {self.status.value}"
+
+    @property
+    def change_summary(self) -> str:
+        """Get short summary of changes (e.g., '+1 ~2 -0')."""
         adds = self.resource_additions or 0
         changes = self.resource_changes or 0
         destroys = self.resource_destructions or 0

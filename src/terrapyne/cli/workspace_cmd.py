@@ -585,7 +585,7 @@ def workspace_health(
         console.print(
             f"  Last Run:   {latest_run.status.emoji} {latest_run.status.value}{age}  [{latest_run.id}]"
         )
-        console.print(f"  Changes:    {latest_run.changes_summary}")
+        console.print(f"  Changes:    {latest_run.change_summary}")
     else:
         console.print("  Last Run:   [dim]no runs[/dim]")
 

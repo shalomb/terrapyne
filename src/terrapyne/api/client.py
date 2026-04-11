@@ -87,6 +87,8 @@ class TFCClient:
         """Log API response for debugging."""
         print(f"[DEBUG] API Response: {response.status_code}")
         try:
+            # Ensure response content is read before accessing it in hook
+            response.read()
             import json
 
             body = response.json()

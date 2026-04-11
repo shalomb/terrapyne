@@ -32,7 +32,7 @@ For evaluating live TFC behavior, use the following workspace directory:
 | 22 | [MINOR] Add strict validation to `Run.from_api_response` | 🟡 | M | 1.0 | ✅ |
 | 6 | `--debug` flag for API call tracing | 🟡 | M | 1.0 | ✅ |
 | 1c | `tfc project show` 'single glance' snapshot | 🟡 | M | 1.0 | ✅ |
-| 8 | Local file-based response cache | 🟢 | L | 0.3 | TODO |
+| 8 | Local file-based response cache | 🟢 | L | 0.3 | ✅ |
 
 ## Task Details (Intent, Context, Success Criteria)
 
