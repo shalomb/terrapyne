@@ -25,17 +25,17 @@ def test_get_caching(monkeypatch, tmp_path, mock_creds):
         client = TFCClient(organization="test-org", credentials=mock_creds)
         
         # First call: should call API
-        res1 = client.get("/test", params={"foo": "bar"})
+        res1 = client.get("/test", params={"foo": "bar"}, use_cache=True)
         assert res1 == {"data": "test-data"}
         assert mock_get.call_count == 1
         
         # Second call: should use cache
-        res2 = client.get("/test", params={"foo": "bar"})
+        res2 = client.get("/test", params={"foo": "bar"}, use_cache=True)
         assert res2 == {"data": "test-data"}
         assert mock_get.call_count == 1
         
         # Call with different params: should call API
-        res3 = client.get("/test", params={"foo": "baz"})
+        res3 = client.get("/test", params={"foo": "baz"}, use_cache=True)
         assert res3 == {"data": "test-data"}
         assert mock_get.call_count == 2
 

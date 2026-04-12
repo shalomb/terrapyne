@@ -153,6 +153,11 @@ class Run(BaseModel):
     commit_message: str | None = Field(None, alias="commit-message")
     commit_author: str | None = Field(None, alias="commit-author")
 
+    # Resource change counts
+    additions: int | None = None
+    changes: int | None = None
+    destructions: int | None = None
+
     @classmethod
     def from_api_response(
         cls, data: dict[str, Any], included: list[dict[str, Any]] | None = None
@@ -193,13 +198,17 @@ class Run(BaseModel):
         if "configuration-version" in rels:
             configuration_version_id = rels["configuration-version"].get("data", {}).get("id")
 
-        # Extract commit info from included resources if available
+        # Extract commit info and resource counts from included resources
         commit_sha = None
         commit_message = None
         commit_author = None
+        additions = attrs.get("resource-additions")
+        changes = attrs.get("resource-changes")
+        destructions = attrs.get("resource-destructions")
 
-        if included and configuration_version_id:
+        if included:
             for item in included:
+                # Commit info
                 if (
                     item.get("type") == "configuration-versions"
                     and item.get("id") == configuration_version_id
@@ -210,7 +219,16 @@ class Run(BaseModel):
                         commit_sha = ingress.get("commit-sha")
                         commit_message = ingress.get("commit-message")
                         commit_author = ingress.get("commit-author")
-                    break
+
+                # Resource counts from plan (overrides run attributes if present)
+                if item.get("type") == "plans" and item.get("id") == plan_id:
+                    p_attrs = item.get("attributes", {})
+                    if p_attrs.get("resource-additions") is not None:
+                        additions = p_attrs.get("resource-additions")
+                    if p_attrs.get("resource-changes") is not None:
+                        changes = p_attrs.get("resource-changes")
+                    if p_attrs.get("resource-destructions") is not None:
+                        destructions = p_attrs.get("resource-destructions")
 
         return cls.model_construct(
             id=data["id"],
@@ -226,23 +244,25 @@ class Run(BaseModel):
             commit_sha=commit_sha,
             commit_message=commit_message,
             commit_author=commit_author,
+            additions=additions,
+            changes=changes,
+            destructions=destructions,
         )
 
     @property
     def resource_additions(self) -> int | None:
         """Extract resource additions from plan summary."""
-        # This will be enriched when we have Plan model fully integrated
-        return None
+        return self.additions
 
     @property
     def resource_changes(self) -> int | None:
         """Extract resource changes from plan summary."""
-        return None
+        return self.changes
 
     @property
     def resource_destructions(self) -> int | None:
         """Extract resource destructions from plan summary."""
-        return None
+        return self.destructions
 
     @property
     def status_display(self) -> str:

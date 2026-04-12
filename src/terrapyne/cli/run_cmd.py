@@ -188,18 +188,53 @@ def _stream_run_logs(client: TFCClient, run_id: str) -> Run:
 
     last_plan_pos = 0
     last_apply_pos = 0
+    last_status = None
+    plan_started = False
+    apply_started = False
+    blocked_notified = False
 
     console.print(f"\n[bold blue]Streaming logs for run {run_id}...[/bold blue]")
 
     while True:
-        run = client.runs.get(run_id)
+        try:
+            run = client.runs.get(run_id)
+        except Exception:
+            # If status fetch fails, wait and retry
+            time.sleep(5)
+            continue
 
-        # Show status if no logs are available yet
-        if not run.plan_id and not run.apply_id:
-            console.print(f"  {run.status.emoji} {run.status.value}...", end="\r", style="dim")
+        # Print status transitions
+        if run.status != last_status:
+            if not run.plan_id and not run.apply_id:
+                console.print(f"  {run.status.emoji} [dim]{run.status.value}...[/dim]")
+            last_status = run.status
+
+        # Queue block detection
+        if run.status == "pending" and not blocked_notified:
+            try:
+                # Find the root cause: the EARLIEST run that is not terminal
+                if run.workspace_id:
+                    runs, _ = client.runs.list(run.workspace_id, limit=20)
+                    # Filter non-terminal runs and find the oldest one (last in the list usually)
+                    active_runs = [r for r in runs if not r.status.is_terminal]
+                    if len(active_runs) > 1:
+                        root_blocker = active_runs[-1]
+                        if root_blocker.id != run_id:
+                            console.print(
+                                f"  [yellow]waiting...[/yellow] Workspace is blocked by earlier run [bold]{root_blocker.id}[/bold] ({root_blocker.status.value})"
+                            )
+                            console.print(
+                                f"  [dim]Tip: Use 'tfc run discard {root_blocker.id}' to clear the queue[/dim]"
+                            )
+                            blocked_notified = True
+            except Exception:
+                pass
 
         # Stream plan logs
         if run.plan_id:
+            if not plan_started:
+                console.print(f"  {run.status.emoji} [bold]Planning started...[/bold]")
+                plan_started = True
             try:
                 logs = client.runs.get_plan_logs(run.plan_id)
                 new_content = logs[last_plan_pos:]
@@ -211,6 +246,9 @@ def _stream_run_logs(client: TFCClient, run_id: str) -> Run:
 
         # Stream apply logs if applicable
         if run.apply_id:
+            if not apply_started:
+                console.print(f"\n  {run.status.emoji} [bold]Applying started...[/bold]")
+                apply_started = True
             try:
                 logs = client.runs.get_apply_logs(run.apply_id)
                 new_content = logs[last_apply_pos:]
@@ -222,6 +260,8 @@ def _stream_run_logs(client: TFCClient, run_id: str) -> Run:
 
         if run.status.is_terminal:
             # Final log fetch to ensure we didn't miss the tail
+            # We fetch one last time if we have IDs
+            time.sleep(1)  # Give TFC a moment to finalize logs
             if run.plan_id:
                 with suppress(Exception):
                     logs = client.runs.get_plan_logs(run.plan_id)
@@ -236,6 +276,7 @@ def _stream_run_logs(client: TFCClient, run_id: str) -> Run:
                     if new_content:
                         print(new_content, end="", flush=True)
 
+            console.print(f"\n  {run.status.emoji} [bold]Run {run.status.value}[/bold]")
             return run
 
         time.sleep(2)
@@ -764,6 +805,55 @@ def run_watch(
 
         if not final_run.status.is_successful:
             raise typer.Exit(1)
+
+
+@app.command("discard")
+@handle_cli_errors
+def run_discard(
+    run_id: str = typer.Argument(..., help="Run ID to discard"),
+    comment: str | None = typer.Option(None, "--comment", "-m", help="Reason for discarding"),
+    organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
+):
+    """Discard a run that is awaiting confirmation.
+
+    Examples:
+        # Discard a run
+        terrapyne run discard run-abc123
+
+        # Discard with reason
+        terrapyne run discard run-abc123 --comment "Testing queue clearing"
+    """
+    org, _ = validate_context(organization)
+
+    with TFCClient(organization=org) as client:
+        if not typer.confirm(f"Discard run {run_id}?"):
+            raise typer.Exit(0)
+
+        run = client.runs.discard(run_id, comment=comment)
+        console.print(f"[green]✓[/green] Run {run_id} discarded (status: {run.status.value})")
+
+
+@app.command("cancel")
+@handle_cli_errors
+def run_cancel(
+    run_id: str = typer.Argument(..., help="Run ID to cancel"),
+    comment: str | None = typer.Option(None, "--comment", "-m", help="Reason for canceling"),
+    organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
+):
+    """Cancel a run that is currently queued or in progress.
+
+    Examples:
+        # Cancel a run
+        terrapyne run cancel run-abc123
+    """
+    org, _ = validate_context(organization)
+
+    with TFCClient(organization=org) as client:
+        if not typer.confirm(f"Cancel run {run_id}?"):
+            raise typer.Exit(0)
+
+        run = client.runs.cancel(run_id, comment=comment)
+        console.print(f"[green]✓[/green] Run {run_id} canceled (status: {run.status.value})")
 
 
 @app.command("parse-plan")

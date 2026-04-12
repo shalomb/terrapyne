@@ -192,10 +192,47 @@ class RunsAPI:
             httpx.HTTPStatusError: If apply fails (already applied, etc.)
         """
         path = f"/runs/{run_id}/actions/apply"
-
         payload: dict = {"comment": comment} if comment else {}
 
         response = self.client.post(path, json_data=payload)
+        if not response or "data" not in response:
+            return self.get(run_id)
+        return Run.from_api_response(response["data"])
+
+    def discard(self, run_id: str, comment: str | None = None) -> Run:
+        """Discard a run.
+
+        Args:
+            run_id: Run ID
+            comment: Discard comment/reason
+
+        Returns:
+            Updated Run instance
+        """
+        path = f"/runs/{run_id}/actions/discard"
+        payload: dict = {"comment": comment} if comment else {}
+
+        response = self.client.post(path, json_data=payload)
+        if not response or "data" not in response:
+            return self.get(run_id)
+        return Run.from_api_response(response["data"])
+
+    def cancel(self, run_id: str, comment: str | None = None) -> Run:
+        """Cancel a run.
+
+        Args:
+            run_id: Run ID
+            comment: Cancel comment/reason
+
+        Returns:
+            Updated Run instance
+        """
+        path = f"/runs/{run_id}/actions/cancel"
+        payload: dict = {"comment": comment} if comment else {}
+
+        response = self.client.post(path, json_data=payload)
+        if not response or "data" not in response:
+            return self.get(run_id)
         return Run.from_api_response(response["data"])
 
     def get_plan_logs(self, plan_id: str) -> str:

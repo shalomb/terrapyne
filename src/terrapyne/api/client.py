@@ -66,7 +66,7 @@ class TFCClient:
 
         self.client = httpx.Client(
             headers=self.creds.get_headers(),
-            timeout=30.0,
+            timeout=60.0,
             follow_redirects=True,
             event_hooks=event_hooks,  # type: ignore[arg-type]
         )
@@ -165,7 +165,7 @@ class TFCClient:
         reraise=True,
     )
     def get(
-        self, path: str, params: dict[str, Any] | None = None, use_cache: bool = True
+        self, path: str, params: dict[str, Any] | None = None, use_cache: bool = False
     ) -> dict[str, Any]:
         """GET request with retry logic and optional caching.
 
@@ -173,6 +173,7 @@ class TFCClient:
             path: API path (e.g., "/organizations/my-org/workspaces")
             params: Query parameters
             use_cache: Whether to use local response cache
+
 
         Returns:
             JSON response dict
@@ -285,7 +286,11 @@ class TFCClient:
         return response.json()
 
     def paginate(
-        self, path: str, params: dict[str, Any] | None = None, page_size: int = 100
+        self,
+        path: str,
+        params: dict[str, Any] | None = None,
+        page_size: int = 100,
+        use_cache: bool = True,
     ) -> Iterator[dict[str, Any]]:
         """Paginate through API results.
 
@@ -293,16 +298,17 @@ class TFCClient:
             path: API path
             params: Query parameters
             page_size: Items per page (max 100)
+            use_cache: Whether to use local response cache
 
         Yields:
-            Individual items from paginated results
+            API items
         """
         params = (params or {}).copy()
         page = 1
 
         while True:
             params.update({"page[number]": page, "page[size]": min(page_size, 100)})
-            response_data = self.get(path, params=params)
+            response_data = self.get(path, params=params, use_cache=use_cache)
 
             # Yield items from current page
             data = response_data.get("data", [])
@@ -319,7 +325,11 @@ class TFCClient:
             page += 1
 
     def paginate_with_meta(
-        self, path: str, params: dict[str, Any] | None = None, page_size: int = 100
+        self,
+        path: str,
+        params: dict[str, Any] | None = None,
+        page_size: int = 100,
+        use_cache: bool = True,
     ) -> tuple[Iterator[dict[str, Any]], int | None]:
         """Paginate through API results with metadata.
 
@@ -327,6 +337,7 @@ class TFCClient:
             path: API path
             params: Query parameters
             page_size: Items per page (max 100)
+            use_cache: Whether to use local response cache
 
         Returns:
             Tuple of (iterator of items, total count from meta or None)
@@ -335,7 +346,7 @@ class TFCClient:
         params.update({"page[number]": 1, "page[size]": min(page_size, 100)})
 
         # Get first page to extract total count
-        first_response = self.get(path, params=params)
+        first_response = self.get(path, params=params, use_cache=use_cache)
 
         # Extract total count from meta
         total_count = None
@@ -355,7 +366,7 @@ class TFCClient:
                 page = 2
                 while True:
                     params["page[number]"] = page
-                    response_data = self.get(path, params=params)
+                    response_data = self.get(path, params=params, use_cache=use_cache)
 
                     data = response_data.get("data", [])
                     if not data:
