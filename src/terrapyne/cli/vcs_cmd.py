@@ -27,8 +27,16 @@ def _show_help(ctx: typer.Context):
 @app.command(name="show")
 @handle_cli_errors
 def show_vcs(
-    workspace: str | None = typer.Argument(None, help="Workspace name"),
-    organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
+    workspace: str | None = typer.Argument(
+        None,
+        help="Target TFC workspace name. If omitted, attempts auto-detection from local Terraform context.",
+    ),
+    organization: str | None = typer.Option(
+        None,
+        "-o",
+        "--organization",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
+    ),
 ) -> None:
     """Show VCS configuration for workspace."""
     org, workspace_name = validate_context(organization, workspace, require_workspace=True)
@@ -54,10 +62,24 @@ def show_vcs(
 @app.command(name="update-branch")
 @handle_cli_errors
 def update_branch(
-    branch: str = typer.Argument(..., help="New branch name"),
-    workspace: str | None = typer.Option(None, "-w", "--workspace", help="Workspace name"),
-    organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
-    auto_approve: bool = typer.Option(False, "--auto-approve", help="Skip confirmation"),
+    branch: str = typer.Argument(..., help="The new VCS branch name to track for this workspace."),
+    workspace: str | None = typer.Option(
+        None,
+        "-w",
+        "--workspace",
+        help="Target TFC workspace name. If omitted, attempts auto-detection from local context.",
+    ),
+    organization: str | None = typer.Option(
+        None,
+        "-o",
+        "--organization",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
+    ),
+    auto_approve: bool = typer.Option(
+        False,
+        "--auto-approve",
+        help="Skip interactive confirmation for branch update. Required for automation.",
+    ),
 ) -> None:
     """Update VCS branch for workspace."""
     org, workspace_name = validate_context(organization, workspace, require_workspace=True)
@@ -106,9 +128,23 @@ def update_branch(
 @app.command(name="repos")
 @handle_cli_errors
 def list_repos(
-    organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
-    repo: str | None = typer.Option(None, "--repo", help="Filter by repository pattern"),
-    verbose: bool = typer.Option(False, "-v", "--verbose", help="Show workspace details"),
+    organization: str | None = typer.Option(
+        None,
+        "-o",
+        "--organization",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
+    ),
+    repo: str | None = typer.Option(
+        None,
+        "--repo",
+        help="Optional substring pattern to filter results by repository identifier.",
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "-v",
+        "--verbose",
+        help="Show detailed information, including which workspaces use each repository.",
+    ),
 ) -> None:
     """List GitHub repositories connected to TFC workspaces."""
     org, _ = validate_context(organization)

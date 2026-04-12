@@ -24,13 +24,23 @@ def team_list(
         None,
         "--organization",
         "-o",
-        help="TFC organization (auto-detected from context if available)",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
     ),
-    limit: int = typer.Option(100, "--limit", "-n", help="Maximum number of teams to display"),
+    limit: int = typer.Option(
+        100, "--limit", "-n", help="Maximum number of teams to retrieve and display."
+    ),
     search: str | None = typer.Option(
-        None, "--search", "-s", help="Search teams by name (substring match)"
+        None,
+        "--search",
+        "-s",
+        help="Optional search pattern to filter teams by name (substring match).",
     ),
-    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
+    output_format: str = typer.Option(
+        "table",
+        "--format",
+        "-f",
+        help="Control the output style. 'table' is human-readable, 'json' is optimized for automation.",
+    ),
 ):
     """List teams in an organization.
 
@@ -85,12 +95,14 @@ def team_list(
 @app.command("show")
 @handle_cli_errors
 def team_show(
-    team_id: str = typer.Argument(..., help="Team ID"),
+    team_id: str = typer.Argument(
+        ..., help="The unique TFC Team ID to display (e.g., 'team-abc123')."
+    ),
     organization: str | None = typer.Option(
         None,
         "--organization",
         "-o",
-        help="TFC organization (auto-detected from context if available)",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
     ),
 ):
     """Show detailed team information.
@@ -148,13 +160,15 @@ def team_show(
 @app.command("create")
 @handle_cli_errors
 def team_create(
-    name: str = typer.Option(..., "--name", "-n", help="Team name"),
-    description: str | None = typer.Option(None, "--description", "-d", help="Team description"),
+    name: str = typer.Option(..., "--name", "-n", help="The name of the new TFC team."),
+    description: str | None = typer.Option(
+        None, "--description", "-d", help="An optional description for the new team."
+    ),
     organization: str | None = typer.Option(
         None,
         "--organization",
         "-o",
-        help="TFC organization (auto-detected from context if available)",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
     ),
 ):
     """Create a new team.
@@ -189,14 +203,18 @@ def team_create(
 @app.command("update")
 @handle_cli_errors
 def team_update(
-    team_id: str = typer.Argument(..., help="Team ID"),
-    name: str | None = typer.Option(None, "--name", "-n", help="New team name"),
-    description: str | None = typer.Option(None, "--description", "-d", help="New description"),
+    team_id: str = typer.Argument(
+        ..., help="The unique TFC Team ID to update (e.g., 'team-abc123')."
+    ),
+    name: str | None = typer.Option(None, "--name", "-n", help="The new name for the TFC team."),
+    description: str | None = typer.Option(
+        None, "--description", "-d", help="The new description for the TFC team."
+    ),
     organization: str | None = typer.Option(
         None,
         "--organization",
         "-o",
-        help="TFC organization (auto-detected from context if available)",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
     ),
 ):
     """Update team information.
@@ -235,14 +253,21 @@ def team_update(
 @app.command("delete")
 @handle_cli_errors
 def team_delete(
-    team_id: str = typer.Argument(..., help="Team ID"),
+    team_id: str = typer.Argument(
+        ..., help="The unique TFC Team ID to delete (e.g., 'team-abc123')."
+    ),
     organization: str | None = typer.Option(
         None,
         "--organization",
         "-o",
-        help="TFC organization (auto-detected from context if available)",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
     ),
-    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation prompt"),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="Skip interactive deletion confirmation. Required for automation.",
+    ),
 ):
     """Delete a team.
 
@@ -274,12 +299,12 @@ def team_delete(
 @app.command("members")
 @handle_cli_errors
 def team_members(
-    team_id: str = typer.Argument(..., help="Team ID"),
+    team_id: str = typer.Argument(..., help="The unique TFC Team ID to list members for."),
     organization: str | None = typer.Option(
         None,
         "--organization",
         "-o",
-        help="TFC organization (auto-detected from context if available)",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
     ),
 ):
     """List members of a team.
@@ -327,13 +352,15 @@ def team_members(
 @app.command("add-member")
 @handle_cli_errors
 def add_team_member(
-    team_id: str = typer.Argument(..., help="Team ID"),
-    user_id: str = typer.Option(..., "--user", "-u", help="User ID to add"),
+    team_id: str = typer.Argument(..., help="The unique TFC Team ID to add a user to."),
+    user_id: str = typer.Option(
+        ..., "--user", "-u", help="The unique TFC User ID to add to the team."
+    ),
     organization: str | None = typer.Option(
         None,
         "--organization",
         "-o",
-        help="TFC organization (auto-detected from context if available)",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
     ),
 ):
     """Add a user to a team.
@@ -362,15 +389,22 @@ def add_team_member(
 @app.command("remove-member")
 @handle_cli_errors
 def remove_team_member(
-    team_id: str = typer.Argument(..., help="Team ID"),
-    user_id: str = typer.Option(..., "--user", "-u", help="User ID to remove"),
+    team_id: str = typer.Argument(..., help="The unique TFC Team ID to remove a user from."),
+    user_id: str = typer.Option(
+        ..., "--user", "-u", help="The unique TFC User ID to remove from the team."
+    ),
     organization: str | None = typer.Option(
         None,
         "--organization",
         "-o",
-        help="TFC organization (auto-detected from context if available)",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
     ),
-    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation prompt"),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="Skip interactive removal confirmation. Required for automation.",
+    ),
 ):
     """Remove a user from a team.
 

@@ -37,14 +37,23 @@ def workspace_list(
         None,
         "--organization",
         "-o",
-        help="TFC organization (auto-detected from context if available)",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
     ),
     search: str | None = typer.Option(
-        None, "--search", "-s", help="Search pattern for workspace names"
+        None, "--search", "-s", help="Optional search pattern to filter workspaces by name."
     ),
-    project: str | None = typer.Option(None, "--project", "-p", help="Filter by project name"),
-    limit: int = typer.Option(100, "--limit", "-n", help="Maximum number of workspaces to display"),
-    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
+    project: str | None = typer.Option(
+        None, "--project", "-p", help="Filter results to a specific TFC project name."
+    ),
+    limit: int = typer.Option(
+        100, "--limit", "-n", help="Maximum number of workspaces to retrieve and display."
+    ),
+    output_format: str = typer.Option(
+        "table",
+        "--format",
+        "-f",
+        help="Control the output style. 'table' is human-readable, 'json' is optimized for automation.",
+    ),
 ):
     """List workspaces in an organization.
 
@@ -101,15 +110,21 @@ def workspace_list(
 @handle_cli_errors
 def workspace_show(
     workspace: str | None = typer.Argument(
-        None, help="Workspace name (auto-detected from terraform.tf if in terraform directory)"
+        None,
+        help="Target TFC workspace name. If omitted, attempts auto-detection from local Terraform context.",
     ),
     organization: str | None = typer.Option(
         None,
         "--organization",
         "-o",
-        help="TFC organization (auto-detected from context if available)",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
     ),
-    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
+    output_format: str = typer.Option(
+        "table",
+        "--format",
+        "-f",
+        help="Control the output style. 'table' is human-readable, 'json' is optimized for automation.",
+    ),
 ):
     """Show detailed workspace information.
 
@@ -213,13 +228,14 @@ def workspace_show(
 @handle_cli_errors
 def workspace_vcs(
     workspace: str | None = typer.Argument(
-        None, help="Workspace name (auto-detected from terraform.tf if in terraform directory)"
+        None,
+        help="Target TFC workspace name. If omitted, attempts auto-detection from local Terraform context.",
     ),
     organization: str | None = typer.Option(
         None,
         "--organization",
         "-o",
-        help="TFC organization (auto-detected from context if available)",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
     ),
 ):
     """Show VCS configuration for a workspace.
@@ -266,13 +282,14 @@ def workspace_vcs(
 @handle_cli_errors
 def workspace_variables(
     workspace: str | None = typer.Argument(
-        None, help="Workspace name (auto-detected from terraform.tf if in terraform directory)"
+        None,
+        help="Target TFC workspace name. If omitted, attempts auto-detection from local Terraform context.",
     ),
     organization: str | None = typer.Option(
         None,
         "--organization",
         "-o",
-        help="TFC organization (auto-detected from context if available)",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
     ),
 ):
     """List variables in a workspace.
@@ -306,20 +323,25 @@ def workspace_var_set(
     workspace: Annotated[
         str | None,
         typer.Argument(
-            help="Workspace name (auto-detected from terraform.tf if in terraform directory)"
+            help="Target TFC workspace name. If omitted, attempts auto-detection from local Terraform context."
         ),
     ] = None,
     vars_list: Annotated[
-        list[str] | None, typer.Argument(help="KEY=VAL pairs for bulk setting")
+        list[str] | None,
+        typer.Argument(help="Bulk variable setting using 'KEY=VAL' format (e.g. 'ENV=prod')."),
     ] = None,
-    key: Annotated[str | None, typer.Option("--key", "-k", help="Variable name/key")] = None,
-    value: Annotated[str | None, typer.Option("--value", "-v", help="Variable value")] = None,
+    key: Annotated[
+        str | None, typer.Option("--key", "-k", help="Specific variable name/key to set.")
+    ] = None,
+    value: Annotated[
+        str | None, typer.Option("--value", "-v", help="Specific variable value to set.")
+    ] = None,
     organization: Annotated[
         str | None,
         typer.Option(
             "--organization",
             "-o",
-            help="TFC organization (auto-detected from context if available)",
+            help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
         ),
     ] = None,
     category: Annotated[
@@ -327,18 +349,34 @@ def workspace_var_set(
         typer.Option(
             "--category",
             "-c",
-            help="Variable category: 'terraform' or 'env'",
+            help="TFC variable category: 'terraform' (default) or 'env'.",
         ),
     ] = "terraform",
     sensitive: Annotated[
-        bool, typer.Option("--sensitive", "-s", help="Mark variable as sensitive (masked in UI)")
+        bool,
+        typer.Option(
+            "--sensitive",
+            "-s",
+            help="Mark the variable as sensitive. It will be masked in the TFC UI and API.",
+        ),
     ] = False,
-    hcl: Annotated[bool, typer.Option("--hcl", "-h", help="Variable value is HCL encoded")] = False,
+    hcl: Annotated[
+        bool,
+        typer.Option(
+            "--hcl",
+            "-h",
+            help="Interpret the variable value as HCL-encoded (e.g. for lists or maps).",
+        ),
+    ] = False,
     description: Annotated[
-        str | None, typer.Option("--description", "-d", help="Variable description")
+        str | None,
+        typer.Option(
+            "--description", "-d", help="An optional description for the variable in TFC."
+        ),
     ] = None,
     from_env_file: Annotated[
-        Path | None, typer.Option("--from-env-file", "-f", help="Import variables from .env file")
+        Path | None,
+        typer.Option("--from-env-file", "-f", help="Bulk import variables from a local .env file."),
     ] = None,
 ):
     """Create or update workspace variables (supports bulk setting).
@@ -433,21 +471,30 @@ def workspace_var_set(
 @app.command("var-copy")
 @handle_cli_errors
 def workspace_var_copy(
-    source: Annotated[str, typer.Argument(help="Source workspace name")],
-    target: Annotated[str, typer.Argument(help="Target workspace name")],
+    source: Annotated[
+        str, typer.Argument(help="Name of the source workspace to copy variables from.")
+    ],
+    target: Annotated[
+        str, typer.Argument(help="Name of the target workspace to copy variables to.")
+    ],
     organization: Annotated[
         str | None,
         typer.Option(
             "--organization",
             "-o",
-            help="TFC organization (auto-detected from context if available)",
+            help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
         ),
     ] = None,
     overwrite: Annotated[
-        bool, typer.Option("--overwrite", help="Overwrite existing variables in target")
+        bool,
+        typer.Option(
+            "--overwrite",
+            help="Overwrite existing variables in the target workspace if keys conflict.",
+        ),
     ] = False,
     sensitive_only: Annotated[
-        bool, typer.Option("--sensitive-only", help="Copy only sensitive variables")
+        bool,
+        typer.Option("--sensitive-only", help="Only copy variables that are marked as sensitive."),
     ] = False,
 ):
     """Copy all variables from one workspace to another.
@@ -526,11 +573,17 @@ def workspace_var_copy(
 def workspace_health(
     workspace: Annotated[
         str | None,
-        typer.Argument(help="Workspace name (auto-detected from context)"),
+        typer.Argument(
+            help="Target TFC workspace name. If omitted, attempts auto-detection from local Terraform context."
+        ),
     ] = None,
     organization: Annotated[
         str | None,
-        typer.Option("--organization", "-o", help="TFC organization"),
+        typer.Option(
+            "--organization",
+            "-o",
+            help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
+        ),
     ] = None,
 ):
     """Show workspace health: lock state, latest run, VCS, variables.
@@ -618,23 +671,24 @@ def workspace_health(
 @handle_cli_errors
 def workspace_open(
     workspace: str | None = typer.Argument(
-        None, help="Workspace name (auto-detected from context if in terraform directory)"
+        None,
+        help="Target TFC workspace name. If omitted, attempts auto-detection from local Terraform context.",
     ),
     organization: str | None = typer.Option(
         None,
         "--organization",
         "-o",
-        help="TFC organization (auto-detected from context if available)",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
     ),
     host: str = typer.Option(
         "app.terraform.io",
         "--host",
-        help="TFC hostname (default: app.terraform.io)",
+        help="The TFC/TFE hostname to use for URL construction (default: 'app.terraform.io').",
     ),
     page: str | None = typer.Option(
         None,
         "--page",
-        help="Specific page to open (runs, states, variables, settings)",
+        help="Specific workspace sub-page to open: 'runs', 'states', 'variables', or 'settings'.",
     ),
 ):
     """Open workspace in browser.
@@ -676,33 +730,33 @@ def workspace_open(
 @app.command("clone")
 @handle_cli_errors
 def workspace_clone(
-    source: str = typer.Argument(..., help="Source workspace name to clone from"),
-    target: str = typer.Argument(..., help="Target workspace name to create"),
+    source: str = typer.Argument(..., help="Name of the existing source workspace to clone from."),
+    target: str = typer.Argument(..., help="Name of the new target workspace to create."),
     organization: str | None = typer.Option(
         None,
         "--organization",
         "-o",
-        help="TFC organization (auto-detected from context if available)",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
     ),
     with_variables: bool = typer.Option(
         False,
         "--with-variables",
-        help="Clone terraform and environment variables",
+        help="If enabled, all Terraform and Environment variables will be copied to the new workspace.",
     ),
     with_vcs: bool = typer.Option(
         False,
         "--with-vcs",
-        help="Clone VCS repository connection and configuration",
+        help="If enabled, the VCS repository connection and settings will be copied to the new workspace.",
     ),
     vcs_oauth_token_id: str | None = typer.Option(
         None,
         "--vcs-oauth-token-id",
-        help="OAuth token ID for VCS (required for cross-organization cloning)",
+        help="The specific TFC OAuth Token ID to use for the VCS connection (required for cross-organization clones).",
     ),
     force: bool = typer.Option(
         False,
         "--force",
-        help="Overwrite existing target workspace if it exists",
+        help="If the target workspace already exists, overwrite its settings and components instead of failing.",
     ),
 ):
     """Clone a workspace with optional variables and VCS configuration.
@@ -790,15 +844,21 @@ def workspace_clone(
 @handle_cli_errors
 def workspace_costs(
     workspace: str | None = typer.Argument(
-        None, help="Workspace name (auto-detected from terraform.tf if in terraform directory)"
+        None,
+        help="Target TFC workspace name. If omitted, attempts auto-detection from local Terraform context.",
     ),
     organization: str | None = typer.Option(
         None,
         "--organization",
         "-o",
-        help="TFC organization (auto-detected from context if available)",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
     ),
-    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
+    output_format: str = typer.Option(
+        "table",
+        "--format",
+        "-f",
+        help="Control the output style. 'table' is human-readable, 'json' is optimized for automation.",
+    ),
 ):
     """Show workspace TCO — total monthly cost from the latest cost estimate."""
     org, ws_name = validate_context(organization, workspace, require_workspace=True)

@@ -35,10 +35,24 @@ def _show_help(ctx: typer.Context):
 @app.command(name="list")
 @handle_cli_errors
 def list_projects(
-    organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
-    search: str | None = typer.Option(None, "--search", "-s", help="Search projects by name"),
-    limit: int = typer.Option(100, "--limit", "-n", help="Maximum number of projects to display"),
-    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
+    organization: str | None = typer.Option(
+        None,
+        "-o",
+        "--organization",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
+    ),
+    search: str | None = typer.Option(
+        None, "--search", "-s", help="Optional search pattern to filter projects by name."
+    ),
+    limit: int = typer.Option(
+        100, "--limit", "-n", help="Maximum number of projects to retrieve and display."
+    ),
+    output_format: str = typer.Option(
+        "table",
+        "--format",
+        "-f",
+        help="Control the output style. 'table' is human-readable, 'json' is optimized for automation.",
+    ),
 ) -> None:
     """List all projects in organization."""
     org, _ = validate_context(organization)
@@ -85,10 +99,17 @@ def list_projects(
 @handle_cli_errors
 def find_projects(
     pattern: str = typer.Argument(
-        ..., help="Search pattern (supports wildcards: *-MAN, 10234-*, *235*)"
+        ..., help="Search pattern for project names. Supports wildcards (e.g. '*-PROD', '10234-*')."
     ),
-    organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
-    limit: int = typer.Option(100, "--limit", "-n", help="Maximum number of projects to display"),
+    organization: str | None = typer.Option(
+        None,
+        "-o",
+        "--organization",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
+    ),
+    limit: int = typer.Option(
+        100, "--limit", "-n", help="Maximum number of projects to retrieve and display."
+    ),
 ) -> None:
     """Find projects matching a pattern.
 
@@ -129,10 +150,21 @@ def find_projects(
 @handle_cli_errors
 def show_project(
     project_name: str | None = typer.Argument(
-        None, help="Project name (auto-detected from context if available)"
+        None,
+        help="Target TFC project name. If omitted, attempts auto-detection from local Terraform context.",
     ),
-    organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
-    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
+    organization: str | None = typer.Option(
+        None,
+        "-o",
+        "--organization",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
+    ),
+    output_format: str = typer.Option(
+        "table",
+        "--format",
+        "-f",
+        help="Control the output style. 'table' is human-readable, 'json' is optimized for automation.",
+    ),
 ) -> None:
     """Show project details and workspaces."""
     org, _ = validate_context(organization)
@@ -194,9 +226,15 @@ def show_project(
 @handle_cli_errors
 def list_project_teams(
     project_name: str | None = typer.Argument(
-        None, help="Project name (auto-detected from context if available)"
+        None,
+        help="Target TFC project name. If omitted, attempts auto-detection from local Terraform context.",
     ),
-    organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
+    organization: str | None = typer.Option(
+        None,
+        "-o",
+        "--organization",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
+    ),
 ) -> None:
     """List team access for a project.
 
@@ -226,15 +264,21 @@ def list_project_teams(
 @handle_cli_errors
 def project_costs(
     project_name: str | None = typer.Argument(
-        None, help="Project name (auto-detected from context if available)"
+        None,
+        help="Target TFC project name. If omitted, attempts auto-detection from local Terraform context.",
     ),
     organization: str | None = typer.Option(
         None,
         "--organization",
         "-o",
-        help="TFC organization (auto-detected from context if available)",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
     ),
-    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
+    output_format: str = typer.Option(
+        "table",
+        "--format",
+        "-f",
+        help="Control the output style. 'table' is human-readable, 'json' is optimized for automation.",
+    ),
 ):
     """Aggregate cost estimates across all workspaces in a project."""
     org, _ = validate_context(organization)

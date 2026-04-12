@@ -65,9 +65,19 @@ def _require_download_url(sv: Any) -> str:
 
 @app.command("list")
 def state_list(
-    workspace: str | None = typer.Argument(None, help="Workspace name"),
-    organization: str | None = typer.Option(None, "-o", "--organization"),
-    limit: int = typer.Option(20, "-n", "--limit", help="Max versions to show"),
+    workspace: str | None = typer.Argument(
+        None,
+        help="Target TFC workspace name. If omitted, attempts auto-detection from local Terraform context.",
+    ),
+    organization: str | None = typer.Option(
+        None,
+        "-o",
+        "--organization",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
+    ),
+    limit: int = typer.Option(
+        20, "-n", "--limit", help="Maximum number of state versions to retrieve and display."
+    ),
 ) -> None:
     """List state versions for a workspace."""
     org, ws_name = validate_context(organization, workspace, require_workspace=True)
@@ -105,10 +115,21 @@ def state_list(
 @app.command("show")
 def state_show(
     target: str | None = typer.Argument(
-        None, help="State version ID (sv-*), workspace name, or workspace ID (ws-*)"
+        None,
+        help="The specific state version ID (sv-*), workspace name, or workspace ID (ws-*) to inspect.",
     ),
-    workspace: str | None = typer.Option(None, "-w", "--workspace"),
-    organization: str | None = typer.Option(None, "-o", "--organization"),
+    workspace: str | None = typer.Option(
+        None,
+        "-w",
+        "--workspace",
+        help="Target TFC workspace name. If omitted, attempts auto-detection from local context.",
+    ),
+    organization: str | None = typer.Option(
+        None,
+        "-o",
+        "--organization",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
+    ),
 ) -> None:
     """Show state version metadata. Defaults to latest for the workspace."""
     org, ws_name = validate_context(organization, workspace)
@@ -140,9 +161,21 @@ def state_show(
 
 @app.command("pull")
 def state_pull(
-    state_version_id: str | None = typer.Argument(None, help="State version ID (default: latest)"),
-    workspace: str | None = typer.Option(None, "-w", "--workspace"),
-    organization: str | None = typer.Option(None, "-o", "--organization"),
+    state_version_id: str | None = typer.Argument(
+        None, help="Specific TFC state version ID to download. Defaults to the latest version."
+    ),
+    workspace: str | None = typer.Option(
+        None,
+        "-w",
+        "--workspace",
+        help="Target TFC workspace name. Required if state_version_id is omitted.",
+    ),
+    organization: str | None = typer.Option(
+        None,
+        "-o",
+        "--organization",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
+    ),
 ) -> None:
     """Download state JSON to stdout (like terraform state pull)."""
     org, ws_name = validate_context(organization, workspace)
@@ -165,13 +198,33 @@ def state_pull(
 @app.command("outputs")
 def state_outputs(
     target: str | None = typer.Argument(
-        None, help="Workspace name, workspace ID (ws-*), or state version ID (sv-*)"
+        None,
+        help="The specific workspace name, workspace ID (ws-*), or state version ID (sv-*) to retrieve outputs from.",
     ),
-    name: str | None = typer.Argument(None, help="Specific output name to show"),
-    workspace: str | None = typer.Option(None, "-w", "--workspace"),
-    organization: str | None = typer.Option(None, "-o", "--organization"),
-    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
-    raw: bool = typer.Option(False, "--raw", help="Print unquoted value for single output"),
+    name: str | None = typer.Argument(None, help="Optional name of a specific output to retrieve."),
+    workspace: str | None = typer.Option(
+        None,
+        "-w",
+        "--workspace",
+        help="Target TFC workspace name. If omitted, attempts auto-detection from local context.",
+    ),
+    organization: str | None = typer.Option(
+        None,
+        "-o",
+        "--organization",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
+    ),
+    output_format: str = typer.Option(
+        "table",
+        "--format",
+        "-f",
+        help="Control the output style. 'table' is human-readable, 'json' is optimized for automation.",
+    ),
+    raw: bool = typer.Option(
+        False,
+        "--raw",
+        help="If enabled, prints the raw, unquoted value for a single output. Useful for shell pipelines.",
+    ),
 ) -> None:
     """List outputs from a state version."""
     org, ws_name = validate_context(organization, workspace)
@@ -246,18 +299,37 @@ def state_outputs(
 
 @app.command("inventory")
 def state_inventory(
-    workspace: str | None = typer.Argument(None, help="Workspace name"),
-    organization: str | None = typer.Option(None, "-o", "--organization"),
+    workspace: str | None = typer.Argument(
+        None,
+        help="Target TFC workspace name. If omitted, attempts auto-detection from local Terraform context.",
+    ),
+    organization: str | None = typer.Option(
+        None,
+        "-o",
+        "--organization",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
+    ),
     fields: str | None = typer.Option(
-        None, "--fields", help="Comma-separated fields (e.g. type,tags.Name,id,arn)"
+        None,
+        "--fields",
+        help="Comma-separated list of resource fields to include in the output (e.g. 'type,id,name').",
     ),
     type_filter: str | None = typer.Option(
-        None, "--type", help="Filter resource types (comma-separated)"
+        None,
+        "--type",
+        help="Filter results to specific resource types (comma-separated, e.g. 'aws_instance,aws_s3_bucket').",
     ),
-    mode: str = typer.Option("managed", "--mode", help="Resource mode: managed, data"),
-    module: str | None = typer.Option(None, "--module", help="Filter by module path substring"),
+    mode: str = typer.Option(
+        "managed", "--mode", help="Filter by resource mode: 'managed' (default) or 'data'."
+    ),
+    module: str | None = typer.Option(
+        None, "--module", help="Filter results by module path substring."
+    ),
     output_format: str = typer.Option(
-        "table", "--format", "-f", help="Output format: table, markdown, json"
+        "table",
+        "--format",
+        "-f",
+        help="Control the output style. 'table' is human-readable, 'markdown' for docs, 'json' for automation.",
     ),
 ) -> None:
     """Show current resource inventory from latest state."""
@@ -278,20 +350,45 @@ def state_inventory(
 
 @app.command("diff")
 def state_diff(
-    workspace: str | None = typer.Argument(None, help="Workspace name"),
-    organization: str | None = typer.Option(None, "-o", "--organization"),
-    since: str = typer.Option(..., "--since", help="Date to diff from (ISO format: YYYY-MM-DD)"),
-    fields: str | None = typer.Option(None, "--fields", help="Comma-separated fields"),
-    type_filter: str | None = typer.Option(None, "--type", help="Filter resource types"),
-    mode: str = typer.Option("managed", "--mode"),
-    module: str | None = typer.Option(None, "--module"),
+    workspace: str | None = typer.Argument(
+        None,
+        help="Target TFC workspace name. If omitted, attempts auto-detection from local Terraform context.",
+    ),
+    organization: str | None = typer.Option(
+        None,
+        "-o",
+        "--organization",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
+    ),
+    since: str = typer.Option(
+        ...,
+        "--since",
+        help="The start date/time for the diff (ISO 8601 format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS).",
+    ),
+    fields: str | None = typer.Option(
+        None,
+        "--fields",
+        help="Comma-separated list of resource fields to include in the diff output.",
+    ),
+    type_filter: str | None = typer.Option(
+        None, "--type", help="Filter the diff to specific resource types (comma-separated)."
+    ),
+    mode: str = typer.Option(
+        "managed", "--mode", help="Filter the diff by resource mode: 'managed' (default) or 'data'."
+    ),
+    module: str | None = typer.Option(
+        None, "--module", help="Filter the diff by module path substring."
+    ),
     output_format: str = typer.Option(
-        "table", "--format", "-f", help="Output format: table, markdown, json, diff"
+        "table",
+        "--format",
+        "-f",
+        help="Control the output style. 'table', 'markdown', 'json', or 'diff' (unified patch format).",
     ),
     diff_cmd: str | None = typer.Option(
         None,
         "--diff-cmd",
-        help="External diff program (e.g. 'delta', 'git diff --no-index --color')",
+        help="External diff program to use when format is 'diff' (e.g. 'delta', 'git diff --no-index').",
     ),
 ) -> None:
     """Show resources added/removed since a date."""

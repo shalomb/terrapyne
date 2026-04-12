@@ -71,7 +71,7 @@ def main(
         "--debug",
         callback=debug_callback,
         is_eager=True,
-        help="Enable API call tracing",
+        help="Enable verbose API tracing and internal troubleshooting logs.",
     ),
 ) -> None:
     """Terraform Cloud CLI orchestrator for DevOps engineers.

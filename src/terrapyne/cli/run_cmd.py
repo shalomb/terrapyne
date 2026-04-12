@@ -31,19 +31,29 @@ def run_list(
         None,
         "--workspace",
         "-w",
-        help="Workspace name (auto-detected from context if in terraform directory)",
+        help="Target TFC workspace name. If omitted, attempts auto-detection from local Terraform context.",
     ),
     organization: str | None = typer.Option(
         None,
         "--organization",
         "-o",
-        help="TFC organization (auto-detected from context if available)",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local Terraform context.",
     ),
-    limit: int = typer.Option(20, "--limit", "-n", help="Maximum number of runs to display"),
+    limit: int = typer.Option(
+        20, "--limit", "-n", help="Maximum number of recent runs to retrieve and display."
+    ),
     status: str | None = typer.Option(
-        None, "--status", "-s", help="Filter by run status (e.g., applied, errored)"
+        None,
+        "--status",
+        "-s",
+        help="Filter results by specific run status (e.g., 'applied', 'planned', 'errored').",
     ),
-    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
+    output_format: str = typer.Option(
+        "table",
+        "--format",
+        "-f",
+        help="Control the output style. 'table' is human-readable, 'json' is optimized for automation.",
+    ),
 ):
     """List runs for a workspace.
 
@@ -108,20 +118,27 @@ def run_list(
 @app.command("show")
 @handle_cli_errors
 def run_show(
-    run_id: str = typer.Argument(..., help="Run ID to display"),
+    run_id: str = typer.Argument(
+        ..., help="The unique TFC Run ID to display (e.g., 'run-abc123')."
+    ),
     workspace: str | None = typer.Option(
         None,
         "--workspace",
         "-w",
-        help="Workspace name (used for display context only)",
+        help="Optional workspace name to provide context for display and deep links.",
     ),
     organization: str | None = typer.Option(
         None,
         "--organization",
         "-o",
-        help="TFC organization (auto-detected from context if available)",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
     ),
-    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
+    output_format: str = typer.Option(
+        "table",
+        "--format",
+        "-f",
+        help="Control the output style. 'table' is human-readable, 'json' is optimized for automation.",
+    ),
 ):
     """Show detailed information about a run.
 
@@ -361,25 +378,44 @@ def run_plan(
         None,
         "--workspace",
         "-w",
-        help="Workspace name (auto-detected from context if in terraform directory)",
+        help="Target TFC workspace name. If omitted, attempts auto-detection from local Terraform context.",
     ),
     organization: str | None = typer.Option(
         None,
         "--organization",
         "-o",
-        help="TFC organization (auto-detected from context if available)",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
     ),
-    message: str | None = typer.Option(None, "--message", "-m", help="Run description/message"),
-    watch: bool = typer.Option(True, "--watch/--no-watch", help="Watch progress until complete"),
-    stream: bool = typer.Option(True, "--stream/--no-stream", help="Stream logs during watch"),
+    message: str | None = typer.Option(
+        None,
+        "--message",
+        "-m",
+        help="A descriptive title or comment for the run, visible in TFC history.",
+    ),
+    watch: bool = typer.Option(
+        True,
+        "--watch/--no-watch",
+        help="Monitor the run's progress in real-time until it reaches a terminal state.",
+    ),
+    stream: bool = typer.Option(
+        True,
+        "--stream/--no-stream",
+        help="Stream live plan and apply logs to the console while watching.",
+    ),
     wait: bool = typer.Option(
-        False, "--wait", help="If blocked by earlier runs, wait in queue instead of exiting"
+        False,
+        "--wait",
+        help="If the workspace is locked by another run, stay in the queue until it becomes available instead of exiting immediately.",
     ),
     discard_older: bool = typer.Option(
-        False, "--discard-older", help="Automatically discard earlier runs blocking the queue"
+        False,
+        "--discard-older",
+        help="Automatically discard or cancel any existing runs that are blocking the queue for this workspace.",
     ),
     debug_run: bool = typer.Option(
-        False, "--debug-run", help="Enable verbose/debug logging in TFC for this run"
+        False,
+        "--debug-run",
+        help="Enable TFC 'debugging-mode' for this specific run to capture verbose internal logs.",
     ),
 ):
     """Create a new plan (run) for a workspace.
@@ -458,9 +494,16 @@ def run_plan(
 @app.command("logs")
 @handle_cli_errors
 def run_logs(
-    run_id: str = typer.Argument(..., help="Run ID"),
-    log_type: str = typer.Option("plan", "--type", "-t", help="Log type: plan or apply"),
-    organization: str | None = typer.Option(None, "--organization", "-o", help="TFC organization"),
+    run_id: str = typer.Argument(..., help="The unique TFC Run ID to retrieve logs for."),
+    log_type: str = typer.Option(
+        "plan", "--type", "-t", help="The lifecycle phase to retrieve logs for: 'plan' or 'apply'."
+    ),
+    organization: str | None = typer.Option(
+        None,
+        "--organization",
+        "-o",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
+    ),
 ):
     """View plan or apply logs for a run.
 
@@ -514,30 +557,47 @@ def run_logs(
 @app.command("apply")
 @handle_cli_errors
 def run_apply(
-    run_id: str | None = typer.Argument(None, help="Run ID to apply (creates new plan if omitted)"),
+    run_id: str | None = typer.Argument(
+        None,
+        help="The specific TFC Run ID to apply. If omitted, a new plan-and-apply run will be triggered.",
+    ),
     workspace: str | None = typer.Option(
         None,
         "--workspace",
         "-w",
-        help="Workspace name (used when creating new plan)",
+        help="Target TFC workspace name (required if run_id is omitted).",
     ),
     organization: str | None = typer.Option(
         None,
         "--organization",
         "-o",
-        help="TFC organization (auto-detected from context if available)",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
     ),
-    message: str | None = typer.Option(None, "--message", "-m", help="Apply comment/reason"),
+    message: str | None = typer.Option(
+        None, "--message", "-m", help="An optional comment or reason for the apply operation."
+    ),
     auto_approve: bool = typer.Option(
-        False, "--auto-approve", help="Skip confirmation prompt (for CI/CD)"
+        False,
+        "--auto-approve",
+        help="Skip the interactive confirmation prompt. Essential for non-interactive CI/CD environments.",
     ),
-    watch: bool = typer.Option(True, "--watch/--no-watch", help="Watch progress until complete"),
-    stream: bool = typer.Option(True, "--stream/--no-stream", help="Stream logs during watch"),
+    watch: bool = typer.Option(
+        True,
+        "--watch/--no-watch",
+        help="Monitor the run's progress in real-time until it reaches a terminal state.",
+    ),
+    stream: bool = typer.Option(
+        True, "--stream/--no-stream", help="Stream live apply logs to the console while watching."
+    ),
     wait: bool = typer.Option(
-        False, "--wait", help="If blocked by earlier runs, wait in queue instead of exiting"
+        False,
+        "--wait",
+        help="If the workspace is locked by another run, stay in the queue until it becomes available instead of exiting immediately.",
     ),
     discard_older: bool = typer.Option(
-        False, "--discard-older", help="Automatically discard earlier runs blocking the queue"
+        False,
+        "--discard-older",
+        help="Automatically discard or cancel any existing runs that are blocking the queue for this workspace.",
     ),
 ):
     """Apply infrastructure changes.
@@ -630,15 +690,18 @@ def run_errors(
         typer.Option(
             "--organization",
             "-o",
-            help="TFC organization (auto-detected from context if available)",
+            help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
         ),
     ] = None,
     project: Annotated[
-        str | None, typer.Option("--project", "-p", help="Filter by project name")
+        str | None,
+        typer.Option("--project", "-p", help="Filter error search to a specific TFC project name."),
     ] = None,
-    days: Annotated[int, typer.Option("--days", "-d", help="Look back period in days")] = 1,
+    days: Annotated[
+        int, typer.Option("--days", "-d", help="Number of days to look back for errored runs.")
+    ] = 1,
     limit: Annotated[
-        int, typer.Option("--limit", "-n", help="Maximum number of errors to show")
+        int, typer.Option("--limit", "-n", help="Maximum number of errors to retrieve and display.")
     ] = 50,
 ):
     """Find errored runs across workspaces.
@@ -732,7 +795,7 @@ def run_trigger(
     workspace: Annotated[
         str | None,
         typer.Argument(
-            help="Workspace name (auto-detected if omitted)",
+            help="Target TFC workspace name. If omitted, attempts auto-detection from local Terraform context.",
         ),
     ] = None,
     organization: Annotated[
@@ -740,33 +803,79 @@ def run_trigger(
         typer.Option(
             "--organization",
             "-o",
-            help="TFC organization",
+            help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
         ),
     ] = None,
-    message: Annotated[str | None, typer.Option("--message", "-m", help="Run description")] = None,
+    message: Annotated[
+        str | None,
+        typer.Option(
+            "--message",
+            "-m",
+            help="A descriptive title or comment for the run, visible in TFC history.",
+        ),
+    ] = None,
     target: Annotated[
-        list[str] | None, typer.Option("--target", "-t", help="Resource address to target")
+        list[str] | None,
+        typer.Option(
+            "--target",
+            "-t",
+            help="Limit the plan to specific resource addresses (can be specified multiple times).",
+        ),
     ] = None,
     replace: Annotated[
-        list[str] | None, typer.Option("--replace", "-r", help="Resource address to replace")
+        list[str] | None,
+        typer.Option(
+            "--replace",
+            "-r",
+            help="Force the recreation of specific resource addresses (can be specified multiple times).",
+        ),
     ] = None,
-    destroy: Annotated[bool, typer.Option("--destroy", help="Create a destroy run")] = False,
+    destroy: Annotated[
+        bool,
+        typer.Option(
+            "--destroy",
+            help="Trigger a run that will destroy all resources managed by the workspace configuration.",
+        ),
+    ] = False,
     refresh_only: Annotated[
-        bool, typer.Option("--refresh-only", help="Create a refresh-only run")
+        bool,
+        typer.Option(
+            "--refresh-only",
+            help="Trigger a run that only updates the TFC state to match reality without proposing configuration changes.",
+        ),
     ] = False,
     auto_apply: Annotated[
-        bool, typer.Option("--auto-apply", "-y", help="Automatically apply the plan if successful")
+        bool,
+        typer.Option(
+            "--auto-apply",
+            "-y",
+            help="Automatically proceed to the apply phase if the plan is successful, bypassing human approval.",
+        ),
     ] = False,
-    watch: bool = typer.Option(True, "--watch/--no-watch", help="Watch progress until complete"),
-    stream: bool = typer.Option(True, "--stream/--no-stream", help="Stream logs during watch"),
+    watch: bool = typer.Option(
+        True,
+        "--watch/--no-watch",
+        help="Monitor the run's progress in real-time until it reaches a terminal state.",
+    ),
+    stream: bool = typer.Option(
+        True,
+        "--stream/--no-stream",
+        help="Stream live plan and apply logs to the console while watching.",
+    ),
     wait: bool = typer.Option(
-        False, "--wait", help="If blocked by earlier runs, wait in queue instead of exiting"
+        False,
+        "--wait",
+        help="If the workspace is locked by another run, stay in the queue until it becomes available instead of exiting immediately.",
     ),
     discard_older: bool = typer.Option(
-        False, "--discard-older", help="Automatically discard earlier runs blocking the queue"
+        False,
+        "--discard-older",
+        help="Automatically discard or cancel any existing runs that are blocking the queue for this workspace.",
     ),
     debug_run: bool = typer.Option(
-        False, "--debug-run", help="Enable verbose/debug logging in TFC for this run"
+        False,
+        "--debug-run",
+        help="Enable TFC 'debugging-mode' for this specific run to capture verbose internal logs.",
     ),
 ):
     """Trigger a new run with optional targeting or replacement.
@@ -874,13 +983,13 @@ def run_trigger(
 @app.command("watch")
 @handle_cli_errors
 def run_watch(
-    run_id: Annotated[str, typer.Argument(help="Run ID to watch")],
+    run_id: Annotated[str, typer.Argument(help="The unique TFC Run ID to monitor.")],
     workspace: Annotated[
         str | None,
         typer.Option(
             "--workspace",
             "-w",
-            help="Workspace name (for deep links)",
+            help="Target TFC workspace name. If omitted, attempts auto-detection from local context.",
         ),
     ] = None,
     organization: Annotated[
@@ -888,15 +997,23 @@ def run_watch(
         typer.Option(
             "--organization",
             "-o",
-            help="TFC organization",
+            help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
         ),
     ] = None,
-    stream: bool = typer.Option(True, "--stream/--no-stream", help="Stream logs"),
+    stream: bool = typer.Option(
+        True,
+        "--stream/--no-stream",
+        help="Stream live plan and apply logs to the console while watching.",
+    ),
     wait: bool = typer.Option(
-        False, "--wait", help="If blocked by earlier runs, wait in queue instead of exiting"
+        False,
+        "--wait",
+        help="If the workspace is locked by another run, stay in the queue until it becomes available instead of exiting immediately.",
     ),
     discard_older: bool = typer.Option(
-        False, "--discard-older", help="Automatically discard earlier runs blocking the queue"
+        False,
+        "--discard-older",
+        help="Automatically discard or cancel any existing runs that are blocking the queue for this workspace.",
     ),
 ):
     """Watch run progress until terminal state.
@@ -941,9 +1058,19 @@ def run_watch(
 @app.command("discard")
 @handle_cli_errors
 def run_discard(
-    run_id: str = typer.Argument(..., help="Run ID to discard"),
-    comment: str | None = typer.Option(None, "--comment", "-m", help="Reason for discarding"),
-    organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
+    run_id: str = typer.Argument(..., help="The unique TFC Run ID to discard."),
+    comment: str | None = typer.Option(
+        None,
+        "--comment",
+        "-m",
+        help="An optional comment explaining the reason for discarding the run.",
+    ),
+    organization: str | None = typer.Option(
+        None,
+        "-o",
+        "--organization",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
+    ),
 ):
     """Discard a run that is awaiting confirmation.
 
@@ -967,9 +1094,19 @@ def run_discard(
 @app.command("cancel")
 @handle_cli_errors
 def run_cancel(
-    run_id: str = typer.Argument(..., help="Run ID to cancel"),
-    comment: str | None = typer.Option(None, "--comment", "-m", help="Reason for canceling"),
-    organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
+    run_id: str = typer.Argument(..., help="The unique TFC Run ID to cancel."),
+    comment: str | None = typer.Option(
+        None,
+        "--comment",
+        "-m",
+        help="An optional comment explaining the reason for canceling the run.",
+    ),
+    organization: str | None = typer.Option(
+        None,
+        "-o",
+        "--organization",
+        help="Target TFC organization name. If omitted, attempts auto-detection from local context.",
+    ),
 ):
     """Cancel a run that is currently queued or in progress.
 
@@ -992,15 +1129,30 @@ def run_cancel(
 def run_parse_plan(
     plan_file: Annotated[
         Path | None,
-        typer.Argument(help="Path to terraform plan output file, or - to read from stdin"),
+        typer.Argument(
+            help="Path to the plain text terraform plan output file. Use '-' to read from standard input."
+        ),
     ] = None,
     output_format: Annotated[
-        str, typer.Option("--format", "-f", help="Output format: human, json")
+        str,
+        typer.Option(
+            "--format",
+            "-f",
+            help="Control the output style. 'human' is readable, 'json' is for machine processing.",
+        ),
     ] = "human",
     output: Annotated[
-        Path | None, typer.Option("--output", "-o", help="Save parsed plan to file")
+        Path | None,
+        typer.Option("--output", "-o", help="Optional path to save the parsed results to a file."),
     ] = None,
-    verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Show detailed output")] = False,
+    verbose: Annotated[
+        bool,
+        typer.Option(
+            "--verbose",
+            "-v",
+            help="Show detailed diagnostic information and full resource addresses.",
+        ),
+    ] = False,
 ):
     """Parse plain text terraform plan output.
 
