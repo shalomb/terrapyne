@@ -10,25 +10,25 @@ from rich.console import Console
 from terrapyne.utils.context import resolve_organization, resolve_workspace
 
 F = TypeVar("F", bound=Callable[..., Any])
+
+# Consolidated console instances for CLI output
+# UI output goes to stdout (Typer default) to support test runners
 console = Console()
 
 
+def set_quiet_mode(quiet: bool) -> None:
+    """Set quiet mode flag on the global console."""
+    console.quiet = quiet
+
+
 def handle_cli_errors(func: F) -> F:
-    """Decorator to handle common CLI errors.
-
-    Handles:
-    - ValueError: Missing context/arguments (converted to user-friendly message)
-    - Exception: Generic errors
-
-    Converts exceptions to console output and raises typer.Exit(1).
-    """
+    """Decorator to handle common CLI errors."""
 
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return func(*args, **kwargs)
         except typer.Exit:
-            # Let typer.Exit propagate without modification (clean exit)
             raise
         except ValueError as e:
             console.print(f"[red]Error: {e}[/red]")
@@ -45,35 +45,7 @@ def validate_context(
     workspace: str | None = None,
     require_workspace: bool = False,
 ) -> tuple[str, str | None]:
-    """Validate and resolve organization and workspace context.
-
-    This helper consolidates the common pattern of resolving organization
-    and optionally workspace from CLI arguments or context detection.
-
-    Args:
-        organization: CLI argument for organization (optional).
-            If None, attempts auto-detection from terraform.tf or tfstate.
-        workspace: CLI argument for workspace (optional).
-            If None, attempts auto-detection from tfstate.
-        require_workspace: If True, raises ValueError if workspace cannot be resolved.
-
-    Returns:
-        Tuple of (organization, workspace).
-        workspace will be None if not required and not resolved.
-        If require_workspace=True, workspace is guaranteed to be a non-None string.
-
-    Raises:
-        ValueError: If organization cannot be resolved, or if workspace is required
-            but cannot be resolved.
-
-    Examples:
-        # Just need organization
-        org, _ = validate_context(organization)
-
-        # Need both organization and workspace
-        org, ws = validate_context(organization, workspace, require_workspace=True)
-        # ws is guaranteed to be str, not str | None
-    """
+    """Validate and resolve organization and workspace context."""
     org = resolve_organization(organization)
     if not org:
         raise ValueError(
@@ -81,20 +53,20 @@ def validate_context(
             "Specify: --organization ORGANIZATION or run in terraform directory."
         )
 
-    if require_workspace:
-        ws = resolve_workspace(workspace)
-        if not ws:
-            raise ValueError(
-                "No workspace specified and could not detect from context. "
-                "Specify: WORKSPACE or run in terraform directory."
-            )
-        return org, ws  # type: ignore[return-value]
+    ws = resolve_workspace(workspace)
+    if require_workspace and not ws:
+        raise ValueError(
+            "No workspace specified and could not detect from context.\n"
+            "Either:\n"
+            "  1. Run this command from a directory with terraform configuration (terraform.tf or .terraform/terraform.tfstate), or\n"
+            "  2. Specify workspace name: --workspace WORKSPACE_NAME"
+        )
 
-    return org, None
+    return org, ws
 
 
 def emit_json(data):
-    """Print data as JSON to stdout. Handles Pydantic models and datetimes."""
+    """Print data as JSON to stdout."""
     import json
     from datetime import datetime
 
@@ -115,19 +87,7 @@ def resolve_project_context(
     organization: str | None = None,
     project_name: str | None = None,
 ) -> tuple[str, Any]:
-    """Resolve organization and project from arguments or workspace context.
-
-    Args:
-        client: Authenticated TFCClient instance
-        organization: Optional organization name
-        project_name: Optional project name. If None, falls back to workspace context.
-
-    Returns:
-        Tuple of (organization_name, Project model instance)
-
-    Raises:
-        ValueError: If project_name is None and workspace context cannot be resolved.
-    """
+    """Resolve organization and project from arguments or workspace context."""
     org, _ = validate_context(organization)
 
     if project_name:

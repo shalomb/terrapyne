@@ -7,12 +7,11 @@ from typing import Annotated, cast
 
 import httpx
 import typer
-from rich.console import Console
 from rich.table import Table
 
 from terrapyne.api.client import TFCClient
 from terrapyne.api.vcs import VCSAPI
-from terrapyne.cli.utils import emit_json, handle_cli_errors, validate_context
+from terrapyne.cli.utils import console, emit_json, handle_cli_errors, validate_context
 from terrapyne.models.run import RunStatus
 from terrapyne.models.variable import WorkspaceVariable
 from terrapyne.utils.browser import get_workspace_url, open_url_in_browser
@@ -24,7 +23,6 @@ from terrapyne.utils.rich_tables import (
 )
 
 app = typer.Typer(help="Workspace management commands")
-console = Console()
 
 
 @app.callback(invoke_without_command=True)

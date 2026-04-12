@@ -6,11 +6,11 @@ import contextlib
 import sys
 
 import typer
-from rich.console import Console
 
 from terrapyne.api.client import TFCClient
 from terrapyne.api.projects import ProjectAPI
 from terrapyne.cli.utils import (
+    console,
     handle_cli_errors,
     resolve_project_context,
     validate_context,
@@ -22,7 +22,6 @@ from terrapyne.utils.rich_tables import (
 )
 
 app = typer.Typer(help="Project discovery and management commands")
-console = Console()
 
 
 @app.callback(invoke_without_command=True)
