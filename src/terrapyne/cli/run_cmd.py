@@ -1,6 +1,8 @@
 """Run CLI commands."""
 
 import datetime
+import time
+from collections.abc import Iterator
 from contextlib import suppress
 from pathlib import Path
 from typing import Annotated, Any
@@ -16,6 +18,86 @@ from terrapyne.utils.rich_tables import render_run_detail, render_runs
 
 app = typer.Typer(help="Run management commands")
 console = Console()
+
+
+# Pure functions for log streaming
+def _extract_new_lines(previous: str, current: str) -> list[str]:
+    """Extract only the new lines from the current content.
+
+    Compares current log content against previously fetched content and returns
+    only the lines that have been added since the last fetch. Uses byte-offset
+    tracking (string length) to avoid re-processing old content.
+
+    Args:
+        previous: Previously fetched log content (may be empty string on first call)
+        current: Current log content from API
+
+    Returns:
+        List of new log lines that have been added since the last fetch.
+        Returns empty list if current is not longer than previous (no new content).
+    """
+    if len(current) <= len(previous):
+        return []
+    return current[len(previous) :].splitlines()
+
+
+def _fetch_run_logs_incrementally(
+    run_id: str,
+    client,
+    sleep_fn=time.sleep,
+    poll_interval: float = 1.0,
+    max_wait: float = 1800.0,
+) -> Iterator[str]:
+    """Stream log lines from a run as they become available.
+
+    Polls TFC run status and log endpoints on a regular interval, yielding only
+    new log lines since the last fetch. Tracks both plan and apply logs with
+    separate offset counters to handle runs that transition through planning
+    to applying.
+
+    Args:
+        run_id: TFC run ID to stream logs for
+        client: TFCClient instance for API calls
+        sleep_fn: Function to sleep (injectable for testing)
+        poll_interval: Seconds between API polls (default 1.0)
+        max_wait: Maximum seconds to wait before giving up (default 1800, 30min)
+
+    Yields:
+        Individual log lines as they arrive from the API
+    """
+    seen_plan = ""
+    seen_apply = ""
+    interval = poll_interval
+    start = time.monotonic()
+
+    while True:
+        run = client.runs.get(run_id)
+
+        # Fetch and yield plan logs if run has a plan
+        if run.plan_id:
+            with suppress(Exception):
+                current = client.runs.get_plan_logs(run.plan_id)
+                for line in _extract_new_lines(seen_plan, current):
+                    yield line
+                seen_plan = current
+
+        # Fetch and yield apply logs if run has an apply
+        if run.apply_id:
+            with suppress(Exception):
+                current = client.runs.get_apply_logs(run.apply_id)
+                for line in _extract_new_lines(seen_apply, current):
+                    yield line
+                seen_apply = current
+
+        # Check if run has reached a terminal state
+        if run.status.is_terminal:
+            return
+
+        # Check if max_wait has been exceeded
+        if time.monotonic() - start >= max_wait:
+            return
+
+        sleep_fn(interval)
 
 
 @app.callback(invoke_without_command=True)

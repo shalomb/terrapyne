@@ -151,7 +151,7 @@ def workspace_show(
         try:
             # 1. Fetch recent runs (optimized: get latest + check for active in one go)
             # We fetch 20 to get a good snapshot of activity
-            runs, total_count = client.runs.list(ws.id, limit=20, include="configuration-version")
+            runs, total_count = client.runs.list(ws.id, limit=20)
             if runs:
                 latest_run = runs[0]
 

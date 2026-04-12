@@ -606,6 +606,78 @@ class TestRunIntegration:
         assert applied_run.status == RunStatus.APPLIED
 
 
+class TestLogFetching:
+    """Test log fetching operations for plans and applies."""
+
+    @pytest.fixture
+    def mock_client(self):
+        """Create a mock TFC client."""
+        client = MagicMock()
+        client.client = MagicMock()
+        return client
+
+    @pytest.fixture
+    def api(self, mock_client):
+        """Create RunsAPI instance with mock client."""
+        return RunsAPI(mock_client)
+
+    def test_get_plan_logs_returns_full_text(self, api, mock_client):
+        """Test that get_plan_logs returns the complete plan log as plain text."""
+        plan_id = "plan-abc123"
+        plan_log_content = (
+            "Terraform v1.7.0\n"
+            "Plan: 2 to add, 0 to change, 0 to destroy\n"
+            "Done."
+        )
+
+        # Mock the httpx response
+        response = MagicMock()
+        response.text = plan_log_content
+        response.raise_for_status = MagicMock()
+        mock_client.client.get.return_value = response
+
+        # Fetch logs
+        result = api.get_plan_logs(plan_id)
+
+        # Verify the call was made correctly
+        mock_client.client.get.assert_called_once()
+        call_url = mock_client.client.get.call_args[0][0]
+        assert plan_id in call_url
+        assert "/logs" in call_url
+
+        # Verify return is plain text
+        assert result == plan_log_content
+        assert isinstance(result, str)
+
+    def test_get_apply_logs_returns_full_text(self, api, mock_client):
+        """Test that get_apply_logs returns the complete apply log as plain text."""
+        apply_id = "apply-xyz789"
+        apply_log_content = (
+            "Apply complete! Resources: 2 added, 0 changed, 0 destroyed.\n"
+            "Outputs:\n"
+            "instance_id = i-0a1b2c3d4e5f6g7h8"
+        )
+
+        # Mock the httpx response
+        response = MagicMock()
+        response.text = apply_log_content
+        response.raise_for_status = MagicMock()
+        mock_client.client.get.return_value = response
+
+        # Fetch logs
+        result = api.get_apply_logs(apply_id)
+
+        # Verify the call was made correctly
+        mock_client.client.get.assert_called_once()
+        call_url = mock_client.client.get.call_args[0][0]
+        assert apply_id in call_url
+        assert "/logs" in call_url
+
+        # Verify return is plain text
+        assert result == apply_log_content
+        assert isinstance(result, str)
+
+
 class TestRunWithPlan:
     """Test run with plan relationship and resource counts."""
 

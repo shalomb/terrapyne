@@ -1,5 +1,6 @@
 """Run models."""
 
+import builtins
 from datetime import datetime
 from enum import StrEnum
 from typing import Any
@@ -59,7 +60,7 @@ class RunStatus(StrEnum):
     DISCARDED = "discarded"  # Terminal state
 
     @staticmethod
-    def get_active_statuses() -> list[str]:
+    def get_active_statuses() -> builtins.list[str]:
         """Get list of active (non-terminal) statuses."""
         return [
             RunStatus.PENDING,
