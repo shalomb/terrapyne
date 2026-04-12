@@ -540,3 +540,110 @@ def variable_create_response():
             },
         }
     }
+
+
+# Log streaming fixtures
+@pytest.fixture
+def plan_log_empty():
+    """Empty plan log (no content yet)."""
+    return ""
+
+
+@pytest.fixture
+def plan_log_partial():
+    """Plan log with partial content (planning in progress)."""
+    return "Terraform v1.7.0\non linux (aarch64)\nConfiguring the remote state backend..."
+
+
+@pytest.fixture
+def plan_log_complete():
+    """Plan log with full content (planning complete)."""
+    return (
+        "Terraform v1.7.0\n"
+        "on linux (aarch64)\n"
+        "Configuring the remote state backend...\n"
+        "Terraform has been successfully initialized!\n"
+        "Planning 2 to add, 0 to change, 0 to destroy"
+    )
+
+
+@pytest.fixture
+def apply_log_complete():
+    """Apply log with full content (apply complete)."""
+    return (
+        "aws_instance.web[0]: Creating...\n"
+        "aws_instance.web[0]: Still creating... [10s elapsed]\n"
+        "aws_instance.web[0]: Creation complete after 15s [id=i-0a1b2c3d4e5f6g7h8]\n"
+        "aws_instance.web[1]: Creating...\n"
+        "aws_instance.web[1]: Creation complete after 12s [id=i-0c5d6e7f8g9h0i1j2]\n"
+        "Apply complete! Resources: 2 added, 0 changed, 0 destroyed"
+    )
+
+
+@pytest.fixture
+def plan_log_with_error():
+    """Plan log that ends with an error."""
+    return (
+        "Terraform v1.7.0\n"
+        "on linux (aarch64)\n"
+        "Error: Missing required argument\n"
+        "on main.tf line 5, in resource \"aws_instance\" \"web\":\n"
+        "5:   instance_type = var.missing_type\n"
+        "The argument \"instance_type\" is required, but was not set"
+    )
+
+
+@pytest.fixture
+def run_with_plan_id_response():
+    """Mock run response with plan relationship."""
+    return {
+        "id": "run-plan-123",
+        "type": "runs",
+        "attributes": {
+            "status": "planning",
+            "created-at": "2025-04-01T10:00:00Z",
+            "updated-at": "2025-04-01T10:01:00Z",
+            "message": None,
+            "auto-apply": False,
+            "is-destroy": False,
+        },
+        "relationships": {
+            "plan": {
+                "data": {
+                    "id": "plan-abc123",
+                    "type": "plans",
+                }
+            }
+        },
+    }
+
+
+@pytest.fixture
+def run_with_apply_id_response():
+    """Mock run response with both plan and apply relationships."""
+    return {
+        "id": "run-apply-456",
+        "type": "runs",
+        "attributes": {
+            "status": "applying",
+            "created-at": "2025-04-01T10:00:00Z",
+            "updated-at": "2025-04-01T10:05:00Z",
+            "message": None,
+            "auto-apply": False,
+            "is-destroy": False,
+        },
+        "relationships": {
+            "plan": {
+                "data": {
+                    "id": "plan-abc123",
+                    "type": "plans",
+                }
+            },
+            "apply": {
+                "data": {
+                    "id": "apply-xyz789",
+                    "type": "applies",
+                }
+            },
+        },
+    }

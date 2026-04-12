@@ -73,3 +73,39 @@ Feature: Infrastructure Change Lifecycle
     When I trigger a plan for "my-app-dev" with the "--refresh-only" flag
     Then the new execution should be a "refresh-only" run
     And it should only identify drift without proposing configuration changes
+
+  Scenario: Streaming plan logs as they arrive
+    Given an execution "run-log1" is planning infrastructure changes
+    When I request to stream logs for "run-log1"
+    Then I should see plan logs appear in real time
+    And each log line should arrive as it becomes available
+    And streaming should stop when the plan phase completes
+
+  Scenario: Streaming apply logs after plan completion
+    Given an execution "run-log2" has completed planning and started applying
+    When I request to stream logs for "run-log2"
+    Then I should see plan logs from the completed phase
+    And then see apply logs as they arrive
+    And streaming should continue until the apply finishes
+
+  Scenario: No logs available when run is pending
+    Given an execution "run-log3" is pending with no plan started
+    When I request to stream logs for "run-log3"
+    Then no logs should be returned
+    And polling should continue waiting for the plan to start
+    And streaming should stop when the run reaches a terminal state
+
+  Scenario: Handling transient errors during log streaming
+    Given an execution "run-log4" is planning infrastructure
+    And log API calls will intermittently fail
+    When I request to stream logs for "run-log4"
+    Then failed log fetches should be retried automatically
+    And successful log lines should still be yielded
+    And streaming should complete despite transient failures
+
+  Scenario: Stopping log stream when run reaches terminal state
+    Given an execution "run-log5" is in progress
+    When I request to stream logs for "run-log5"
+    And the execution reaches a terminal state
+    Then no further API calls should be made
+    And streaming should exit cleanly
