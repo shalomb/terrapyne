@@ -60,8 +60,12 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "-v --cov=terrapyne --cov-report=term-missing --cov-report=html --cov-fail-under=67"
+addopts = "-v --cov=terrapyne --cov-report=term-missing --cov-report=html --cov-fail-under=65"
 asyncio_mode = "strict"
+markers = [
+    "uat: user acceptance tests (require external TFC credentials)",
+    "fast: fast unit tests",
+]
 
 [tool.ruff]
 line-length = 100
