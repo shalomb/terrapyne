@@ -23,7 +23,7 @@ For evaluating live TFC behavior, use the following workspace directory:
 | 17 | [BLOCKER] Restore test coverage to 65% (PR #36 Regression) | 🔴 | S | 4.0 | ✅ |
 | 18 | [BLOCKER] Fix Cost Estimate Regression (PR #36 logic error) | 🔴 | S | 4.0 | ✅ |
 | 19 | [BLOCKER] Remove broad exception silencing in `workspace_cmd.py` | 🔴 | S | 4.0 | ✅ |
-| 10 | `--wait` flag for `run trigger`/`apply` to stream logs & exit w/ code | 🔴 | M | 2.0 | ✅ |
+| 10 | Enhanced Run Lifecycle (Trigger types, Queue wait, Approvals) | 🔴 | M | 2.0 | ✅ |
 | 14 | Restore test coverage minimum `fail-under` to 80% (Long-term goal) | 🔴 | M | 2.0 | TODO |
 | 20 | [MINOR] Use `RunStatus` enum instead of hardcoded strings | 🟡 | S | 2.0 | ✅ |
 | 9 | `--raw` flag for `state outputs` for single unquoted values | 🟡 | S | 2.0 | ✅ |
@@ -48,23 +48,57 @@ For evaluating live TFC behavior, use the following workspace directory:
 
 ### 19. Remove Broad Exception Silencing (🏆)
 **Intent**: Prevent "silent failures" in the CLI and improve observability for users.
-**Context**: `workspace_cmd.py` uses a blanket `except Exception as e` which catches everything from auth errors to network timeouts, merely printing a yellow warning.
-**Success Criteria**: Replace with specific exception handling (e.g., `httpx.HTTPStatusError`) and ensure critical failures (like auth) still halt execution or provide clear diagnostic information.
+**Context**: `workspace_cmd.py` used blanket `except Exception as e` which caught everything.
+**Success Criteria**: Replace with specific exception handling (e.g., `httpx.HTTPStatusError`) and ensure critical failures still halt execution or provide clear diagnostic information.
+
+### 10. Enhanced Run Lifecycle (⭐)
+**Intent**: Provide a robust, CI/CD-friendly interface for triggering and monitoring runs.
+**Context**: Users needed better control over run types (plan-only, auto-apply, refresh, destroy) and queue management.
+**Success Criteria**:
+- Support for `--wait` (block until workspace available) and `--discard-older` (clear queue).
+- Support for `--debug-run` (TFC debugging-mode).
+- Explicit identification of run types in CLI output.
+- Smart "Story" for shell return: Exit `0` when paused for approval if auto-apply is off.
 
 ### 20. Use `RunStatus` Enum for Filtering (⭐)
 **Intent**: Eliminate magic strings and synchronize CLI filtering with the core domain model.
-**Context**: Active run filtering in `workspace_cmd.py` uses a hardcoded comma-separated string of statuses.
+**Context**: Active run filtering in `workspace_cmd.py` used a hardcoded comma-separated string of statuses.
 **Success Criteria**: The active status list is derived from the `RunStatus` enum, ensuring that any future status changes in the domain model automatically propagate to the CLI.
 
-### 21. Consolidate `workspace_show` API Calls (⭐)
+### 21. Consolidate `workspace_show` API calls (⭐)
 **Intent**: Reduce command latency by minimizing round-trips to the TFC API.
 **Context**: Currently, `workspace_show` makes one call for the latest run (including VCS) and another for active counts.
 **Success Criteria**: Fetch a window of runs (e.g., 20) in a single call and calculate active counts and latest run details from that single response.
 
 ### 22. Strict Validation for `Run` Model (⭐)
 **Intent**: Ensure data integrity when consuming external API payloads.
-**Context**: `Run.from_api_response` uses `model_construct`, which is fast but skips type/presence validation.
+**Context**: `Run.from_api_response` used `model_construct`, which is fast but skips type/presence validation.
 **Success Criteria**: Implement validation for critical fields (id, status) while maintaining the factory pattern for relationship extraction.
 
+### 9. Raw State Outputs (⭐)
+**Intent**: Enable easy shell-pipeline integration for terraform outputs.
+**Context**: Users needed to pipe single output values to other commands without quotes or extra formatting.
+**Success Criteria**: `tfc state outputs NAME --raw` returns the unquoted literal value of the output.
+
+### 13. JSON Structured Output (⭐)
+**Intent**: Support machine-readable consumption of dashboard information.
+**Context**: Automation tools need the same high-level info shown in tables but in JSON format.
+**Success Criteria**: `--json` flag implemented for `workspace show` and `project show` providing full structured data.
+
+### 6. API Debug Tracing (⭐)
+**Intent**: Provide developers with deep visibility into TFC API interactions.
+**Context**: Troubleshooting complex interactions or "silent" API errors.
+**Success Criteria**: `--debug` global flag captures and prints all outgoing requests and incoming responses (headers, bodies).
+
+### 1c. Project Snapshot (⭐)
+**Intent**: Provide a 'single glance' health check for entire projects.
+**Context**: Managing dozens of workspaces requires higher-level aggregation.
+**Success Criteria**: `tfc project show` includes total workspace counts and an aggregate count of active runs across the project.
+
+### 8. Response Caching (⭐)
+**Intent**: Speed up read-heavy operations and avoid API rate limits.
+**Context**: Commands like `project show` or `list` often repeat the same queries.
+**Success Criteria**: Local file-based caching implemented in `TFCClient` with configurable TTL.
+
 ---
-*(Existing legacy tasks 9, 10, 14, 13, 1c, 6, 8 details remain in the backlog)*
+*(Task 14 details remain in the backlog)*

@@ -217,8 +217,10 @@ def workspace_show(
         try:
             variables = client.workspaces.get_variables(ws.id)
             render_workspace_variables(variables)
-        except Exception as e:
-            console.print(f"\n[yellow]Warning:[/yellow] Unable to fetch variables: {e}")
+        except httpx.HTTPStatusError as e:
+            console.print(
+                f"\n[yellow]Warning:[/yellow] Unable to fetch variables (API error {e.response.status_code})"
+            )
 
         # 4. Render VCS configuration
         render_workspace_vcs(ws)
