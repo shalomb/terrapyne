@@ -621,6 +621,18 @@ wheels = [
 ]
 
 [[package]]
+name = "pretty-traceback"
+version = "2024.1021"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fe/1a/5238fa3aa2310d47af50069f451a314f75d3998cb99c07189bfe1ae6c54b/pretty-traceback-2024.1021.tar.gz", hash = "sha256:08c53c7737a315e5b17646340f1620c1b9c7ef3cbbc195ac05e50d0b131101f7", size = 18113, upload-time = "2024-08-17T15:01:24.253Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f3/09/336a8a63f6e85ff57d1ab87c6aa0179e2e68b34c9e113d7064e63fbbb99c/pretty_traceback-2024.1021-py2.py3-none-any.whl", hash = "sha256:c1f351b9e3fce79fb4343a6509a5f2bad16084356c63fe85d3f6bbb0486dd94a", size = 12263, upload-time = "2024-08-17T15:01:23.197Z" },
+]
+
+[[package]]
 name = "pydantic"
 version = "2.12.5"
 source = { registry = "https://pypi.org/simple" }
@@ -831,6 +843,15 @@ wheels = [
 ]
 
 [[package]]
+name = "python-decouple"
+version = "3.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e1/97/373dcd5844ec0ea5893e13c39a2c67e7537987ad8de3842fe078db4582fa/python-decouple-3.8.tar.gz", hash = "sha256:ba6e2657d4f376ecc46f77a3a615e058d93ba5e465c01bbe57289bfb7cce680f", size = 9612, upload-time = "2023-03-01T19:38:38.143Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a2/d4/9193206c4563ec771faf2ccf54815ca7918529fe81f6adb22ee6d0e06622/python_decouple-3.8-py3-none-any.whl", hash = "sha256:d0d45340815b25f4de59c974b855bb38d03151d81b037d9e3f463b0c9f8cbd66", size = 9947, upload-time = "2023-03-01T19:38:36.015Z" },
+]
+
+[[package]]
 name = "python-discovery"
 version = "1.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1005,8 +1026,10 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },
+    { name = "pretty-traceback" },
     { name = "pydantic" },
     { name = "python-benedict" },
+    { name = "python-decouple" },
     { name = "python-dotenv" },
     { name = "pyyaml" },
     { name = "rich" },
@@ -1037,6 +1060,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.27.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.6.0" },
+    { name = "pretty-traceback", specifier = ">=0.2.2" },
     { name = "pydantic", specifier = ">=2.6.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
@@ -1046,6 +1070,7 @@ requires-dist = [
     { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.12.0" },
     { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.5.0" },
     { name = "python-benedict", specifier = ">=0.33.0" },
+    { name = "python-decouple", specifier = ">=3.8" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "rich", specifier = ">=13.7.0" },
