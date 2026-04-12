@@ -14,10 +14,6 @@ from terrapyne.api.client import TFCClient
 from terrapyne.cli.utils import validate_context
 from terrapyne.core.state_diff import (
     DEFAULT_FIELDS,
-    diff_state_resources,
-    extract_rows,
-    format_diff_unified,
-    parse_state_resources,
 )
 
 app = typer.Typer(help="State version commands")
@@ -183,6 +179,11 @@ def state_outputs(
         Console(stderr=True).print("[red]Error: --raw is mutually exclusive with --format[/red]")
         raise typer.Exit(1)
 
+    # Shift target to name if raw is set and workspace is in context
+    if raw and not name and target and not target.startswith(("ws-", "sv-")):
+        name = target
+        target = None
+
     with TFCClient(organization=org) as client:
         state_version_id = None
 
@@ -194,15 +195,7 @@ def state_outputs(
             if target.startswith("ws-"):
                 ws = client.workspaces.get_by_id(target)
             else:
-                try:
-                    ws = client.workspaces.get(target, org)
-                except Exception:
-                    # If target is not a workspace, maybe it's the output name and workspace is in context
-                    if ws_name:
-                        ws = client.workspaces.get(ws_name, org)
-                        name = target  # Shift target to name
-                    else:
-                        raise
+                ws = client.workspaces.get(target, org)
             sv = client.state_versions.get_current(ws.id)
             state_version_id = sv.id
         elif ws_name:
@@ -231,7 +224,11 @@ def state_outputs(
                 )
                 raise typer.Exit(1)
             # Use print() instead of console.print() for raw shell friendliness
-            print(output.value)
+            # Use json.dumps for complex objects, raw string otherwise
+            if isinstance(output.value, (dict, list)):
+                print(json.dumps(output.value))
+            else:
+                print(str(output.value))
             return
 
         outputs = [output]

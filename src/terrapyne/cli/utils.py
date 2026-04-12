@@ -81,16 +81,14 @@ def validate_context(
             "Specify: --organization ORGANIZATION or run in terraform directory."
         )
 
-    if require_workspace:
-        ws = resolve_workspace(workspace)
-        if not ws:
-            raise ValueError(
-                "No workspace specified and could not detect from context. "
-                "Specify: WORKSPACE or run in terraform directory."
-            )
-        return org, ws  # type: ignore[return-value]
+    ws = resolve_workspace(workspace)
+    if require_workspace and not ws:
+        raise ValueError(
+            "No workspace specified and could not detect from context. "
+            "Specify: WORKSPACE or run in terraform directory."
+        )
 
-    return org, None
+    return org, ws
 
 
 def emit_json(data):
