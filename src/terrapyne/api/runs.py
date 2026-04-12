@@ -1,68 +1,80 @@
-"""Runs API methods."""
-
-from __future__ import annotations
+"""TFC Runs API."""
 
 import builtins
 import time
 from collections.abc import Callable
 from typing import Any
 
-from terrapyne.api.client import TFCClient
 from terrapyne.models.apply import Apply
 from terrapyne.models.plan import Plan
 from terrapyne.models.run import Run
 
 
 class RunsAPI:
-    """Run API operations."""
+    """API for TFC runs."""
 
-    def __init__(self, client: TFCClient):
-        """Initialize runs API.
-
-        Args:
-            client: TFC API client
-        """
+    def __init__(self, client):
+        """Initialize Runs API."""
         self.client = client
 
-    def list(  # noqa: A003
+    def list(
         self,
         workspace_id: str,
         limit: int = 20,
         status: str | None = None,
-    ) -> tuple[builtins.list[Run], int | None]:
+        include: str | None = "configuration-version,plan",
+    ) -> tuple[builtins.list[Run], int]:
         """List runs for a workspace.
 
         Args:
             workspace_id: Workspace ID
             limit: Maximum number of runs to return
-            status: Filter by run status (e.g., "applied", "errored")
+            status: Filter by status (can be comma-separated list)
+            include: Resources to include
 
         Returns:
-            Tuple of (list of Run instances (most recent first), total count or None)
+            Tuple of (list of Run instances, total count)
         """
-        path = f"/workspaces/{workspace_id}/runs"
+        params: dict[str, Any] = {
+            "page[size]": min(limit, 100),
+        }
+        if include:
+            params["include"] = include
 
-        params = {}
         if status:
             params["filter[status]"] = status
 
-        items_iterator, total_count = self.client.paginate_with_meta(
-            path, params=params, page_size=min(limit, 100)
-        )
+        path = f"/workspaces/{workspace_id}/runs"
+        response = self.client.get(path, params=params)
 
         runs = []
+        data = response.get("data", [])
+        included = response.get("included", [])
+        total_count = response.get("meta", {}).get("pagination", {}).get("total-count", 0)
+
+        # Use an iterator if we need to fetch more pages (not implemented here for simplicity)
+        items_iterator = data
+
         for item in items_iterator:
-            runs.append(Run.from_api_response(item))
+            runs.append(Run.from_api_response(item, included=included))
             if len(runs) >= limit:
                 break
 
         return runs, total_count
 
+    def get_active_runs(self, workspace_id: str) -> builtins.list[Run]:
+        """Get all currently active (non-terminal) runs for a workspace."""
+        from terrapyne.models.run import RunStatus
+
+        active_statuses = ",".join(RunStatus.get_active_statuses())
+        # TFC API supports comma-separated status filter
+        runs, _ = self.list(workspace_id, status=active_statuses, limit=100)
+        return runs
+
     def get_latest_cost_estimate(self, workspace_id: str) -> dict[str, Any] | None:
         """Get the latest finished cost estimate for a workspace.
 
         Walks recent runs until one with a finished cost estimate is found.
-        Returns the full cost estimate attributes including resource breakdown.
         """
         response = self.client.get(
             f"/workspaces/{workspace_id}/runs",
@@ -85,28 +97,27 @@ class RunsAPI:
                 continue
             ce = cost_by_id.get(ce_rel["id"], {})
             if ce.get("status") == "finished" and ce.get("proposed-monthly-cost"):
-                # Fetch full resource breakdown via direct endpoint
-                ce_full = self.client.get(f"/cost-estimates/{ce_rel['id']}")
-                return ce_full["data"]["attributes"]
+                return ce
 
         return None
 
-    def get(self, run_id: str) -> Run:
+    def get(self, run_id: str, include: str | None = None) -> Run:
         """Get run by ID.
 
         Args:
             run_id: Run ID
+            include: Resources to include (e.g. 'configuration-version')
 
         Returns:
             Run instance
-
-        Raises:
-            httpx.HTTPStatusError: If run not found
         """
-        path = f"/runs/{run_id}"
+        params = {}
+        if include:
+            params["include"] = include
 
-        response = self.client.get(path)
-        return Run.from_api_response(response["data"])
+        path = f"/runs/{run_id}"
+        response = self.client.get(path, params=params)
+        return Run.from_api_response(response["data"], included=response.get("included"))
 
     def create(
         self,
@@ -117,6 +128,7 @@ class RunsAPI:
         target_addrs: builtins.list[str] | None = None,
         replace_addrs: builtins.list[str] | None = None,
         refresh_only: bool = False,
+        debug: bool = False,
     ) -> Run:
         """Create a new run (plan).
 
@@ -128,18 +140,17 @@ class RunsAPI:
             target_addrs: List of resource addresses to target
             replace_addrs: List of resource addresses to replace (force recreation)
             refresh_only: Create refresh-only run
+            debug: Enable verbose/debug logging in TFC (debugging-mode)
 
         Returns:
             Created Run instance
 
         Raises:
-            httpx.HTTPStatusError: If creation fails (workspace locked, etc.)
+            httpx.HTTPStatusError: If creation fails
         """
         path = "/runs"
-
         payload: dict[str, Any] = {
             "data": {
-                "type": "runs",
                 "attributes": {
                     "auto-apply": auto_apply,
                     "is-destroy": is_destroy,
@@ -155,10 +166,13 @@ class RunsAPI:
             payload["data"]["attributes"]["message"] = message
 
         if target_addrs:
-            payload["data"]["attributes"]["target-addresses"] = target_addrs
+            payload["data"]["attributes"]["target-addrs"] = target_addrs
 
         if replace_addrs:
             payload["data"]["attributes"]["replace-addrs"] = replace_addrs
+
+        if debug:
+            payload["data"]["attributes"]["debugging-mode"] = True
 
         response = self.client.post(path, json_data=payload)
         return Run.from_api_response(response["data"])
@@ -168,20 +182,66 @@ class RunsAPI:
 
         Args:
             run_id: Run ID
-            comment: Apply comment/reason
+            comment: Apply comment
 
         Returns:
             Updated Run instance
-
-        Raises:
-            httpx.HTTPStatusError: If apply fails (already applied, etc.)
         """
         path = f"/runs/{run_id}/actions/apply"
+        payload = {"comment": comment} if comment else None
 
-        payload: dict = {"comment": comment} if comment else {}
+        self.client.post(path, json_data=payload)
+        # TFC returns 202 Accepted, sometimes with data, sometimes not
+        # If we want the updated run, we usually need to fetch it
+        return self.get(run_id)
 
-        response = self.client.post(path, json_data=payload)
-        return Run.from_api_response(response["data"])
+    def discard(self, run_id: str, comment: str | None = None) -> Run:
+        """Discard a run.
+
+        Args:
+            run_id: Run ID
+            comment: Discard comment
+
+        Returns:
+            Updated Run instance
+        """
+        path = f"/runs/{run_id}/actions/discard"
+        payload = {"comment": comment} if comment else None
+
+        self.client.post(path, json_data=payload)
+        return self.get(run_id)
+
+    def cancel(self, run_id: str, comment: str | None = None) -> Run:
+        """Cancel a run.
+
+        Args:
+            run_id: Run ID
+            comment: Cancel comment
+
+        Returns:
+            Updated Run instance
+        """
+        path = f"/runs/{run_id}/actions/cancel"
+        payload = {"comment": comment} if comment else None
+
+        self.client.post(path, json_data=payload)
+        return self.get(run_id)
+
+    def get_plan(self, plan_id: str) -> Plan:
+        """Get plan details.
+
+        Args:
+            plan_id: Plan ID
+
+        Returns:
+            Plan instance
+
+        Raises:
+            httpx.HTTPStatusError: If plan not found
+        """
+        path = f"/plans/{plan_id}"
+        response = self.client.get(path)
+        return Plan.from_api_response(response["data"])
 
     def get_plan_logs(self, plan_id: str) -> str:
         """Get plan logs.
@@ -196,8 +256,6 @@ class RunsAPI:
             httpx.HTTPStatusError: If logs not available
         """
         path = f"/plans/{plan_id}/logs"
-
-        # Note: TFC log API returns plain text, not JSON
         response = self.client.client.get(f"{self.client.base_url}{path}")
         response.raise_for_status()
         return response.text
@@ -215,28 +273,9 @@ class RunsAPI:
             httpx.HTTPStatusError: If logs not available
         """
         path = f"/applies/{apply_id}/logs"
-
-        # Note: TFC log API returns plain text, not JSON
         response = self.client.client.get(f"{self.client.base_url}{path}")
         response.raise_for_status()
         return response.text
-
-    def get_plan(self, plan_id: str) -> Plan:
-        """Get plan details.
-
-        Args:
-            plan_id: Plan ID
-
-        Returns:
-            Plan instance
-
-        Raises:
-            httpx.HTTPStatusError: If plan not found
-        """
-        path = f"/plans/{plan_id}"
-
-        response = self.client.get(path)
-        return Plan.from_api_response(response["data"])
 
     def get_apply(self, apply_id: str) -> Apply:
         """Get apply details.
@@ -296,15 +335,12 @@ class RunsAPI:
         while True:
             run = self.get(run_id)
 
-            # Call callback if provided
             if callback:
                 callback(run)
 
-            # Check if terminal
             if run.status.is_terminal:
                 return run
 
-            # Check timeout
             elapsed = time.time() - start_time
             if elapsed >= max_wait:
                 raise TimeoutError(
@@ -313,6 +349,8 @@ class RunsAPI:
                 )
 
             # Wait before next poll
-            interval = intervals[min(interval_index, len(intervals) - 1)]
-            time.sleep(interval)
-            interval_index += 1
+            wait_time = intervals[interval_index]
+            if interval_index < len(intervals) - 1:
+                interval_index += 1
+
+            time.sleep(wait_time)

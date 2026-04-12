@@ -48,4 +48,4 @@ jobs:
       run: make test-typecheck
 
     - name: Tests + coverage
-      run: uv run python -m pytest tests/ --cov=src --cov-report=term --no-header -q
+      run: uv run python -m pytest tests/ -m "not uat" --cov=src --cov-report=term --no-header -q

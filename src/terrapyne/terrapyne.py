@@ -233,7 +233,6 @@ class Terraform:
                     )
                 else:
                     f.write(f"// {tf_file}\n")
-        return None
 
     def exec(
         self,
@@ -254,8 +253,23 @@ class Terraform:
 
             process_env_vars = {}
             for key in os.environ:
-                if key.startswith("TF_VAR_"):
+                if key.startswith("TF_VAR_") or key in [
+                    "PATH",
+                    "HOME",
+                    "USER",
+                    "LANG",
+                    "LC_ALL",
+                    "LD_LIBRARY_PATH",
+                    "DYLD_LIBRARY_PATH",
+                ]:
                     process_env_vars[key] = os.environ[key]
+
+            # Merge with existing envvars
+            final_env = self.benedict(os.environ.copy())
+            final_env.update(self.envvars)
+            final_env.update(process_env_vars)
+            if envvars:
+                final_env.update(envvars)
 
             p = Popen(
                 cmd or ["terraform", "version"],
@@ -263,9 +277,8 @@ class Terraform:
                 stdout=PIPE,
                 stdin=PIPE,
                 stderr=PIPE,
-                env=self.benedict(self.envvars | process_env_vars | (envvars or {})),
+                env=final_env,
             )
-
             stdout_bytes, stderr_bytes = p.communicate(input=input_data.encode())
             # Ensure we decode bytes returned by Popen.communicate
             stdout = stdout_bytes.decode(errors="replace").strip()

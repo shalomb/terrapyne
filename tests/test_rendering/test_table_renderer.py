@@ -4,19 +4,19 @@ These tests define the interface and behavior for a unified table rendering
 system that consolidates the scattered render_* functions.
 """
 
-import pytest
 from io import StringIO
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
+
 from rich.console import Console
 from rich.table import Table
 
-from terrapyne.models.workspace import Workspace
-from terrapyne.models.run import Run
 from terrapyne.models.project import Project
+from terrapyne.models.run import Run
+from terrapyne.models.workspace import Workspace
 from terrapyne.utils.rich_tables import (
-    render_workspaces,
-    render_runs,
     render_projects,
+    render_runs,
+    render_workspaces,
 )
 
 
@@ -26,7 +26,7 @@ class TestTableRendererInterface:
     def test_render_workspaces_with_empty_list(self):
         """Test rendering empty workspace list."""
         output = StringIO()
-        console = Console(file=output, force_terminal=True)
+        Console(file=output, force_terminal=True)
 
         # We'll need a way to inject console into render functions
         # For now, test that function exists and is callable
@@ -141,9 +141,9 @@ class TestDetailRendererConsistency:
     def test_detail_renderers_format_output(self):
         """Test that detail renderers produce readable output."""
         from terrapyne.utils.rich_tables import (
-            render_workspace_detail,
-            render_run_detail,
             render_project_detail,
+            render_run_detail,
+            render_workspace_detail,
         )
 
         workspace = Workspace(

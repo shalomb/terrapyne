@@ -15,7 +15,7 @@ class StateVersionsAPI:
     def __init__(self, client: Any):
         self.client = client
 
-    def list(  # noqa: A003
+    def list(
         self,
         workspace_id: str | None = None,
         organization: str | None = None,

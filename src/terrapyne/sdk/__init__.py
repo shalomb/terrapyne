@@ -12,7 +12,7 @@ Please import from terrapyne directly instead:
 
 import warnings
 
-from terrapyne import *  # noqa: F401, F403
+from terrapyne import *  # noqa: F403
 
 warnings.warn(
     "terrapyne.sdk is deprecated, import from terrapyne directly",

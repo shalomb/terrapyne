@@ -4,16 +4,13 @@ These tests define the interface and behavior of a new TableRenderer base class
 that will consolidate the 11+ render_* functions into a cohesive pattern.
 """
 
-import pytest
-from io import StringIO
-from unittest.mock import MagicMock, patch
-from rich.console import Console
-from rich.table import Table
-from abc import ABC, abstractmethod
+from unittest.mock import patch
 
-from terrapyne.models.workspace import Workspace
-from terrapyne.models.run import Run
+import pytest
+
 from terrapyne.models.project import Project
+from terrapyne.models.run import Run
+from terrapyne.models.workspace import Workspace
 
 
 class TestTableRendererBase:
@@ -24,8 +21,9 @@ class TestTableRendererBase:
         # This will fail until TableRenderer is created
         try:
             from terrapyne.utils.table_renderer import TableRenderer
+
             assert TableRenderer is not None
-            assert hasattr(TableRenderer, 'render')
+            assert hasattr(TableRenderer, "render")
         except ImportError:
             pytest.skip("TableRenderer not yet implemented")
 
@@ -33,6 +31,7 @@ class TestTableRendererBase:
         """Test that TableRenderer is abstract."""
         try:
             from terrapyne.utils.table_renderer import TableRenderer
+
             # Should not be able to instantiate directly
             with pytest.raises(TypeError):
                 TableRenderer()
@@ -104,7 +103,7 @@ class TestTableRendererColumns:
             from terrapyne.utils.table_renderer import WorkspaceTableRenderer
 
             renderer = WorkspaceTableRenderer()
-            assert hasattr(renderer, 'get_columns')
+            assert hasattr(renderer, "get_columns")
             columns = renderer.get_columns()
 
             # Should have key columns
@@ -120,7 +119,7 @@ class TestTableRendererColumns:
             from terrapyne.utils.table_renderer import RunTableRenderer
 
             renderer = RunTableRenderer()
-            assert hasattr(renderer, 'get_columns')
+            assert hasattr(renderer, "get_columns")
             columns = renderer.get_columns()
 
             # Should have key columns
@@ -147,7 +146,7 @@ class TestTableRendererFormatting:
             )
 
             renderer = WorkspaceTableRenderer()
-            assert hasattr(renderer, 'get_row')
+            assert hasattr(renderer, "get_row")
 
             row = renderer.get_row(workspace)
             assert isinstance(row, list)
@@ -167,7 +166,7 @@ class TestTableRendererFormatting:
             )
 
             renderer = RunTableRenderer()
-            assert hasattr(renderer, 'get_row')
+            assert hasattr(renderer, "get_row")
 
             row = renderer.get_row(run)
             assert isinstance(row, list)

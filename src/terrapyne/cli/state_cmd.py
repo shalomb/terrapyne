@@ -167,11 +167,15 @@ def state_outputs(
     target: str | None = typer.Argument(
         None, help="Workspace name, workspace ID (ws-*), or state version ID (sv-*)"
     ),
+    name: str | None = typer.Argument(None, help="Specific output name to show"),
     workspace: str | None = typer.Option(None, "-w", "--workspace"),
     organization: str | None = typer.Option(None, "-o", "--organization"),
     output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
+    raw: bool = typer.Option(
+        False, "--raw", help="Return raw value for single output (unquoted string)"
+    ),
 ) -> None:
-    """List outputs from a state version."""
+    """List outputs from a state version or show a single output."""
     org, ws_name = validate_context(organization, workspace)
 
     with TFCClient(organization=org) as client:
@@ -185,7 +189,16 @@ def state_outputs(
             if target.startswith("ws-"):
                 ws = client.workspaces.get_by_id(target)
             else:
-                ws = client.workspaces.get(target, org)
+                try:
+                    ws = client.workspaces.get(target, org)
+                except Exception:
+                    # If target is not a workspace, maybe it's the output name and workspace is in context
+                    if ws_name:
+                        ws = client.workspaces.get(ws_name, org)
+                        name = target  # Shift target to name
+                    else:
+                        raise
+
             sv = client.state_versions.get_current(ws.id)
             state_version_id = sv.id
         elif ws_name:
@@ -199,6 +212,47 @@ def state_outputs(
             raise typer.Exit(1)
 
         outputs = client.state_versions.list_outputs(state_version_id)
+
+    if name:
+        output = next((o for o in outputs if o.name == name), None)
+        if not output:
+            console.print(f"[red]Error: Output '{name}' not found.[/red]")
+            raise typer.Exit(1)
+
+        if raw:
+            # Print value directly without formatting
+            if output.sensitive:
+                console.print(
+                    "[yellow]Warning: Output is sensitive, cannot show raw value[/yellow]"
+                )
+                raise typer.Exit(1)
+            print(output.value)
+            return
+
+        if output_format == "json":
+            print(
+                json.dumps(
+                    {
+                        "name": output.name,
+                        "value": output.value,
+                        "type": output.type,
+                        "sensitive": output.sensitive,
+                    },
+                    indent=2,
+                )
+            )
+            return
+
+        table = Table(title=f"Output: {name}")
+        table.add_column("Property")
+        table.add_column("Value")
+        val = "(sensitive)" if output.sensitive else str(output.value)
+        table.add_row("Name", output.name)
+        table.add_row("Value", val)
+        table.add_row("Type", output.type or "N/A")
+        table.add_row("Sensitive", "yes" if output.sensitive else "no")
+        console.print(table)
+        return
 
     if output_format == "json":
         print(

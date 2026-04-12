@@ -1,12 +1,11 @@
 """Tests for WorkspaceAPI methods, especially variable operations."""
 
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, patch
-from datetime import datetime, UTC
 
 from terrapyne.api.workspaces import WorkspaceAPI
 from terrapyne.models.variable import WorkspaceVariable
-from terrapyne.models.workspace import Workspace
 
 
 class TestWorkspaceVariableOperations:
@@ -59,7 +58,9 @@ class TestWorkspaceVariableOperations:
             },
         }
 
-    def test_create_variable_basic(self, api, mock_client, sample_workspace_id, sample_variable_response):
+    def test_create_variable_basic(
+        self, api, mock_client, sample_workspace_id, sample_variable_response
+    ):
         """Test creating a basic terraform variable."""
         mock_client.post.return_value = {"data": sample_variable_response}
 
@@ -323,7 +324,9 @@ class TestWorkspaceVariableOperations:
         # Verify variable has no description
         assert variable.description is None
 
-    def test_create_variable_returns_workspace_variable(self, api, mock_client, sample_workspace_id):
+    def test_create_variable_returns_workspace_variable(
+        self, api, mock_client, sample_workspace_id
+    ):
         """Test that create_variable returns a WorkspaceVariable instance."""
         response = {
             "id": "var-123",

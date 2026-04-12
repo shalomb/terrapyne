@@ -30,11 +30,13 @@ class TestChangeDirectory:
 
 class TestSDKNamespace:
     def test_sdk_imports(self):
-        from terrapyne import TFCClient, RunsAPI, WorkspaceAPI, Plan, Run, Workspace
+        from terrapyne import RunsAPI, TFCClient
+
         assert TFCClient is not None
         assert RunsAPI is not None
 
     def test_main_all_exports(self):
         import terrapyne
+
         assert "TFCClient" in terrapyne.__all__
         assert "Plan" in terrapyne.__all__

@@ -231,7 +231,7 @@ def _external_diff(old_lines: list[str], new_lines: list[str], diff_cmd: str) ->
 
     try:
         # Support "git diff --no-index --color" style multi-word commands
-        cmd_parts = shlex.split(diff_cmd) + [old_path, new_path]
+        cmd_parts = [*shlex.split(diff_cmd), old_path, new_path]
         result = subprocess.run(cmd_parts, capture_output=True, text=True)
         # diff tools return exit code 1 when files differ — that's normal
         return result.stdout or result.stderr or "No differences.\n"

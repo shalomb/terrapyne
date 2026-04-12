@@ -15,6 +15,9 @@ from unittest import mock
 import pytest
 from decouple import config
 
+import terrapyne
+import terrapyne.logging
+
 sys.path.append(str(Path(f"{__file__}/../src").resolve()))
 
 
@@ -30,8 +33,6 @@ def restore_cwd():
     yield
     os.chdir(original)
 
-import terrapyne
-import terrapyne.logging
 
 VERBOSITY = int(config("VERBOSITY", 0))
 VERBOSE = int(config("VERBOSE", 0))
@@ -274,7 +275,7 @@ class TestTerrapyneBase:
                     """
                     )
 
-                log.debug(f'git:{shutil.which("git")}')
+                log.debug(f"git:{shutil.which('git')}")
 
                 _ = terraform.apply()
                 _output_out = terraform.output()

@@ -1,7 +1,8 @@
 """Tests for Plan model and plan-related functionality."""
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 from terrapyne.api.runs import RunsAPI
 from terrapyne.models.plan import Plan

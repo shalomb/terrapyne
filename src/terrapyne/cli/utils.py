@@ -128,14 +128,10 @@ def resolve_project_context(
     Raises:
         ValueError: If project_name is None and workspace context cannot be resolved.
     """
-    from terrapyne.api.projects import ProjectAPI
-    from terrapyne.api.workspaces import WorkspaceAPI
-
     org, _ = validate_context(organization)
-    project_api = ProjectAPI(client)
 
     if project_name:
-        return org, project_api.get_by_name(project_name, org)
+        return org, client.projects.get_by_name(project_name, org)
 
     # Fallback: derive project from current workspace context
     try:
@@ -146,9 +142,8 @@ def resolve_project_context(
             "Specify a PROJECT_NAME or run in a terraform directory."
         ) from None
 
-    workspace_api = WorkspaceAPI(client)
     try:
-        ws = workspace_api.get(ws_name, org)  # type: ignore[arg-type]
+        ws = client.workspaces.get(ws_name, org)  # type: ignore[arg-type]
     except Exception as e:
         raise ValueError(
             f"Failed to fetch workspace '{ws_name}' to resolve project context: {e}"
@@ -157,4 +152,4 @@ def resolve_project_context(
     if not ws.project_id:
         raise ValueError(f"Workspace '{ws_name}' is not assigned to a project.")
 
-    return org, project_api.get_by_id(ws.project_id)
+    return org, client.projects.get_by_id(ws.project_id)

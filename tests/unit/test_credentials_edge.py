@@ -2,7 +2,6 @@
 
 import json
 import os
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -18,9 +17,9 @@ class TestCredentialLoading:
 
     def test_load_from_tfrc_env(self, tmp_path):
         tfrc = tmp_path / "creds.json"
-        tfrc.write_text(json.dumps({
-            "credentials": {"app.terraform.io": {"token": "tfrc-env-token"}}
-        }))
+        tfrc.write_text(
+            json.dumps({"credentials": {"app.terraform.io": {"token": "tfrc-env-token"}}})
+        )
         with patch.dict(os.environ, {"TFRC": str(tfrc)}, clear=False):
             os.environ.pop("TFC_TOKEN", None)
             creds = TerraformCredentials.load()

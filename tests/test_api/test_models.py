@@ -3,12 +3,12 @@
 Tests the from_api_response() factory methods on Pydantic models.
 """
 
-import pytest
 from datetime import datetime
-from terrapyne.models.workspace import Workspace, WorkspaceVCS
-from terrapyne.models.run import Run
+
 from terrapyne.models.project import Project
+from terrapyne.models.run import Run
 from terrapyne.models.team_access import TeamProjectAccess
+from terrapyne.models.workspace import Workspace
 
 
 class TestWorkspaceModelParsing:
@@ -158,12 +158,8 @@ class TestTeamAccessModelParsing:
                 "access": "admin",
             },
             "relationships": {
-                "team": {
-                    "data": {"id": "team-1", "type": "teams"}
-                },
-                "project": {
-                    "data": {"id": "prj-1", "type": "projects"}
-                },
+                "team": {"data": {"id": "team-1", "type": "teams"}},
+                "project": {"data": {"id": "prj-1", "type": "projects"}},
             },
         }
 

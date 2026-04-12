@@ -9,11 +9,13 @@ def test_sdk_namespace_deprecated():
         warnings.simplefilter("always")
         # This should trigger the deprecation warning
         import terrapyne.sdk  # noqa: F401
-        
+
         # Check that a warning was issued
         assert len(w) >= 1
         # Find the deprecation warning
-        deprecation_warnings = [warning for warning in w if issubclass(warning.category, DeprecationWarning)]
+        deprecation_warnings = [
+            warning for warning in w if issubclass(warning.category, DeprecationWarning)
+        ]
         assert len(deprecation_warnings) >= 1
         assert "terrapyne.sdk is deprecated" in str(deprecation_warnings[0].message)
 
@@ -21,8 +23,7 @@ def test_sdk_namespace_deprecated():
 def test_sdk_namespace_provides_imports():
     """Test that imports from terrapyne.sdk still work."""
     # Should be able to import without errors
-    from terrapyne.sdk import TFCClient
-    from terrapyne.sdk import WorkspaceAPI
-    
+    from terrapyne.sdk import TFCClient, WorkspaceAPI
+
     assert TFCClient is not None
     assert WorkspaceAPI is not None

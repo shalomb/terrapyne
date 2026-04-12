@@ -4,13 +4,14 @@ Tests the core validation and cloning logic for workspaces.
 Following TDD approach: these tests define expected behavior.
 """
 
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, Mock, call
-from datetime import datetime, UTC
 
 from terrapyne.api.client import TFCClient
-from terrapyne.models.workspace import Workspace, WorkspaceVCS
+from terrapyne.api.workspace_clone import VCSTokenRequiredError
 from terrapyne.models.variable import WorkspaceVariable
+from terrapyne.models.workspace import Workspace, WorkspaceVCS
 
 
 class TestWorkspaceCloneValidation:
@@ -71,19 +72,20 @@ class TestWorkspaceCloneValidation:
         # WHEN: attempting to validate source for clone
         # THEN: should raise appropriate error
         from terrapyne.api.workspace_clone import CloneWorkspaceAPI, WorkspaceNotFoundError
+
         clone_api = CloneWorkspaceAPI(mock_client)
 
         with pytest.raises(WorkspaceNotFoundError):
             clone_api.validate_clone_args(
                 source_workspace_name="nonexistent",
                 target_workspace_name="target",
-                organization="test-org"
+                organization="test-org",
             )
 
     def test_clone_allows_nonexistent_target_by_default(self, mock_client, source_workspace_data):
         """Clone should allow non-existent target workspace."""
         # GIVEN: source workspace exists
-        source = Workspace.from_api_response(source_workspace_data)
+        Workspace.from_api_response(source_workspace_data)
 
         # GIVEN: target workspace does not exist (get raises 404)
         def get_side_effect(path):
@@ -95,6 +97,7 @@ class TestWorkspaceCloneValidation:
 
         # WHEN: validating clone args
         from terrapyne.api.workspace_clone import CloneWorkspaceAPI
+
         clone_api = CloneWorkspaceAPI(mock_client)
 
         # THEN: should succeed
@@ -102,14 +105,16 @@ class TestWorkspaceCloneValidation:
             source_workspace_name="prod-app",
             target_workspace_name="prod-app-clone",
             organization="test-org",
-            force=False
+            force=False,
         )
 
         assert source_result is not None
         # target should be None since it doesn't exist
         assert target is None
 
-    def test_clone_fails_if_target_exists_without_force(self, mock_client, source_workspace_data, target_workspace_data):
+    def test_clone_fails_if_target_exists_without_force(
+        self, mock_client, source_workspace_data, target_workspace_data
+    ):
         """Clone should fail if target exists and force=False."""
         # GIVEN: both source and target workspaces exist
         from terrapyne.api.workspace_clone import CloneWorkspaceAPI, WorkspaceAlreadyExistsError
@@ -130,20 +135,25 @@ class TestWorkspaceCloneValidation:
                 source_workspace_name="prod-app",
                 target_workspace_name="prod-app-clone",
                 organization="test-org",
-                force=False
+                force=False,
             )
 
-    def test_clone_with_force_allows_existing_target(self, mock_client, source_workspace_data, target_workspace_data):
+    def test_clone_with_force_allows_existing_target(
+        self, mock_client, source_workspace_data, target_workspace_data
+    ):
         """Clone with force=True should allow existing target workspace."""
         # GIVEN: both source and target workspaces exist
         mock_client.get.side_effect = lambda path: (
-            {"data": source_workspace_data} if "prod-app" in path else
-            {"data": target_workspace_data} if "prod-app-clone" in path else
-            None
+            {"data": source_workspace_data}
+            if "prod-app" in path
+            else {"data": target_workspace_data}
+            if "prod-app-clone" in path
+            else None
         )
 
         # WHEN: validating clone args with force=True
         from terrapyne.api.workspace_clone import CloneWorkspaceAPI
+
         clone_api = CloneWorkspaceAPI(mock_client)
 
         # THEN: should succeed
@@ -151,7 +161,7 @@ class TestWorkspaceCloneValidation:
             source_workspace_name="prod-app",
             target_workspace_name="prod-app-clone",
             organization="test-org",
-            force=True
+            force=True,
         )
 
         assert source is not None
@@ -164,6 +174,7 @@ class TestWorkspaceCloneValidation:
 
         # WHEN: attempting to clone with same name
         from terrapyne.api.workspace_clone import CloneWorkspaceAPI
+
         clone_api = CloneWorkspaceAPI(mock_client)
 
         # THEN: should raise ValueError
@@ -171,7 +182,7 @@ class TestWorkspaceCloneValidation:
             clone_api.validate_clone_args(
                 source_workspace_name="prod-app",
                 target_workspace_name="prod-app",  # same as source
-                organization="test-org"
+                organization="test-org",
             )
 
 
@@ -229,7 +240,8 @@ class TestVariableMapping:
 
         # WHEN: extracting variables for cloning
         from terrapyne.api.workspace_clone import CloneWorkspaceAPI
-        clone_api = CloneWorkspaceAPI(mock_client)
+
+        CloneWorkspaceAPI(mock_client)
 
         # THEN: sensitive variables should be flagged as such
         sensitive_var = next(v for v in source_vars if v.key == "API_KEY")
@@ -243,14 +255,15 @@ class TestVariableMapping:
 
         # WHEN: grouping variables by category
         from terrapyne.api.workspace_clone import CloneWorkspaceAPI
-        clone_api = CloneWorkspaceAPI(mock_client)
+
+        CloneWorkspaceAPI(mock_client)
 
         env_vars = [v for v in source_vars if v.category == "env"]
         tf_vars = [v for v in source_vars if v.category == "terraform"]
 
         # THEN: should have correct counts
         assert len(env_vars) == 2  # ENVIRONMENT, API_KEY
-        assert len(tf_vars) == 1   # app_version
+        assert len(tf_vars) == 1  # app_version
 
     def test_handle_variable_name_conflicts(self, mock_client):
         """Should handle variables with same key in different categories."""
@@ -280,7 +293,8 @@ class TestVariableMapping:
 
         # WHEN: cloning both variables
         from terrapyne.api.workspace_clone import CloneWorkspaceAPI
-        clone_api = CloneWorkspaceAPI(mock_client)
+
+        CloneWorkspaceAPI(mock_client)
 
         var1_obj = WorkspaceVariable.from_api_response(var1)
         var2_obj = WorkspaceVariable.from_api_response(var2)
@@ -298,7 +312,8 @@ class TestVariableMapping:
         # THEN: variables should be included in clone spec
 
         from terrapyne.api.workspace_clone import CloneWorkspaceAPI
-        clone_api = CloneWorkspaceAPI(mock_client)
+
+        CloneWorkspaceAPI(mock_client)
 
         # Build clone spec with variables
         spec_with_vars = {
@@ -390,10 +405,7 @@ class TestVariableMapping:
         assert payload["data"]["type"] == "vars"
         assert payload["data"]["attributes"]["key"] == "test_key"
         assert payload["data"]["attributes"]["sensitive"] is True
-        assert (
-            payload["data"]["relationships"]["workspace"]["data"]["id"]
-            == "ws-target"
-        )
+        assert payload["data"]["relationships"]["workspace"]["data"]["id"] == "ws-target"
 
         # Should return created variable
         assert isinstance(var, WorkspaceVariable)
@@ -483,7 +495,7 @@ class TestVCSConfigCopy:
             },
             "relationships": {
                 "organization": {"data": {"id": "org-test", "type": "organizations"}},
-            }
+            },
         }
 
     @pytest.fixture
@@ -499,13 +511,8 @@ class TestVCSConfigCopy:
                 "tags_regex": None,
             },
             "relationships": {
-                "oauth-token": {
-                    "data": {
-                        "id": "ot-oauth123",
-                        "type": "oauth-tokens"
-                    }
-                }
-            }
+                "oauth-token": {"data": {"id": "ot-oauth123", "type": "oauth-tokens"}}
+            },
         }
 
     def test_copy_vcs_config_same_org(self, mock_client, source_with_vcs, vcs_repo_data):
@@ -513,7 +520,7 @@ class TestVCSConfigCopy:
         # GIVEN: source has VCS config in same org
         from terrapyne.api.workspace_clone import CloneWorkspaceAPI
 
-        clone_api = CloneWorkspaceAPI(mock_client)
+        CloneWorkspaceAPI(mock_client)
 
         vcs_config = WorkspaceVCS.model_validate(vcs_repo_data["attributes"])
 
@@ -692,14 +699,13 @@ class TestVCSConfigCopy:
         # THEN: should raise VCSTokenRequiredError
 
         from terrapyne.api.workspace_clone import CloneWorkspaceAPI
+
         clone_api = CloneWorkspaceAPI(mock_client)
 
         # This should fail validation
-        with pytest.raises(Exception):  # VCSTokenRequiredError
+        with pytest.raises(VCSTokenRequiredError):
             clone_api.validate_vcs_clone_args(
-                source_org="org-a",
-                target_org="org-b",
-                vcs_oauth_token_id=None
+                source_org="org-a", target_org="org-b", vcs_oauth_token_id=None
             )
 
     def test_allow_vcs_token_override(self, mock_client):
@@ -709,13 +715,12 @@ class TestVCSConfigCopy:
         # THEN: should use provided token ID
 
         from terrapyne.api.workspace_clone import CloneWorkspaceAPI
+
         clone_api = CloneWorkspaceAPI(mock_client)
 
         # This should succeed
         result = clone_api.validate_vcs_clone_args(
-            source_org="org-a",
-            target_org="org-b",
-            vcs_oauth_token_id="ot-explicit123"
+            source_org="org-a", target_org="org-b", vcs_oauth_token_id="ot-explicit123"
         )
 
         # Token should be accepted
@@ -793,7 +798,7 @@ class TestConflictResolution:
                 source_workspace_name="source",
                 target_workspace_name="target",
                 organization="test-org",
-                force=False
+                force=False,
             )
 
     def test_force_flag_bypasses_conflict_check(self, mock_client):
@@ -815,8 +820,9 @@ class TestConflictResolution:
         # This is more of an integration test
         # Unit validates error handling structure
         from terrapyne.api.workspace_clone import CloneWorkspaceAPI
-        clone_api = CloneWorkspaceAPI(mock_client)
+
+        CloneWorkspaceAPI(mock_client)
 
         # Error should propagate with context
-        with pytest.raises(Exception):
-            raise Exception("Variable clone failed, workspace 'target' created but incomplete")
+        with pytest.raises(RuntimeError):
+            raise RuntimeError("Variable clone failed, workspace 'target' created but incomplete")

@@ -4,10 +4,11 @@ Tests the project list, find, show, and team access commands with various scenar
 including filtering, error handling, and pagination.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 from pytest_bdd import given, scenario, then, when
 from typer.testing import CliRunner
-from unittest.mock import MagicMock, patch
 
 from terrapyne.cli.main import app
 from terrapyne.models.project import Project
@@ -57,7 +58,7 @@ def test_list_all_projects():
     """Scenario: List all projects in organization."""
 
 
-@given("I have organization \"test-org\" with projects")
+@given('I have organization "test-org" with projects')
 def _(org_context):
     """Set up test organization context."""
     return org_context
@@ -67,21 +68,15 @@ def _(org_context):
 @when("I list all projects")
 def list_all_projects(org_context, project_list_response):
     """List projects via CLI."""
-    projects = [
-        Project.from_api_response(data) for data in project_list_response["data"]
-    ]
+    projects = [Project.from_api_response(data) for data in project_list_response["data"]]
 
-    # CLI uses ProjectAPI(client) directly, not client.projects
-    with patch("terrapyne.cli.project_cmd.TFCClient"), \
-         patch("terrapyne.cli.project_cmd.ProjectAPI") as mock_api_class:
-        mock_api = MagicMock()
-        mock_api_class.return_value = mock_api
-        mock_api.list.return_value = (iter(projects), len(projects))
-        mock_api.get_workspace_counts.return_value = {}
+    with patch("terrapyne.cli.project_cmd.TFCClient") as mock_client_class:
+        mock_client = MagicMock()
+        mock_client_class.return_value.__enter__.return_value = mock_client
+        mock_client.projects.list.return_value = (iter(projects), len(projects))
+        mock_client.projects.get_workspace_counts.return_value = {}
 
-        result = runner.invoke(
-            app, ["project", "list", "--organization", "test-org"]
-        )
+        result = runner.invoke(app, ["project", "list", "--organization", "test-org"])
 
         return {
             "result": result,
@@ -113,7 +108,11 @@ def check_workspace_counts(list_all_projects):
     """Verify workspace counts are shown."""
     result = list_all_projects["result"]
     # Check for count indicators
-    assert "workspace" in result.stdout.lower() or "count" in result.stdout.lower() or "5" in result.stdout
+    assert (
+        "workspace" in result.stdout.lower()
+        or "count" in result.stdout.lower()
+        or "5" in result.stdout
+    )
 
 
 # ============================================================================
@@ -126,30 +125,27 @@ def test_show_project_details():
     """Scenario: Show project details."""
 
 
-@given("I have project \"my-infrastructure\"")
+@given('I have project "my-infrastructure"')
 def _(project_context):
     """Set up project context."""
     return project_context
 
 
 @pytest.fixture
-@when("I show details for project \"my-infrastructure\"")
+@when('I show details for project "my-infrastructure"')
 def show_project_details(project_context, project_detail_response):
     """Show project details via CLI."""
     project = Project.from_api_response(project_detail_response["data"])
 
-    # CLI uses ProjectAPI(client) and WorkspaceAPI(client) directly
-    with patch("terrapyne.cli.project_cmd.TFCClient"), \
-         patch("terrapyne.cli.project_cmd.resolve_project_context") as mock_resolve, \
-         patch("terrapyne.cli.project_cmd.ProjectAPI") as mock_api_class, \
-         patch("terrapyne.cli.project_cmd.WorkspaceAPI") as mock_ws_class:
+    with (
+        patch("terrapyne.cli.project_cmd.TFCClient") as mock_client_class,
+        patch("terrapyne.cli.project_cmd.resolve_project_context") as mock_resolve,
+    ):
+        mock_client = MagicMock()
+        mock_client_class.return_value.__enter__.return_value = mock_client
+
         mock_resolve.return_value = ("test-org", project)
-        mock_api = MagicMock()
-        mock_api_class.return_value = mock_api
-        mock_api.get_by_name.return_value = project
-        mock_ws = MagicMock()
-        mock_ws_class.return_value = mock_ws
-        mock_ws.list.return_value = (iter([]), 0)
+        mock_client.workspaces.list.return_value = (iter([]), 0)
 
         result = runner.invoke(
             app,
@@ -209,7 +205,7 @@ def test_list_team_access():
     """Scenario: List teams with project access."""
 
 
-@given("I have project \"my-infrastructure\" with team access")
+@given('I have project "my-infrastructure" with team access')
 def _(project_context):
     """Set up project with team access."""
     return project_context
@@ -221,19 +217,18 @@ def list_team_access(project_context, project_detail_response, team_project_acce
     """List team access via CLI."""
     project = Project.from_api_response(project_detail_response["data"])
     team_access = [
-        TeamProjectAccess.from_api_response(data)
-        for data in team_project_access_response["data"]
+        TeamProjectAccess.from_api_response(data) for data in team_project_access_response["data"]
     ]
 
-    # CLI uses ProjectAPI(client) directly — command name is 'teams' not 'access'
-    with patch("terrapyne.cli.project_cmd.TFCClient"), \
-         patch("terrapyne.cli.project_cmd.resolve_project_context") as mock_resolve, \
-         patch("terrapyne.cli.project_cmd.ProjectAPI") as mock_api_class:
+    with (
+        patch("terrapyne.cli.project_cmd.TFCClient") as mock_client_class,
+        patch("terrapyne.cli.project_cmd.resolve_project_context") as mock_resolve,
+    ):
+        mock_client = MagicMock()
+        mock_client_class.return_value.__enter__.return_value = mock_client
+
         mock_resolve.return_value = ("test-org", project)
-        mock_api = MagicMock()
-        mock_api_class.return_value = mock_api
-        mock_api.get_by_name.return_value = project
-        mock_api.list_team_access.return_value = team_access
+        mock_client.projects.list_team_access.return_value = team_access
 
         result = runner.invoke(
             app,
@@ -266,7 +261,11 @@ def check_team_access_levels(list_team_access):
     """Verify team access levels are shown."""
     result = list_team_access["result"]
     # Check for access level indicators
-    assert "admin" in result.stdout.lower() or "access" in result.stdout.lower() or "maintain" in result.stdout.lower()
+    assert (
+        "admin" in result.stdout.lower()
+        or "access" in result.stdout.lower()
+        or "maintain" in result.stdout.lower()
+    )
 
 
 # ============================================================================
@@ -316,7 +315,7 @@ def check_org_error_how(try_list_projects_no_org):
     assert "--organization" in result.stdout or "organization" in result.stdout.lower()
 
 
-@then("error should mention \"--organization\"")
+@then('error should mention "--organization"')
 def check_org_error_hint(try_list_projects_no_org):
     """Verify error mentions organization option."""
     result = try_list_projects_no_org["result"]
@@ -340,7 +339,11 @@ def check_project_ids(list_all_projects):
     """Verify project IDs are shown."""
     result = list_all_projects["result"]
     projects = list_all_projects["projects"]
-    assert any("prj-" in result.stdout for _ in projects) or "prj-" in result.stdout or result.exit_code == 0
+    assert (
+        any("prj-" in result.stdout for _ in projects)
+        or "prj-" in result.stdout
+        or result.exit_code == 0
+    )
 
 
 @then("I should see team count")

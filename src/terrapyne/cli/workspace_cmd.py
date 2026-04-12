@@ -5,15 +5,19 @@ from datetime import UTC
 from pathlib import Path
 from typing import Annotated, cast
 
+import httpx
 import typer
 from rich.console import Console
+from rich.table import Table
 
 from terrapyne.api.client import TFCClient
-from terrapyne.cli.utils import handle_cli_errors, validate_context
+from terrapyne.api.vcs import VCSAPI
+from terrapyne.cli.utils import emit_json, handle_cli_errors, validate_context
+from terrapyne.models.run import RunStatus
 from terrapyne.models.variable import WorkspaceVariable
 from terrapyne.utils.browser import get_workspace_url, open_url_in_browser
 from terrapyne.utils.rich_tables import (
-    render_workspace_detail,
+    render_workspace_dashboard,
     render_workspace_variables,
     render_workspace_vcs,
     render_workspaces,
@@ -73,8 +77,6 @@ def workspace_list(
             return
 
         if output_format == "json":
-            from terrapyne.cli.utils import emit_json
-
             emit_json(
                 [
                     {
@@ -128,9 +130,34 @@ def workspace_show(
 
     with TFCClient(organization=org) as client:
         ws = client.workspaces.get(cast(str, ws_name), org)
-        if output_format == "json":
-            from terrapyne.cli.utils import emit_json
 
+        # 1. Fetch data for dashboard (Health & Activity)
+        latest_run = None
+        active_runs_count = 0
+        try:
+            # Fetch recent runs (optimized: get latest + check for active in one go)
+            # We fetch 20 to get a good snapshot of activity
+            runs, total_count = client.runs.list(ws.id, limit=20, include="configuration-version")
+            if runs:
+                latest_run = runs[0]
+
+                # Count active runs in this window
+                active_list = RunStatus.get_active_statuses()
+                active_runs_count = sum(1 for r in runs if r.status in active_list)
+
+                # If we have 20 runs and we might have more active ones outside this window,
+                # we could do a dedicated count call.
+                if len(runs) == 20 and total_count and total_count > 20:
+                    active_statuses = ",".join(active_list)
+                    _, count = client.runs.list(ws.id, status=active_statuses, limit=1)
+                    active_runs_count = count or 0
+        except httpx.HTTPStatusError as e:
+            console.print(
+                f"\n[yellow]Warning:[/yellow] Unable to fetch run activity "
+                f"(API error {e.response.status_code})"
+            )
+
+        if output_format == "json":
             emit_json(
                 {
                     "id": ws.id,
@@ -142,21 +169,39 @@ def workspace_show(
                     "created_at": ws.created_at,
                     "project_id": ws.project_id,
                     "tag_names": ws.tag_names,
+                    "snapshot": {
+                        "latest_run": (
+                            {
+                                "id": latest_run.id,
+                                "status": latest_run.status,
+                                "commit_sha": latest_run.commit_sha,
+                                "commit_author": latest_run.commit_author,
+                                "commit_message": latest_run.commit_message,
+                            }
+                            if latest_run
+                            else None
+                        ),
+                        "active_runs_count": active_runs_count,
+                    },
                 }
             )
             return
 
-        # Render workspace details
-        render_workspace_detail(ws)
+        # 2. Render dashboard
+        render_workspace_dashboard(
+            workspace=ws, latest_run=latest_run, active_runs_count=active_runs_count
+        )
 
-        # Fetch and render variables
+        # 3. Fetch and render variables
         try:
             variables = client.workspaces.get_variables(ws.id)
             render_workspace_variables(variables)
-        except Exception as e:
-            console.print(f"\n[yellow]Warning:[/yellow] Unable to fetch variables: {e}")
+        except httpx.HTTPStatusError as e:
+            console.print(
+                f"\n[yellow]Warning:[/yellow] Unable to fetch variables (API error {e.response.status_code})"
+            )
 
-        # Render VCS configuration
+        # 4. Render VCS configuration
         render_workspace_vcs(ws)
 
 
@@ -193,8 +238,6 @@ def workspace_vcs(
             return
 
         # Display VCS info in a focused way
-        from rich.table import Table
-
         table = Table(title=f"VCS Configuration: {workspace}", show_header=False, box=None)
         table.add_column("Property", style="bold cyan", width=25)
         table.add_column("Value")
@@ -491,8 +534,6 @@ def workspace_health(
         terrapyne workspace health  # auto-detect from context
     """
 
-    from terrapyne.api.vcs import VCSAPI
-
     org, ws_name = validate_context(organization, workspace, require_workspace=True)
 
     with TFCClient(organization=org) as client:
@@ -536,7 +577,7 @@ def workspace_health(
         console.print(
             f"  Last Run:   {latest_run.status.emoji} {latest_run.status.value}{age}  [{latest_run.id}]"
         )
-        console.print(f"  Changes:    {latest_run.changes_summary}")
+        console.print(f"  Changes:    {latest_run.change_summary}")
     else:
         console.print("  Last Run:   [dim]no runs[/dim]")
 

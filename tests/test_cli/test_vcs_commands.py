@@ -4,10 +4,11 @@ Tests the VCS show, list, and update commands with various scenarios
 including error handling and configuration display.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 from pytest_bdd import given, scenario, then, when
 from typer.testing import CliRunner
-from unittest.mock import MagicMock, patch
 
 from terrapyne.cli.main import app
 from terrapyne.models.workspace import Workspace
@@ -19,6 +20,7 @@ runner = CliRunner()
 # Shared state fixture — carries context between Given/When/Then steps
 # ============================================================================
 
+
 @pytest.fixture
 def vcs_context():
     """Shared mutable context for VCS BDD steps."""
@@ -28,6 +30,7 @@ def vcs_context():
 # ============================================================================
 # Scenario: Show VCS configuration for workspace
 # ============================================================================
+
 
 @scenario("../features/vcs.feature", "Show VCS configuration for workspace")
 def test_show_vcs_config():
@@ -46,6 +49,7 @@ def given_workspace_with_vcs_connected(vcs_context, workspace_detail_response):
 # ============================================================================
 # Scenario: Handle workspace without VCS
 # ============================================================================
+
 
 @scenario("../features/vcs.feature", "Handle workspace without VCS")
 def test_workspace_no_vcs():
@@ -76,6 +80,7 @@ def given_workspace_without_vcs(vcs_context):
 # Shared @when — "I show VCS configuration" (used by both scenarios above)
 # ============================================================================
 
+
 @pytest.fixture
 @when("I show VCS configuration")
 def show_vcs_configuration(vcs_context):
@@ -84,10 +89,11 @@ def show_vcs_configuration(vcs_context):
     workspace_name = vcs_context.get("workspace", "my-app-dev")
     org = vcs_context.get("org", "test-org")
 
-    with patch("terrapyne.cli.vcs_cmd.TFCClient"), \
-         patch("terrapyne.cli.vcs_cmd.WorkspaceAPI") as mock_ws_class, \
-         patch("terrapyne.cli.vcs_cmd.VCSAPI") as mock_vcs_class:
-
+    with (
+        patch("terrapyne.cli.vcs_cmd.TFCClient"),
+        patch("terrapyne.cli.vcs_cmd.WorkspaceAPI") as mock_ws_class,
+        patch("terrapyne.cli.vcs_cmd.VCSAPI") as mock_vcs_class,
+    ):
         workspace = Workspace.from_api_response(workspace_data["data"])
         mock_ws = MagicMock()
         mock_ws_class.return_value = mock_ws
@@ -99,15 +105,20 @@ def show_vcs_configuration(vcs_context):
         if vcs_context.get("has_vcs"):
             # Build a real VCSConnection so Rich can render it
             from terrapyne.models.vcs import VCSConnection
+
             vcs_attrs = workspace_data["data"]["attributes"].get("vcs-repo", {})
-            vcs_obj = VCSConnection.model_validate({
-                "identifier": vcs_attrs.get("identifier", "myorg/my-app"),
-                "branch": vcs_attrs.get("branch", "develop"),
-                "repository-http-url": vcs_attrs.get("repository-http-url", "https://github.com/myorg/my-app"),
-                "working-directory": vcs_attrs.get("working-directory", ""),
-                "oauth-token-id": vcs_attrs.get("oauth-token-id", "ot-abc123"),
-                "ingress-submodules": False,
-            })
+            vcs_obj = VCSConnection.model_validate(
+                {
+                    "identifier": vcs_attrs.get("identifier", "myorg/my-app"),
+                    "branch": vcs_attrs.get("branch", "develop"),
+                    "repository-http-url": vcs_attrs.get(
+                        "repository-http-url", "https://github.com/myorg/my-app"
+                    ),
+                    "working-directory": vcs_attrs.get("working-directory", ""),
+                    "oauth-token-id": vcs_attrs.get("oauth-token-id", "ot-abc123"),
+                    "ingress-submodules": False,
+                }
+            )
             mock_vcs.get_workspace_vcs.return_value = vcs_obj
         else:
             mock_vcs.get_workspace_vcs.return_value = None
@@ -123,11 +134,16 @@ def show_vcs_configuration(vcs_context):
 
 # VCS show @then steps
 
+
 @then("I should see repository identifier")
 def check_repository_identifier(show_vcs_configuration):
     result = show_vcs_configuration["result"]
     assert result.exit_code == 0
-    assert "myorg/my-app" in result.stdout or "identifier" in result.stdout.lower() or "/" in result.stdout
+    assert (
+        "myorg/my-app" in result.stdout
+        or "identifier" in result.stdout.lower()
+        or "/" in result.stdout
+    )
 
 
 @then("I should see repository branch")
@@ -145,7 +161,11 @@ def check_working_directory(show_vcs_configuration):
 @then("I should see repository URL")
 def check_repository_url(show_vcs_configuration):
     result = show_vcs_configuration["result"]
-    assert "github" in result.stdout.lower() or "http" in result.stdout or "url" in result.stdout.lower()
+    assert (
+        "github" in result.stdout.lower()
+        or "http" in result.stdout
+        or "url" in result.stdout.lower()
+    )
 
 
 @then("I should see auto-apply setting")
@@ -183,6 +203,7 @@ def check_no_repo_details(show_vcs_configuration):
 # Scenario: List available VCS repositories
 # ============================================================================
 
+
 @scenario("../features/vcs.feature", "List available VCS repositories")
 def test_list_vcs_repositories():
     """Scenario: List available VCS repositories."""
@@ -201,14 +222,23 @@ def list_available_repositories(vcs_context):
     """List available repositories via CLI."""
     org = vcs_context.get("org", "test-org")
 
-    with patch("terrapyne.cli.vcs_cmd.TFCClient"), \
-         patch("terrapyne.cli.vcs_cmd.VCSAPI") as mock_vcs_class:
-
+    with (
+        patch("terrapyne.cli.vcs_cmd.TFCClient"),
+        patch("terrapyne.cli.vcs_cmd.VCSAPI") as mock_vcs_class,
+    ):
         mock_vcs = MagicMock()
         mock_vcs_class.return_value = mock_vcs
         mock_vcs.list_repositories.return_value = [
-            {"identifier": "myorg/repo-one", "url": "https://github.com/myorg/repo-one", "workspaces": ["ws-a"]},
-            {"identifier": "myorg/repo-two", "url": "https://github.com/myorg/repo-two", "workspaces": ["ws-b", "ws-c"]},
+            {
+                "identifier": "myorg/repo-one",
+                "url": "https://github.com/myorg/repo-one",
+                "workspaces": ["ws-a"],
+            },
+            {
+                "identifier": "myorg/repo-two",
+                "url": "https://github.com/myorg/repo-two",
+                "workspaces": ["ws-b", "ws-c"],
+            },
         ]
 
         result = runner.invoke(
@@ -242,6 +272,7 @@ def check_repo_branch_list(list_available_repositories):
 # Scenario: Handle missing workspace context
 # ============================================================================
 
+
 @scenario("../features/vcs.feature", "Handle missing workspace context")
 def test_vcs_missing_workspace():
     """Scenario: Handle missing workspace context."""
@@ -258,6 +289,7 @@ def given_no_workspace(vcs_context):
 # Scenario: Handle missing organization context
 # ============================================================================
 
+
 @scenario("../features/vcs.feature", "Handle missing organization context")
 def test_vcs_missing_organization():
     """Scenario: Handle missing organization context."""
@@ -273,6 +305,7 @@ def given_no_organization(vcs_context):
 # ============================================================================
 # Shared @when — "I try to show VCS configuration" (missing workspace OR org)
 # ============================================================================
+
 
 @pytest.fixture
 @when("I try to show VCS configuration")

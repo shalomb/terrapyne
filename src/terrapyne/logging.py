@@ -4,8 +4,6 @@
 
 """ """
 
-# ruff: noqa: UP038,N815,N802
-
 import logging
 import typing as t
 from textwrap import indent
@@ -102,13 +100,9 @@ def style(
 
 default_formats = {
     logging.DEBUG: style("DEBUG", fg="cyan") + " | " + style("%(message)s", fg="cyan"),
-    #
     logging.INFO: "%(message)s",
-    #
     logging.WARNING: style("WARN ", fg="yellow") + " | " + style("%(message)s", fg="yellow"),
-    #
     logging.ERROR: style("ERROR", fg="red") + " | " + style("%(message)s", fg="red"),
-    #
     logging.CRITICAL: style("FATAL", fg="white", bg="red", bold=True)
     + " | "
     + style("%(message)s", fg="red", bold=True),
