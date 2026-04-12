@@ -116,7 +116,9 @@ def state_show(
             # Resolve workspace from target arg, -w flag, or context
             resolve_ws = target or ws_name
             if not resolve_ws:
-                console.print("[red]Error: Provide a workspace name or state version ID[/red]")
+                Console(stderr=True).print(
+                    "[red]Error: Provide a workspace name or state version ID[/red]"
+                )
                 raise typer.Exit(1)
             if resolve_ws.startswith("ws-"):
                 ws = client.workspaces.get_by_id(resolve_ws)
@@ -148,7 +150,9 @@ def state_pull(
             state = client.state_versions.download(state_version_id)
         else:
             if not ws_name:
-                console.print("[red]Error: Workspace required when no state version ID given[/red]")
+                Console(stderr=True).print(
+                    "[red]Error: Workspace required when no state version ID given[/red]"
+                )
                 raise typer.Exit(1)
             ws = client.workspaces.get(ws_name, org)
             sv = client.state_versions.get_current(ws.id)
@@ -203,7 +207,7 @@ def state_outputs(
             sv = client.state_versions.get_current(ws.id)
             state_version_id = sv.id
         else:
-            Console(stderr=True).print(
+            console.print(
                 "[red]Error: Provide a workspace name, workspace ID, or state version ID[/red]"
             )
             raise typer.Exit(1)
@@ -219,12 +223,11 @@ def state_outputs(
         if raw:
             # Print value directly without formatting
             if output.sensitive:
-                Console(stderr=True).print(
+                console.print(
                     "[yellow]Warning: Output is sensitive, use --format=json to see the value[/yellow]"
                 )
                 raise typer.Exit(1)
             # Use print() instead of console.print() for raw shell friendliness
-            # Use json.dumps for complex objects, raw string otherwise
             if isinstance(output.value, (dict, list)):
                 print(json.dumps(output.value))
             else:

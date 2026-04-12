@@ -1,11 +1,11 @@
 """Unit tests for State Versions API."""
-import json
-from datetime import datetime, UTC
+
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from terrapyne.api.state_versions import StateVersionsAPI
-from terrapyne.models.state_version import StateVersion, StateVersionOutput
 
 
 @pytest.fixture

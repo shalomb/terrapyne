@@ -15,6 +15,6 @@ def error():
 runner = CliRunner()
 # mix_stderr=True is default
 result = runner.invoke(app, [])
-print(f"STDOUT: {repr(result.stdout)}")
-print(f"STDERR: {repr(result.stderr)}")
-print(f"OUTPUT: {repr(result.output)}")
+print(f"STDOUT: {result.stdout!r}")
+print(f"STDERR: {result.stderr!r}")
+print(f"OUTPUT: {result.output!r}")
