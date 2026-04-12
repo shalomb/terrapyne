@@ -282,12 +282,12 @@ class RunsAPI:
 
         return Apply.from_api_response(response["data"])
 
-    def stream_logs(self, url: str) -> builtins.list[str]:
-        """Fetch logs from a read URL.
+    def fetch_log_lines(self, url: str) -> builtins.list[str]:
+        """Fetch log lines from a read URL.
 
         Note: TFC log URLs often point to S3.
-        This is a simple version that returns all lines.
-        A future version will support real-time streaming.
+        This returns all lines as a list of strings.
+        A future version will support real-time streaming via httpx.stream().
         """
         response = self.client.client.get(url)
         response.raise_for_status()
