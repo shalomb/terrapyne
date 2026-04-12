@@ -11,13 +11,12 @@ from rich.console import Console
 from rich.table import Table
 
 from terrapyne.api.client import TFCClient
-from terrapyne.cli.utils import validate_context
+from terrapyne.cli.utils import console, validate_context
 from terrapyne.core.state_diff import (
     DEFAULT_FIELDS,
 )
 
 app = typer.Typer(help="State version commands")
-console = Console()
 
 
 @app.callback(invoke_without_command=True)

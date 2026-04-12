@@ -1,10 +1,10 @@
 """Debug CLI commands."""
 
 import typer
-from rich.console import Console
+
+from terrapyne.cli.utils import console
 
 app = typer.Typer(help="Troubleshooting and debugging commands")
-console = Console()
 
 
 @app.callback(invoke_without_command=True)

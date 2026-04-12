@@ -1,7 +1,11 @@
-"""Main CLI application."""
+"""Main CLI entry point for terrapyne."""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
 
 import typer
-from rich.console import Console
 
 from terrapyne.cli import (
     debug_cmd,
@@ -12,12 +16,14 @@ from terrapyne.cli import (
     vcs_cmd,
     workspace_cmd,
 )
+from terrapyne.cli.utils import console, set_quiet_mode
 
+# Use the invocation name (e.g., "tfc" or "terrapyne") instead of hardcoded name
+_prog = Path(sys.argv[0]).name
 app = typer.Typer(
-    name="terrapyne",
+    name=_prog,
     help="Terraform Cloud CLI orchestrator for DevOps engineers",
 )
-console = Console()
 
 # Add workspace commands
 app.add_typer(workspace_cmd.app, name="workspace")
@@ -28,13 +34,13 @@ app.add_typer(run_cmd.app, name="run")
 # Add team commands
 app.add_typer(team_cmd.app, name="team")
 
-# Add VCS commands (placeholder)
+# Add VCS commands
 app.add_typer(vcs_cmd.app, name="vcs")
 
-# Add debug commands (placeholder)
+# Add debug commands
 app.add_typer(debug_cmd.app, name="debug")
 
-# Add project commands (placeholder)
+# Add project commands
 app.add_typer(project_cmd.app, name="project")
 
 # Add state commands
@@ -58,25 +64,19 @@ def main(
         is_eager=True,
         help="Show version and exit",
     ),
+    quiet: bool = typer.Option(
+        False,
+        "--quiet",
+        "-q",
+        help="Suppress all UI output (data only)",
+    ),
     debug: bool = typer.Option(
         False,
         "--debug",
         help="Enable API call tracing and verbose logging",
     ),
 ) -> None:
-    """Terraform Cloud CLI orchestrator for DevOps engineers.
-
-    Context-aware commands that auto-detect workspace and organization from terraform.tf.
-    """
-    if debug:
-        import os
-
-        os.environ["TERRAPYNE_DEBUG"] = "1"
-
-        # Also configure logging for debug output
-        import logging
-
-        logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-
-    if ctx.invoked_subcommand is None:
+    """Terraform Cloud CLI orchestrator for DevOps engineers."""
+    set_quiet_mode(quiet)
+    if ctx.invoked_subcommand is None and not quiet:
         console.print(ctx.get_help())

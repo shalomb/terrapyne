@@ -1,6 +1,7 @@
 """Context detection utilities."""
 
 import json
+import os
 from pathlib import Path
 
 from terrapyne.core.backend import detect_backend
@@ -84,32 +85,20 @@ def get_workspace_context() -> tuple[str | None, str | None, str | None]:
     return (workspace_name, backend.organization, backend.hostname)
 
 
-def resolve_workspace(workspace_arg: str | None) -> str:
+def resolve_workspace(workspace_arg: str | None) -> str | None:
     """Resolve workspace name from argument or context.
 
     Args:
         workspace_arg: Workspace name from CLI argument (or None)
 
     Returns:
-        Resolved workspace name
-
-    Raises:
-        ValueError: If no workspace specified and none detected from context
+        Resolved workspace name or None
     """
     if workspace_arg:
         return workspace_arg
 
     # Try to detect from terraform.tf
     workspace_name, _, _ = get_workspace_context()
-
-    if not workspace_name:
-        raise ValueError(
-            "No workspace specified and could not detect from context.\n"
-            "Either:\n"
-            "  1. Run this command from a directory with terraform configuration (terraform.tf or .terraform/terraform.tfstate), or\n"
-            "  2. Specify workspace name: --workspace WORKSPACE_NAME"
-        )
-
     return workspace_name
 
 
@@ -125,6 +114,11 @@ def resolve_organization(org_arg: str | None) -> str | None:
     if org_arg:
         return org_arg
 
-    # Try to detect from terraform.tf
+    # Priority 1: TFC_ORG environment variable
+    env_org = os.getenv("TFC_ORG")
+    if env_org:
+        return env_org
+
+    # Priority 2: Detect from terraform.tf / tfstate
     _, organization, _ = get_workspace_context()
     return organization
