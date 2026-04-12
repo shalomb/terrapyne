@@ -127,7 +127,7 @@ def team_show(
         console.print(table)
 
         # List team members
-        members, total_members = client.teams.list_members(team_id)
+        members, _total_members = client.teams.list_members(team_id)
 
         if members:
             console.print()  # Blank line

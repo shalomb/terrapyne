@@ -58,10 +58,25 @@ def main(
         is_eager=True,
         help="Show version and exit",
     ),
+    debug: bool = typer.Option(
+        False,
+        "--debug",
+        help="Enable API call tracing and verbose logging",
+    ),
 ) -> None:
     """Terraform Cloud CLI orchestrator for DevOps engineers.
 
     Context-aware commands that auto-detect workspace and organization from terraform.tf.
     """
+    if debug:
+        import os
+
+        os.environ["TERRAPYNE_DEBUG"] = "1"
+
+        # Also configure logging for debug output
+        import logging
+
+        logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
     if ctx.invoked_subcommand is None:
         console.print(ctx.get_help())

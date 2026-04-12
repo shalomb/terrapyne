@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from typing import Any
 
 from terrapyne.api.client import TFCClient
 from terrapyne.models.variable import WorkspaceVariable
@@ -25,6 +26,7 @@ class WorkspaceAPI:
         organization: str | None = None,
         search: str | None = None,
         project_id: str | None = None,
+        include: str | None = None,
     ) -> tuple[Iterator[Workspace], int | None]:
         """List workspaces in an organization.
 
@@ -32,6 +34,7 @@ class WorkspaceAPI:
             organization: Organization name (uses client default if not specified)
             search: Search pattern for workspace names
             project_id: Filter by project ID
+            include: Resources to include
 
         Returns:
             Tuple of (iterator of Workspace instances, total count or None)
@@ -39,7 +42,9 @@ class WorkspaceAPI:
         org = self.client.get_organization(organization)
         path = f"/organizations/{org}/workspaces"
 
-        params = {}
+        params: dict[str, Any] = {}
+        if include:
+            params["include"] = include
         if search:
             if "*" in search:
                 params["search[wildcard-name]"] = search
@@ -52,7 +57,7 @@ class WorkspaceAPI:
 
         def workspace_iterator() -> Iterator[Workspace]:
             for item in items_iterator:
-                yield Workspace.from_api_response(item)
+                yield Workspace.from_api_response(item, included=items_iterator.included)
 
         return workspace_iterator(), total_count
 
@@ -92,7 +97,7 @@ class WorkspaceAPI:
         response = self.client.get(path, params={"include": "project"})
         return Workspace.from_api_response(response["data"], response.get("included", []))
 
-    def get_variables(self, workspace_id: str) -> list[WorkspaceVariable]:  # type: ignore[valid-type]  # noqa: A003
+    def get_variables(self, workspace_id: str) -> list[WorkspaceVariable]:  # type: ignore[valid-type]
         """Get variables for a workspace.
 
         Args:
@@ -140,7 +145,6 @@ class WorkspaceAPI:
         Raises:
             httpx.HTTPStatusError: If API request fails
         """
-        from typing import Any
 
         path = "/vars"
 
@@ -192,7 +196,6 @@ class WorkspaceAPI:
         Raises:
             httpx.HTTPStatusError: If API request fails
         """
-        from typing import Any
 
         path = f"/vars/{variable_id}"
 

@@ -1,7 +1,8 @@
 """Tests for TeamsAPI methods."""
 
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, patch
 
 from terrapyne.api.teams import TeamsAPI
 from terrapyne.models.team import Team
@@ -477,7 +478,7 @@ class TestTeamIntegration:
         mock_client.paginate_with_meta.return_value = (iter(list_items), 1)
 
         # List teams
-        teams_iter, total = api.list_teams(organization=org)
+        teams_iter, _total = api.list_teams(organization=org)
         teams = list(teams_iter)
 
         assert len(teams) == 1

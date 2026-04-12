@@ -1,6 +1,5 @@
 """Tests for workspace CLI context auto-detection bug fixes."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 
 
@@ -11,6 +10,7 @@ class TestWorkspaceContextResolution:
 
     def _make_workspace(self, name="my-workspace"):
         from terrapyne.models.workspace import Workspace
+
         ws = MagicMock(spec=Workspace)
         ws.id = "ws-abc123"
         ws.name = name
@@ -32,6 +32,7 @@ class TestWorkspaceContextResolution:
     def test_workspace_show_uses_resolved_name(self, mock_client_cls, mock_validate):
         """workspace show must pass the resolved workspace name to .get(), not raw arg."""
         from typer.testing import CliRunner
+
         from terrapyne.cli.workspace_cmd import app
 
         resolved_ws_name = "auto-detected-workspace"
@@ -56,6 +57,7 @@ class TestWorkspaceContextResolution:
     def test_workspace_variables_uses_resolved_name(self, mock_client_cls, mock_validate):
         """workspace variables must pass resolved name to .get(), not empty string."""
         from typer.testing import CliRunner
+
         from terrapyne.cli.workspace_cmd import app
 
         resolved_ws_name = "auto-detected-workspace"
@@ -78,6 +80,7 @@ class TestWorkspaceContextResolution:
     def test_workspace_vcs_uses_resolved_name(self, mock_client_cls, mock_validate):
         """workspace vcs must pass resolved name to .get(), not empty string."""
         from typer.testing import CliRunner
+
         from terrapyne.cli.workspace_cmd import app
 
         resolved_ws_name = "auto-detected-workspace"

@@ -16,14 +16,17 @@ class TestPyprojectToml:
             config = tomllib.load(f)
 
         pytest_config = config.get("tool", {}).get("pytest", {}).get("ini_options", {})
-        addopts = pytest_config.get("addopts", [])
+        addopts = pytest_config.get("addopts", "")
 
-        # Find the --cov-fail-under value (it's a combined string like "--cov-fail-under=80")
+        # Find the --cov-fail-under value
         cov_fail_under_value = None
-        for opt in addopts:
-            if isinstance(opt, str) and "--cov-fail-under" in opt:
-                if "=" in opt:
-                    cov_fail_under_value = int(opt.split("=")[1])
-                break
+        if isinstance(addopts, str):
+            import re
 
-        assert cov_fail_under_value == 67, f"Expected coverage gate of 67, got {cov_fail_under_value}"
+            match = re.search(r"--cov-fail-under=(\d+)", addopts)
+            if match:
+                cov_fail_under_value = int(match.group(1))
+
+        assert cov_fail_under_value == 67, (
+            f"Expected coverage gate of 67, got {cov_fail_under_value}"
+        )

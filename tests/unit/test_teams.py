@@ -2,22 +2,20 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from terrapyne.api.teams import TeamsAPI
 from terrapyne.models.team_access import (
-    ProjectAccess,
     TeamProjectAccess,
     TeamProjectAccessComparison,
-    WorkspaceAccess,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers / fixtures
 # ---------------------------------------------------------------------------
+
 
 def _make_team_response(team_id: str, name: str, members: int = 0) -> dict:
     return {
@@ -29,9 +27,7 @@ def _make_team_response(team_id: str, name: str, members: int = 0) -> dict:
             "visibility": "secret",
             "organization-access": {},
         },
-        "relationships": {
-            "organization": {"data": {"id": "my-org", "type": "organizations"}}
-        },
+        "relationships": {"organization": {"data": {"id": "my-org", "type": "organizations"}}},
     }
 
 
@@ -81,6 +77,7 @@ def _make_client_mock() -> MagicMock:
 # list_teams — server-side filtering
 # ---------------------------------------------------------------------------
 
+
 class TestListTeamsServerSideFiltering:
     """list_teams() must pass filter params to the API rather than filter client-side."""
 
@@ -91,9 +88,7 @@ class TestListTeamsServerSideFiltering:
         api = TeamsAPI(client)
         api.list_teams(organization="my-org")
 
-        client.paginate_with_meta.assert_called_once_with(
-            "/organizations/my-org/teams", params={}
-        )
+        client.paginate_with_meta.assert_called_once_with("/organizations/my-org/teams", params={})
 
     def test_search_sends_q_param(self):
         """search= must be forwarded as q= (server-side substring search)."""
@@ -158,8 +153,8 @@ class TestListTeamsServerSideFiltering:
 # get_project_access
 # ---------------------------------------------------------------------------
 
-class TestGetProjectAccess:
 
+class TestGetProjectAccess:
     def test_returns_matching_record(self):
         client = _make_client_mock()
         raw = [
@@ -194,14 +189,18 @@ class TestGetProjectAccess:
 # set_project_access
 # ---------------------------------------------------------------------------
 
-class TestSetProjectAccess:
 
+class TestSetProjectAccess:
     def test_patches_existing_record(self):
         client = _make_client_mock()
-        existing_raw = [_make_team_project_access_response("tprj-111", "team-aaa", "prj-001", access="read")]
+        existing_raw = [
+            _make_team_project_access_response("tprj-111", "team-aaa", "prj-001", access="read")
+        ]
         client.paginate.return_value = iter(existing_raw)
 
-        updated_raw = _make_team_project_access_response("tprj-111", "team-aaa", "prj-001", access="admin")
+        updated_raw = _make_team_project_access_response(
+            "tprj-111", "team-aaa", "prj-001", access="admin"
+        )
         client.patch.return_value = {"data": updated_raw}
 
         api = TeamsAPI(client)
@@ -219,7 +218,9 @@ class TestSetProjectAccess:
         existing_raw = [_make_team_project_access_response("tprj-111", "team-aaa", "prj-001")]
         client.paginate.return_value = iter(existing_raw)
         client.patch.return_value = {
-            "data": _make_team_project_access_response("tprj-111", "team-aaa", "prj-001", access=access)
+            "data": _make_team_project_access_response(
+                "tprj-111", "team-aaa", "prj-001", access=access
+            )
         }
 
         api = TeamsAPI(client)
@@ -238,9 +239,11 @@ class TestSetProjectAccess:
 # compare_project_access
 # ---------------------------------------------------------------------------
 
-class TestCompareProjectAccess:
 
-    def _make_access(self, record_id: str, team_id: str, project_id: str, runs: str = "apply") -> TeamProjectAccess:
+class TestCompareProjectAccess:
+    def _make_access(
+        self, record_id: str, team_id: str, project_id: str, runs: str = "apply"
+    ) -> TeamProjectAccess:
         return TeamProjectAccess.from_api_response(
             _make_team_project_access_response(record_id, team_id, project_id, runs=runs)
         )
@@ -253,8 +256,10 @@ class TestCompareProjectAccess:
 
         api = TeamsAPI(client)
         comparison = api.compare_project_access(
-            project_id_a="prj-001", team_id_a="team-aaa",
-            project_id_b="prj-002", team_id_b="team-bbb",
+            project_id_a="prj-001",
+            team_id_a="team-aaa",
+            project_id_b="prj-002",
+            team_id_b="team-bbb",
         )
 
         assert comparison.identical is True
@@ -262,14 +267,18 @@ class TestCompareProjectAccess:
 
     def test_different_runs_permission_shows_diff(self):
         client = _make_client_mock()
-        raw_a = [_make_team_project_access_response("tprj-111", "team-aaa", "prj-001", runs="apply")]
+        raw_a = [
+            _make_team_project_access_response("tprj-111", "team-aaa", "prj-001", runs="apply")
+        ]
         raw_b = [_make_team_project_access_response("tprj-222", "team-bbb", "prj-002", runs="read")]
         client.paginate.side_effect = [iter(raw_a), iter(raw_b)]
 
         api = TeamsAPI(client)
         comparison = api.compare_project_access(
-            project_id_a="prj-001", team_id_a="team-aaa",
-            project_id_b="prj-002", team_id_b="team-bbb",
+            project_id_a="prj-001",
+            team_id_a="team-aaa",
+            project_id_b="prj-002",
+            team_id_b="team-bbb",
         )
 
         assert comparison.identical is False
@@ -282,14 +291,20 @@ class TestCompareProjectAccess:
 
     def test_different_access_level_shows_diff(self):
         client = _make_client_mock()
-        raw_a = [_make_team_project_access_response("tprj-111", "team-aaa", "prj-001", access="admin")]
-        raw_b = [_make_team_project_access_response("tprj-222", "team-bbb", "prj-002", access="read")]
+        raw_a = [
+            _make_team_project_access_response("tprj-111", "team-aaa", "prj-001", access="admin")
+        ]
+        raw_b = [
+            _make_team_project_access_response("tprj-222", "team-bbb", "prj-002", access="read")
+        ]
         client.paginate.side_effect = [iter(raw_a), iter(raw_b)]
 
         api = TeamsAPI(client)
         comparison = api.compare_project_access(
-            project_id_a="prj-001", team_id_a="team-aaa",
-            project_id_b="prj-002", team_id_b="team-bbb",
+            project_id_a="prj-001",
+            team_id_a="team-aaa",
+            project_id_b="prj-002",
+            team_id_b="team-bbb",
         )
 
         assert comparison.identical is False
@@ -300,9 +315,11 @@ class TestCompareProjectAccess:
 # TeamProjectAccessComparison model
 # ---------------------------------------------------------------------------
 
-class TestTeamProjectAccessComparison:
 
-    def _make_access(self, record_id: str, team_id: str, project_id: str, **kwargs) -> TeamProjectAccess:
+class TestTeamProjectAccessComparison:
+    def _make_access(
+        self, record_id: str, team_id: str, project_id: str, **kwargs
+    ) -> TeamProjectAccess:
         return TeamProjectAccess.from_api_response(
             _make_team_project_access_response(record_id, team_id, project_id, **kwargs)
         )

@@ -1,14 +1,15 @@
 """Tests that run IDs are never truncated in table output."""
 
-import pytest
-from unittest.mock import MagicMock
 from datetime import datetime, timezone
-from rich.console import Console
 from io import StringIO
+from unittest.mock import MagicMock
+
+from rich.console import Console
 
 
 def _make_run(run_id: str = "run-JJpgJdhM5G8CTAWs"):
     from terrapyne.models.run import Run, RunStatus
+
     run = MagicMock(spec=Run)
     run.id = run_id
     run.status = RunStatus.PLANNED_AND_FINISHED
@@ -21,9 +22,9 @@ def _make_run(run_id: str = "run-JJpgJdhM5G8CTAWs"):
 
 
 class TestRunIdNotTruncated:
-
     def _render_to_string(self, runs) -> str:
         from terrapyne.utils.table_renderer import RunTableRenderer
+
         buf = StringIO()
         con = Console(file=buf, width=120, highlight=False)
         renderer = RunTableRenderer()
@@ -37,11 +38,11 @@ class TestRunIdNotTruncated:
         # 80 columns is a common default terminal width
         con = Console(file=buf, width=80, highlight=False)
         from terrapyne.utils.table_renderer import RunTableRenderer
+
         RunTableRenderer().render([_make_run(run_id)], console_instance=con)
         output = buf.getvalue()
         assert run_id in output, (
-            f"Run ID '{run_id}' was truncated on 80-col terminal.\n"
-            f"Got: {output}"
+            f"Run ID '{run_id}' was truncated on 80-col terminal.\nGot: {output}"
         )
 
     def test_multiple_run_ids_not_truncated_narrow_terminal(self):
@@ -54,6 +55,7 @@ class TestRunIdNotTruncated:
         buf = StringIO()
         con = Console(file=buf, width=80, highlight=False)
         from terrapyne.utils.table_renderer import RunTableRenderer
+
         RunTableRenderer().render([_make_run(rid) for rid in ids], console_instance=con)
         output = buf.getvalue()
         for rid in ids:

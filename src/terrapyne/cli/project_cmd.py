@@ -10,7 +10,6 @@ from rich.console import Console
 
 from terrapyne.api.client import TFCClient
 from terrapyne.api.projects import ProjectAPI
-from terrapyne.api.workspaces import WorkspaceAPI
 from terrapyne.cli.utils import (
     handle_cli_errors,
     resolve_project_context,
@@ -43,42 +42,40 @@ def list_projects(
     """List all projects in organization."""
     org, _ = validate_context(organization)
 
-    client = TFCClient(organization=org)
-    project_api = ProjectAPI(client)
+    with TFCClient(organization=org) as client:
+        projects_iter, total_count = client.projects.list(org, search=search)
+        projects = list(projects_iter)[:limit]
 
-    projects_iter, total_count = project_api.list(org, search=search)
-    projects = list(projects_iter)[:limit]
+        if not projects:
+            console.print("[yellow]No projects found[/yellow]")
+            sys.exit(0)
 
-    if not projects:
-        console.print("[yellow]No projects found[/yellow]")
-        sys.exit(0)
+        # Get actual workspace counts
+        workspace_counts = {} if search else client.projects.get_workspace_counts(org)
 
-    # Get actual workspace counts
-    workspace_counts = {} if search else project_api.get_workspace_counts(org)
+        if output_format == "json":
+            from terrapyne.cli.utils import emit_json
 
-    if output_format == "json":
-        from terrapyne.cli.utils import emit_json
+            emit_json(
+                [
+                    {
+                        "id": p.id,
+                        "name": p.name,
+                        "description": p.description,
+                        "created_at": p.created_at,
+                        "resource_count": p.resource_count,
+                    }
+                    for p in projects
+                ]
+            )
+            return
 
-        emit_json(
-            [
-                {
-                    "id": p.id,
-                    "name": p.name,
-                    "description": p.description,
-                    "created_at": p.created_at,
-                    "resource_count": p.resource_count,
-                }
-                for p in projects
-            ]
+        render_projects(
+            projects,
+            f"Projects in {org}",
+            total_count=total_count,
+            workspace_counts=workspace_counts,
         )
-        return
-
-    render_projects(
-        projects,
-        f"Projects in {org}",
-        total_count=total_count,
-        workspace_counts=workspace_counts,
-    )
 
 
 @app.command(name="find")
@@ -104,25 +101,23 @@ def find_projects(
     """
     org, _ = validate_context(organization)
 
-    client = TFCClient(organization=org)
-    project_api = ProjectAPI(client)
+    with TFCClient(organization=org) as client:
+        projects_iter, total_count = client.projects.list(org, search=pattern)
+        projects = list(projects_iter)[:limit]
 
-    projects_iter, total_count = project_api.list(org, search=pattern)
-    projects = list(projects_iter)[:limit]
+        if not projects:
+            console.print(f"[yellow]No projects found matching '{pattern}'[/yellow]")
+            sys.exit(0)
 
-    if not projects:
-        console.print(f"[yellow]No projects found matching '{pattern}'[/yellow]")
-        sys.exit(0)
+        # Get actual workspace counts
+        workspace_counts: dict[str, int] = {}  # skip expensive count for find results
 
-    # Get actual workspace counts
-    workspace_counts: dict[str, int] = {}  # skip expensive count for find results
-
-    render_projects(
-        projects,
-        f"Projects matching '{pattern}' in {org}",
-        total_count=total_count,
-        workspace_counts=workspace_counts,
-    )
+        render_projects(
+            projects,
+            f"Projects matching '{pattern}' in {org}",
+            total_count=total_count,
+            workspace_counts=workspace_counts,
+        )
 
 
 @app.command(name="show")
@@ -132,6 +127,7 @@ def show_project(
         None, help="Project name (auto-detected from context if available)"
     ),
     organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
+    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ) -> None:
     """Show project details and workspaces."""
     org, _ = validate_context(organization)
@@ -140,13 +136,62 @@ def show_project(
         # Resolve project from name or context
         org, project = resolve_project_context(client, org, project_name)
 
-        workspace_api = WorkspaceAPI(client)
-
         # Get workspaces in project
-        workspaces_iter, _ = workspace_api.list(org, project_id=project.id)
+        # Include latest_run to count active runs across project (Task 1c)
+        workspaces_iter, _ = client.workspaces.list(
+            org, project_id=project.id, include="latest_run"
+        )
         workspaces = list(workspaces_iter)
 
-        render_project_detail(project, workspaces)
+        # Count active runs across all workspaces in project (Task 1c)
+        from terrapyne.models.run import RunStatus
+
+        active_statuses = RunStatus.get_active_statuses()
+        # Add 'awaiting approval' statuses to active count for health dashboard
+        active_statuses.extend(
+            [
+                RunStatus.PLANNED,
+                RunStatus.POLICY_CHECKED,
+                RunStatus.POLICY_SOFT_FAILED,
+                RunStatus.COST_ESTIMATED,
+            ]
+        )
+
+        active_runs_count = 0
+        for ws in workspaces:
+            # Note: client.workspaces.list with include="latest_run" populates latest_run if available
+            if ws.latest_run and ws.latest_run.status in active_statuses:
+                active_runs_count += 1
+
+        if output_format == "json":
+            from terrapyne.cli.utils import emit_json
+
+            emit_json(
+                {
+                    "id": project.id,
+                    "name": project.name,
+                    "description": project.description,
+                    "created_at": project.created_at,
+                    "resource_count": project.resource_count,
+                    "workspace_count": len(workspaces),
+                    "active_runs_count": active_runs_count,
+                    "workspaces": [
+                        {
+                            "id": ws.id,
+                            "name": ws.name,
+                            "latest_run": (
+                                {"id": ws.latest_run.id, "status": ws.latest_run.status}
+                                if ws.latest_run
+                                else None
+                            ),
+                        }
+                        for ws in workspaces
+                    ],
+                }
+            )
+            return
+
+        render_project_detail(project, workspaces, active_runs_count=active_runs_count)
 
 
 @app.command(name="teams")

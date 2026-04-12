@@ -1,7 +1,6 @@
 """Tests for state diff and resource extraction."""
 
 from terrapyne.core.state_diff import (
-    StateDiff,
     StateResourceInstance,
     diff_state_resources,
     extract_rows,
@@ -11,7 +10,6 @@ from terrapyne.core.state_diff import (
 )
 from terrapyne.models.state_version import StateVersion, StateVersionOutput
 
-
 SAMPLE_STATE = {
     "resources": [
         {
@@ -20,8 +18,24 @@ SAMPLE_STATE = {
             "type": "aws_subnet",
             "name": "private",
             "instances": [
-                {"index_key": 0, "attributes": {"id": "subnet-aaa", "arn": "arn:aws:ec2:us-east-1:123:subnet/subnet-aaa", "tags": {"Name": "private-0"}, "availability_zone": "us-east-1a"}},
-                {"index_key": 1, "attributes": {"id": "subnet-bbb", "arn": "arn:aws:ec2:us-east-1:123:subnet/subnet-bbb", "tags": {"Name": "private-1"}, "availability_zone": "us-east-1b"}},
+                {
+                    "index_key": 0,
+                    "attributes": {
+                        "id": "subnet-aaa",
+                        "arn": "arn:aws:ec2:us-east-1:123:subnet/subnet-aaa",
+                        "tags": {"Name": "private-0"},
+                        "availability_zone": "us-east-1a",
+                    },
+                },
+                {
+                    "index_key": 1,
+                    "attributes": {
+                        "id": "subnet-bbb",
+                        "arn": "arn:aws:ec2:us-east-1:123:subnet/subnet-bbb",
+                        "tags": {"Name": "private-1"},
+                        "availability_zone": "us-east-1b",
+                    },
+                },
             ],
         },
         {
@@ -29,7 +43,14 @@ SAMPLE_STATE = {
             "type": "aws_instance",
             "name": "web",
             "instances": [
-                {"attributes": {"id": "i-12345", "arn": "arn:aws:ec2:us-east-1:123:instance/i-12345", "tags": {"Name": "web-server"}, "private_ip": "10.0.1.5"}},
+                {
+                    "attributes": {
+                        "id": "i-12345",
+                        "arn": "arn:aws:ec2:us-east-1:123:instance/i-12345",
+                        "tags": {"Name": "web-server"},
+                        "private_ip": "10.0.1.5",
+                    }
+                },
             ],
         },
         {
@@ -72,22 +93,30 @@ class TestParseStateResources:
 class TestStateResourceInstance:
     def test_address_with_module_and_index(self):
         inst = StateResourceInstance(
-            resource_type="aws_subnet", resource_name="private",
-            module="module.vpc", index_key=0, attributes={},
+            resource_type="aws_subnet",
+            resource_name="private",
+            module="module.vpc",
+            index_key=0,
+            attributes={},
         )
         assert inst.address == "module.vpc.aws_subnet.private[0]"
 
     def test_address_root_no_index(self):
         inst = StateResourceInstance(
-            resource_type="aws_instance", resource_name="web",
-            module=None, index_key=None, attributes={},
+            resource_type="aws_instance",
+            resource_name="web",
+            module=None,
+            index_key=None,
+            attributes={},
         )
         assert inst.address == "aws_instance.web"
 
     def test_get_field_dotted_path(self):
         inst = StateResourceInstance(
-            resource_type="aws_instance", resource_name="web",
-            module=None, index_key=None,
+            resource_type="aws_instance",
+            resource_name="web",
+            module=None,
+            index_key=None,
             attributes={"tags": {"Name": "my-server"}, "id": "i-123"},
         )
         assert inst.get_field("tags.Name") == "my-server"
@@ -105,11 +134,15 @@ class TestResolveField:
         assert resolve_field(inst, "address") == "module.app.aws_instance.web"
 
     def test_name_uses_alias_fallback(self):
-        inst = StateResourceInstance("aws_instance", "web", None, None, {"tags": {"Name": "my-web"}})
+        inst = StateResourceInstance(
+            "aws_instance", "web", None, None, {"tags": {"Name": "my-web"}}
+        )
         assert resolve_field(inst, "name") == "my-web"
 
     def test_direct_dotted_path(self):
-        inst = StateResourceInstance("aws_instance", "web", None, None, {"tags": {"Environment": "prod"}})
+        inst = StateResourceInstance(
+            "aws_instance", "web", None, None, {"tags": {"Environment": "prod"}}
+        )
         assert resolve_field(inst, "tags.Environment") == "prod"
 
 
@@ -212,7 +245,7 @@ class TestAddressWithStringIndex:
             index_key="app.example.com",
             attributes={},
         )
-        assert inst.address == 'module.dns.aws_route53_record.this[app.example.com]'
+        assert inst.address == "module.dns.aws_route53_record.this[app.example.com]"
 
 
 class TestResolveFieldEdgeCases:
@@ -239,7 +272,9 @@ class TestParseStateResourcesEdgeCases:
         assert parse_state_resources({}) == []
 
     def test_no_instances(self):
-        state = {"resources": [{"mode": "managed", "type": "aws_instance", "name": "x", "instances": []}]}
+        state = {
+            "resources": [{"mode": "managed", "type": "aws_instance", "name": "x", "instances": []}]
+        }
         assert parse_state_resources(state) == []
 
     def test_mode_none_returns_all(self):

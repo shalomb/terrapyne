@@ -43,6 +43,9 @@ class Workspace(BaseModel):
     # Tags
     tag_names: list[str] = Field(default_factory=list, alias="tag-names")
 
+    # Related models (included)
+    latest_run: Any | None = None
+
     # Environment detection (derived from name)
     environment: str | None = None
 
@@ -83,6 +86,18 @@ class Workspace(BaseModel):
                     project_name = item.get("attributes", {}).get("name")
                     break
 
+        # Extract latest run if present in relationships and included
+        latest_run = None
+        if relationships.get("latest-run", {}).get("data"):
+            run_id = relationships["latest-run"]["data"].get("id")
+            if included:
+                for item in included:
+                    if item.get("type") == "runs" and item.get("id") == run_id:
+                        from terrapyne.models.run import Run
+
+                        latest_run = Run.from_api_response(item)
+                        break
+
         # Detect environment from workspace name
         environment = cls._detect_environment(attrs.get("name", ""))
 
@@ -100,6 +115,7 @@ class Workspace(BaseModel):
             project_id=project_id,
             project_name=project_name,
             tag_names=attrs.get("tag-names", []),
+            latest_run=latest_run,
             environment=environment,
         )
 

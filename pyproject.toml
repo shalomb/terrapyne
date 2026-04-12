@@ -10,49 +10,42 @@ license = { text = "Apache License Version 2.0" }
 keywords = ["terraform", "wrapper"]
 
 classifiers = [
-  "Development Status :: 5 - Production/Stable",
-  "Intended Audience :: Developers",
-  "Intended Audience :: Information Technology",
-  "Intended Audience :: System Administrators",
-  "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Topic :: System :: Systems Administration",
-  "Topic :: Utilities",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.12",
 ]
 
 dependencies = [
-    "typer>=0.12.0",
-    "rich>=13.7.0",
     "httpx>=0.27.0",
-    "pydantic>=2.0.0",
-    "pydantic-settings>=2.0",
-    "python-hcl2>=4.3.0",
+    "pydantic>=2.6.0",
+    "rich>=13.7.0",
+    "typer>=0.9.0",
+    "python-dotenv>=1.0.1",
     "tenacity>=8.2.0",
-    "python-benedict>=0.33.2",
-]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.0.0",
-    "pytest-asyncio>=0.23.0",
-    "pytest-bdd>=6.1.0",
-    "pytest-cov>=4.1.0",
-    "pytest-httpx>=0.30.0",
-    "pytest-xdist>=3.8.0",
-    "ruff>=0.3.0",
-    "mypy>=1.9.0",
-    "pre-commit>=3.6.0",
-    "types-requests",
-    "python-decouple>=3.8",
-    "pretty-traceback>=0.5",
-    "pip-audit>=2.10.0",
+    "pyyaml>=6.0.1",
 ]
 
 [project.scripts]
 terrapyne = "terrapyne.cli.main:app"
 tfc = "terrapyne.cli.main:app"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-httpx>=0.30.0",
+    "pytest-mock>=3.12.0",
+    "pytest-bdd>=7.1.0",
+    "pytest-xdist>=3.5.0",
+    "pytest-asyncio>=0.23.0",
+    "anyio>=4.3.0",
+    "mypy>=1.8.0",
+    "ruff>=0.3.0",
+    "pre-commit>=3.6.0",
+    "types-pyyaml>=6.0.12.12",
+    "types-setuptools>=69.1.0",
+]
 
 [build-system]
 requires = ["setuptools>=61.0"]
@@ -62,41 +55,29 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.pytest.ini_options]
-markers = [
-    "fast: Fast unit tests (< 100ms)",
-    "slow: Slow tests (> 1s)",
-    "unit: Unit tests",
-    "integration: Integration tests",
-    "e2e: End-to-end tests",
-    "pre_merge: Pre-merge quality gate",
-    "expensive: Expensive tests (>5s)",
-    "uat: UAT tests against real TFC API (needs credentials)",
-]
-addopts = [
-    "-v",
-    "--tb=short",
-    "-n",
-    "auto",
-    "--cov=src",
-    "--cov-fail-under=67",
-    "-m",
-    "not e2e and not integration and not uat",
-]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --cov=terrapyne --cov-report=term-missing --cov-report=html --cov-fail-under=67"
+asyncio_mode = "strict"
 
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-extend-exclude = ["scratch/*", "tests/*"]
 
 [tool.ruff.lint]
-select = ["F", "E", "W", "I", "N", "UP", "B", "A", "C4", "SIM"]
-ignore = ["E501", "UP046", "UP047"]  # UP046/UP047: PEP 695 type params — mypy doesn't support yet
+select = ["E", "F", "I", "B", "PL", "RUF"]
+# Ignored rules:
+# - PLR0913/PLR0915: too-many-arguments/too-many-returns - common in large apps
+# - PLC0415: import-outside-top-level - used intentionally for lazy imports and circular deps
+# - E501: line-too-long - mature codebases often exceed 100 chars for clarity
+# - PLR2004: magic-value-comparison - pervasive in structured parsing/config
+# - PLR0912/PLR0911: too-many-branches/too-many-returns - valid for CLI state machines
+# - PLW1510: subprocess-run-without-check - checked via exception handling instead
+# - PLW2901: redefined-loop-name - rare edge case, not worth refactoring
+ignore = ["PLR0913", "PLR0915", "PLC0415", "E501", "PLR2004", "PLR0912", "PLR0911", "PLW1510", "PLW2901"]
 
-[tool.ruff.lint.per-file-ignores]
-# Legacy files — will be fixed in the core API PR
-"src/terrapyne/exceptions.py" = ["N818"]
-"src/terrapyne/logging.py" = ["N802", "UP007"]
-"src/terrapyne/terrapyne.py" = ["A002"]
+[tool.ruff.lint.isort]
+known-first-party = ["terrapyne"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -109,4 +90,3 @@ namespace_packages = true
 # Check only src, exclude legacy files pending refactor
 files = ["src"]
 exclude = ["src/terrapyne/logging.py", "src/terrapyne/terrapyne.py"]
-

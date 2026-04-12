@@ -1,7 +1,15 @@
 """Terraform Cloud API client."""
 
+from __future__ import annotations
+
+import hashlib
+import json
+import logging
+import os
+import time
 from collections.abc import Iterator
 from functools import cached_property
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -16,6 +24,8 @@ if TYPE_CHECKING:
     from terrapyne.api.teams import TeamsAPI
     from terrapyne.api.workspaces import WorkspaceAPI
 
+logger = logging.getLogger("terrapyne.api")
+
 
 class TFCClient:
     """Terraform Cloud API client with retry logic and pagination support."""
@@ -25,6 +35,8 @@ class TFCClient:
         host: str = "app.terraform.io",
         organization: str | None = None,
         credentials: TerraformCredentials | None = None,
+        debug: bool = False,
+        cache_ttl: int = 0,
     ):
         """Initialize TFC client.
 
@@ -32,28 +44,30 @@ class TFCClient:
             host: TFC hostname (default: app.terraform.io)
             organization: TFC organization name
             credentials: Optional pre-loaded credentials (otherwise loaded from tfrc.json)
+            debug: Enable API call tracing
+            cache_ttl: Cache TTL in seconds (0 to disable)
         """
         self.host = host
         self.organization = organization
         self.creds = credentials or TerraformCredentials.load(host=host)
         self.base_url = f"https://{host}/api/v2"
+        self.debug = debug or os.getenv("TERRAPYNE_DEBUG") == "1"
+        self.cache_ttl = cache_ttl or int(os.getenv("TERRAPYNE_CACHE_TTL", "0"))
         self.client = httpx.Client(
             headers=self.creds.get_headers(),
             timeout=30.0,
             follow_redirects=True,
         )
 
-    def close(self) -> None:
-        """Close the HTTP client."""
-        self.client.close()
-
     def __enter__(self) -> "TFCClient":
-        """Context manager entry."""
         return self
 
-    def __exit__(self, *args: Any) -> None:
-        """Context manager exit."""
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.close()
+
+    def close(self) -> None:
+        """Close the underlying HTTP client."""
+        self.client.close()
 
     @cached_property
     def workspaces(self) -> "WorkspaceAPI":
@@ -90,6 +104,22 @@ class TFCClient:
 
         return StateVersionsAPI(self)
 
+    def _log_request(self, method: str, url: str, params: Any = None) -> float:
+        if self.debug:
+            logger.info(f"API Request: {method} {url}")
+            if params:
+                logger.info(f"  Params: {params}")
+        return time.time()
+
+    def _log_response(
+        self, method: str, url: str, response: httpx.Response, start_time: float
+    ) -> None:
+        duration = time.time() - start_time
+        if self.debug:
+            logger.info(f"API Response: {method} {url} -> {response.status_code} ({duration:.3f}s)")
+            if response.status_code >= 400:
+                logger.info(f"  Error Body: {response.text}")
+
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
@@ -97,7 +127,7 @@ class TFCClient:
         reraise=True,
     )
     def get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
-        """GET request with retry logic.
+        """GET request with retry logic and optional caching.
 
         Args:
             path: API path (e.g., "/organizations/my-org/workspaces")
@@ -110,9 +140,37 @@ class TFCClient:
             httpx.HTTPStatusError: On HTTP errors after retries
         """
         url = f"{self.base_url}{path}"
+
+        # Cache check
+        cache_path = None
+        if self.cache_ttl > 0:
+            cache_dir = Path("~/.terrapyne/cache").expanduser()
+            cache_dir.mkdir(parents=True, exist_ok=True)
+
+            key_content = f"GET:{url}:{json.dumps(params, sort_keys=True)}"
+            key = hashlib.md5(key_content.encode()).hexdigest()
+            cache_path = cache_dir / f"{key}.json"
+
+            if cache_path.exists():
+                mtime = cache_path.stat().st_mtime
+                if (time.time() - mtime) < self.cache_ttl:
+                    if self.debug:
+                        logger.info(f"Cache Hit: GET {url}")
+                    with open(cache_path) as f:
+                        return json.load(f)
+
+        start_time = self._log_request("GET", url, params)
         response = self.client.get(url, params=params or {})
+        self._log_response("GET", url, response, start_time)
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+
+        # Store in cache
+        if cache_path:
+            with open(cache_path, "w") as f:
+                json.dump(data, f)
+
+        return data
 
     @retry(
         stop=stop_after_attempt(3),
@@ -134,7 +192,9 @@ class TFCClient:
             httpx.HTTPStatusError: On HTTP errors after retries
         """
         url = f"{self.base_url}{path}"
+        start_time = self._log_request("POST", url, json_data)
         response = self.client.post(url, json=json_data or {})
+        self._log_response("POST", url, response, start_time)
         response.raise_for_status()
         return response.json()
 
@@ -158,7 +218,9 @@ class TFCClient:
             httpx.HTTPStatusError: On HTTP errors after retries
         """
         url = f"{self.base_url}{path}"
+        start_time = self._log_request("PATCH", url, json_data)
         response = self.client.patch(url, json=json_data or {})
+        self._log_response("PATCH", url, response, start_time)
         response.raise_for_status()
         return response.json()
 
@@ -173,7 +235,7 @@ class TFCClient:
             page_size: Items per page (max 100)
 
         Yields:
-            Individual items from paginated results
+            Individual resource dicts
         """
         params = (params or {}).copy()
         page = 1
@@ -198,7 +260,7 @@ class TFCClient:
 
     def paginate_with_meta(
         self, path: str, params: dict[str, Any] | None = None, page_size: int = 100
-    ) -> tuple[Iterator[dict[str, Any]], int | None]:
+    ) -> tuple[Any, int | None]:
         """Paginate through API results with metadata.
 
         Args:
@@ -207,7 +269,7 @@ class TFCClient:
             page_size: Items per page (max 100)
 
         Returns:
-            Tuple of (iterator of items, total count from meta or None)
+            Tuple of (iterator-like object with .included property, total count)
         """
         params = (params or {}).copy()
         params.update({"page[number]": 1, "page[size]": min(page_size, 100)})
@@ -222,32 +284,40 @@ class TFCClient:
         total_count = pagination.get("total-count")
 
         # Generator to yield items from all pages
-        def item_iterator() -> Iterator[dict[str, Any]]:
-            # Yield items from first page
-            data = first_response.get("data", [])
-            yield from data
+        class ResponseIterator:
+            def __init__(self, first_resp: dict[str, Any], client: TFCClient, base_params: dict):
+                self.first_resp = first_resp
+                self.client = client
+                self.params = base_params
+                self.included = first_resp.get("included", [])
 
-            # Continue with remaining pages if there are any
-            links = first_response.get("links", {})
-            if links.get("next"):
-                page = 2
-                while True:
-                    params["page[number]"] = page
-                    response_data = self.get(path, params=params)
+            def __iter__(self) -> Iterator[dict[str, Any]]:
+                # Yield items from first page
+                data = self.first_resp.get("data", [])
+                yield from data
 
-                    data = response_data.get("data", [])
-                    if not data:
-                        break
+                # Continue with remaining pages if there are any
+                links = self.first_resp.get("links", {})
+                if links.get("next"):
+                    page = 2
+                    while True:
+                        self.params["page[number]"] = page
+                        response_data = self.client.get(path, params=self.params)
+                        self.included = response_data.get("included", [])
 
-                    yield from data
+                        data = response_data.get("data", [])
+                        if not data:
+                            break
 
-                    links = response_data.get("links", {})
-                    if not links.get("next"):
-                        break
+                        yield from data
 
-                    page += 1
+                        links = response_data.get("links", {})
+                        if not links.get("next"):
+                            break
 
-        return item_iterator(), total_count
+                        page += 1
+
+        return ResponseIterator(first_response, self, params), total_count
 
     def get_organization(self, org: str | None = None) -> str:
         """Get organization name (from param, instance, or raise error).

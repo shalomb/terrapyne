@@ -4,19 +4,15 @@ Tests the CloneWorkspaceAPI class end-to-end with realistic API mocking
 and comprehensive scenario coverage.
 """
 
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, patch
 
 from terrapyne.api.client import TFCClient
 from terrapyne.api.workspace_clone import (
     CloneWorkspaceAPI,
-    WorkspaceAlreadyExistsError,
-    WorkspaceNotFoundError,
     VCSTokenRequiredError,
 )
-from terrapyne.models.workspace import Workspace
-from terrapyne.models.variable import WorkspaceVariable
-
 
 # ============================================================================
 # Workspace Clone Creation Tests
@@ -595,8 +591,7 @@ class TestCloneValidation:
 
     def test_validate_clone_args_basic(self, api, mock_client):
         """Test basic clone argument validation."""
-        from terrapyne.api.workspace_clone import WorkspaceNotFoundError
-        
+
         source_ws = {
             "id": "ws-source-123",
             "type": "workspaces",

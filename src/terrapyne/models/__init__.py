@@ -21,8 +21,8 @@ __all__ = [
     "StateVersionOutput",
     "Team",
     "TeamProjectAccess",
-    "WorkspaceVariable",
     "VCSConnection",
     "Workspace",
     "WorkspaceVCS",
+    "WorkspaceVariable",
 ]

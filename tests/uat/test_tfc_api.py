@@ -22,7 +22,7 @@ class TestClientConnectivity:
         assert total is not None and total >= 1
 
     def test_list_projects(self, projects):
-        proj_list, total = projects
+        proj_list, _total = projects
         assert len(proj_list) >= 1
 
 
@@ -78,13 +78,17 @@ class TestCLISmoke:
 
     def test_workspace_list(self, tfc_org):
         from typer.testing import CliRunner
+
         from terrapyne.cli.main import app
 
-        result = CliRunner().invoke(app, ["workspace", "list", "-o", tfc_org, "--search", "*shalomb*"])
+        result = CliRunner().invoke(
+            app, ["workspace", "list", "-o", tfc_org, "--search", "*shalomb*"]
+        )
         assert result.exit_code == 0
 
     def test_project_list(self, tfc_org):
         from typer.testing import CliRunner
+
         from terrapyne.cli.main import app
 
         result = CliRunner().invoke(app, ["project", "list", "-o", tfc_org, "--search", "DAT"])

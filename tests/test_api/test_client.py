@@ -3,8 +3,8 @@
 Tests the HTTP client, authentication, and pagination logic.
 """
 
-import pytest
-from unittest.mock import MagicMock, patch, Mock
+from unittest.mock import patch
+
 from terrapyne.api.client import TFCClient
 from terrapyne.core.credentials import TerraformCredentials
 
@@ -85,13 +85,13 @@ class TestPaginationDefensiveCopy:
         params = {"limit": 10}
 
         # First call with params
-        result1 = list(client.paginate("/workspaces", params=params))
+        list(client.paginate("/workspaces", params=params))
 
         # Verify params dict wasn't mutated
         assert params == {"limit": 10}, "Original params dict was mutated!"
 
         # Second call should work the same way
-        result2 = list(client.paginate("/workspaces", params=params))
+        list(client.paginate("/workspaces", params=params))
 
         # Both calls should succeed without params mutation causing issues
         assert mock_get.call_count >= 2
@@ -112,7 +112,7 @@ class TestPaginationDefensiveCopy:
         params = {"status": "applied"}
 
         # Call paginate_with_meta
-        results, total = client.paginate_with_meta("/runs", params=params)
+        results, _total = client.paginate_with_meta("/runs", params=params)
         list(results)  # Consume generator to trigger paginate calls
 
         # Verify params dict wasn't mutated
@@ -128,9 +128,7 @@ class TestAPIResponseHandling:
         creds = TerraformCredentials(host="app.terraform.io", token="test-token")
         client = TFCClient(credentials=creds)
 
-        mock_get.return_value = {
-            "data": [{"id": "ws-1", "attributes": {"name": "test"}}]
-        }
+        mock_get.return_value = {"data": [{"id": "ws-1", "attributes": {"name": "test"}}]}
 
         # Should not raise
         results = list(client.paginate("/workspaces"))
@@ -175,7 +173,7 @@ class TestRetryLogic:
 
     def test_retry_on_transient_failure(self):
         """Test that .get() method exists and has retry decorator.
-        
+
         The .get() method is decorated with @retry via tenacity to handle
         transient HTTPStatusError exceptions. This test verifies the method
         is callable and properly configured.
@@ -185,6 +183,6 @@ class TestRetryLogic:
 
         # Verify get() method exists and is callable
         assert callable(client.get)
-        
+
         # Verify it has the retry decorator applied (wrapped function signature)
-        assert hasattr(client.get, '__wrapped__') or 'retry' in str(type(client.get))
+        assert hasattr(client.get, "__wrapped__") or "retry" in str(type(client.get))

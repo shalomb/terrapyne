@@ -1,6 +1,9 @@
 """Tests for Terraform plain text plan parser."""
 
+from pathlib import Path
+
 import pytest
+
 from terrapyne.core.plan_parser import TerraformPlainTextPlanParser
 
 
@@ -60,10 +63,10 @@ class TestPlanParser:
         """Test parsing basic create plan."""
         parser = TerraformPlainTextPlanParser
         result = parser(sample_plan_create).parse()
-        
+
         assert "resource_changes" in result
         assert len(result["resource_changes"]) == 1
-        
+
         rc = result["resource_changes"][0]
         assert rc["address"] == "aws_instance.web"
         assert rc["type"] == "aws_instance"
@@ -73,7 +76,7 @@ class TestPlanParser:
         """Test parsing plan with validation errors."""
         parser = TerraformPlainTextPlanParser
         result = parser(sample_plan_with_errors).parse()
-        
+
         assert "diagnostics" in result
         assert len(result["diagnostics"]) > 0
         assert result.get("plan_status") == "failed"
@@ -82,7 +85,7 @@ class TestPlanParser:
         """Test ANSI code stripping."""
         parser = TerraformPlainTextPlanParser
         result = parser(sample_plan_with_ansi).parse()
-        
+
         # Should parse successfully despite ANSI codes
         assert len(result["resource_changes"]) == 1
         assert result["resource_changes"][0]["address"] == "aws_instance.web"
@@ -91,7 +94,7 @@ class TestPlanParser:
         """Test plan summary extraction."""
         parser = TerraformPlainTextPlanParser
         result = parser(sample_plan_create).parse()
-        
+
         assert "plan_summary" in result
         summary = result["plan_summary"]
         assert summary["add"] == 1
@@ -117,14 +120,15 @@ Terraform will perform the following actions:
 Plan: 1 to add, 0 to change, 0 to destroy.
 """
 
-    def _run_cli(self, args: list, tmp_path=None, stdin=None) -> "subprocess.CompletedProcess":
+    def _run_cli(self, args: list, tmp_path=None, stdin=None):
         """Run terrapyne CLI using the current venv's Python."""
         import subprocess
         import sys
 
         return subprocess.run(
-            [sys.executable, "-m", "terrapyne"] + args,
-            capture_output=True, text=True,
+            [sys.executable, "-m", "terrapyne", *args],
+            capture_output=True,
+            text=True,
             input=stdin,
         )
 
@@ -203,8 +207,9 @@ class TestStructuredLogDetection:
 
         result = TerraformPlainTextPlanParser(self.STRUCTURED_LOG).parse()
         diagnostics = result.get("diagnostics", [])
-        assert any("structured" in str(d).lower() or "json" in str(d).lower()
-                   for d in diagnostics), f"No structured-log diagnostic in: {diagnostics}"
+        assert any(
+            "structured" in str(d).lower() or "json" in str(d).lower() for d in diagnostics
+        ), f"No structured-log diagnostic in: {diagnostics}"
 
     def test_structured_log_resource_changes_empty(self):
         """Structured log input cannot yield resource_changes — must be empty list."""
@@ -240,8 +245,6 @@ Plan: 1 to add, 0 to change, 0 to destroy.
         assert len(result["resource_changes"]) == 1
 
 
-from pathlib import Path
-
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures" / "plan_outputs"
 FIXTURE_FILES = sorted(FIXTURE_DIR.glob("*.txt")) if FIXTURE_DIR.exists() else []
 
@@ -272,12 +275,20 @@ def test_fixture_json_output_is_valid(fixture_file, tmp_path):
     import json
     import subprocess
     import sys
-    from pathlib import Path
 
     result = subprocess.run(
-        [sys.executable, "-m", "terrapyne", "run", "parse-plan",
-         str(fixture_file), "--format", "json"],
-        capture_output=True, text=True,
+        [
+            sys.executable,
+            "-m",
+            "terrapyne",
+            "run",
+            "parse-plan",
+            str(fixture_file),
+            "--format",
+            "json",
+        ],
+        capture_output=True,
+        text=True,
     )
     assert result.returncode == 0, f"exit={result.returncode}\nstderr: {result.stderr}"
     parsed = json.loads(result.stdout)  # raises on invalid JSON
