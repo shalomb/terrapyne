@@ -24,6 +24,7 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "tenacity>=8.2.0",
     "pyyaml>=6.0.1",
+    "python-benedict>=0.33.0",
 ]
 
 [project.scripts]
