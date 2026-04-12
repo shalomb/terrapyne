@@ -10,7 +10,7 @@ from rich.console import Console
 
 from terrapyne.api.client import TFCClient
 from terrapyne.cli.utils import handle_cli_errors, validate_context
-from terrapyne.models.run import Run
+from terrapyne.models.run import Run, RunStatus
 from terrapyne.terrapyne import Terraform
 from terrapyne.utils.rich_tables import render_run_detail, render_runs
 
@@ -182,7 +182,12 @@ def run_show(
         render_run_detail(run, workspace_name=workspace, organization=org, plan=plan)
 
 
-def _stream_run_logs(client: TFCClient, run_id: str) -> Run:
+def _stream_run_logs(
+    client: TFCClient,
+    run_id: str,
+    allow_blocked: bool = False,
+    discard_older: bool = False,
+) -> Run:
     """Stream plan and apply logs for a run until completion."""
     import time
 
@@ -205,58 +210,125 @@ def _stream_run_logs(client: TFCClient, run_id: str) -> Run:
 
         # Print status transitions
         if run.status != last_status:
-            if not run.plan_id and not run.apply_id:
+            if not plan_started and not apply_started:
                 console.print(f"  {run.status.emoji} [dim]{run.status.value}...[/dim]")
             last_status = run.status
 
-        # Queue block detection
+        # Queue block detection & handling
         if run.status == "pending" and not blocked_notified:
             try:
                 # Find the root cause: the EARLIEST run that is not terminal
                 if run.workspace_id:
-                    runs, _ = client.runs.list(run.workspace_id, limit=20)
-                    # Filter non-terminal runs and find the oldest one (last in the list usually)
+                    # Fetch more to see deeper into the queue
+                    runs, _ = client.runs.list(run.workspace_id, limit=100)
                     active_runs = [r for r in runs if not r.status.is_terminal]
                     if len(active_runs) > 1:
-                        root_blocker = active_runs[-1]
-                        if root_blocker.id != run_id:
+                        # Find runs created BEFORE this one
+                        earlier_runs = [r for r in active_runs if r.id != run_id]
+                        if earlier_runs:
+                            # The root blocker is the oldest one (last in the list)
+                            root_blocker = earlier_runs[-1]
+
+                            if discard_older:
+                                console.print(
+                                    f"  [yellow]clearing...[/yellow] Automatically discarding {len(earlier_runs)} earlier run(s) blocking the queue"
+                                )
+                                for r_to_clear in earlier_runs:
+                                    try:
+                                        # Use discard for planned/cost_estimated, cancel for pending/queuing
+                                        if r_to_clear.status in [
+                                            RunStatus.PLANNED,
+                                            RunStatus.COST_ESTIMATED,
+                                            RunStatus.COST_ESTIMATING,
+                                            RunStatus.POLICY_CHECKED,
+                                            RunStatus.POLICY_SOFT_FAILED,
+                                        ]:
+                                            client.runs.discard(
+                                                r_to_clear.id,
+                                                comment="Discarded by terrapyne to unblock newer run",
+                                            )
+                                        else:
+                                            client.runs.cancel(
+                                                r_to_clear.id,
+                                                comment="Canceled by terrapyne to unblock newer run",
+                                            )
+                                    except Exception as e:
+                                        console.print(
+                                            f"  [red]Warning:[/red] Failed to clear run {r_to_clear.id}: {e}"
+                                        )
+
+                                # Reset notification so we can check again after clearing
+                                blocked_notified = False
+                                time.sleep(2)
+                                continue
+
                             console.print(
                                 f"  [yellow]waiting...[/yellow] Workspace is blocked by earlier run [bold]{root_blocker.id}[/bold] ({root_blocker.status.value})"
                             )
                             console.print(
-                                f"  [dim]Tip: Use 'tfc run discard {root_blocker.id}' to clear the queue[/dim]"
+                                f"  [dim]Tip: Use 'tfc run discard {root_blocker.id}' or trigger with --discard-older[/dim]"
                             )
+
+                            if not allow_blocked:
+                                console.print(
+                                    "\n[red]Error:[/red] Exiting because workspace is blocked. Use --wait to stay in queue or --discard-older to clear it."
+                                )
+                                raise typer.Exit(1)
+
                             blocked_notified = True
+            except typer.Exit:
+                raise
             except Exception:
                 pass
 
         # Stream plan logs
-        if run.plan_id:
-            if not plan_started:
-                console.print(f"  {run.status.emoji} [bold]Planning started...[/bold]")
-                plan_started = True
+        if run.plan_id and run.status not in [
+            RunStatus.PENDING,
+            RunStatus.QUEUING,
+            RunStatus.FETCHING,
+            RunStatus.PLAN_QUEUED,
+        ]:
             try:
                 logs = client.runs.get_plan_logs(run.plan_id)
                 new_content = logs[last_plan_pos:]
                 if new_content:
+                    if not plan_started:
+                        console.print(f"  {run.status.emoji} [bold]Planning started...[/bold]")
+                        plan_started = True
                     print(new_content, end="", flush=True)
                     last_plan_pos = len(logs)
             except Exception:
                 pass
 
         # Stream apply logs if applicable
-        if run.apply_id:
-            if not apply_started:
-                console.print(f"\n  {run.status.emoji} [bold]Applying started...[/bold]")
-                apply_started = True
+        if run.apply_id and run.status == RunStatus.APPLYING:
             try:
                 logs = client.runs.get_apply_logs(run.apply_id)
                 new_content = logs[last_apply_pos:]
                 if new_content:
+                    if not apply_started:
+                        console.print(f"\n  {run.status.emoji} [bold]Applying started...[/bold]")
+                        apply_started = True
                     print(new_content, end="", flush=True)
                     last_apply_pos = len(logs)
             except Exception:
                 pass
+
+        # Check if run is waiting for approval
+        if run.is_awaiting_approval and not run.auto_apply:
+            # Final log fetch
+            if run.plan_id:
+                with suppress(Exception):
+                    logs = client.runs.get_plan_logs(run.plan_id)
+                    new_content = logs[last_plan_pos:]
+                    if new_content:
+                        print(new_content, end="", flush=True)
+
+            console.print(f"\n  {run.status.emoji} [bold yellow]Awaiting Approval[/bold yellow]")
+            console.print(
+                f"  [dim]Run has paused at '{run.status.value}'. Approve in TFC or use 'tfc run apply {run.id}' to proceed.[/dim]"
+            )
+            return run
 
         if run.status.is_terminal:
             # Final log fetch to ensure we didn't miss the tail
@@ -300,6 +372,15 @@ def run_plan(
     message: str | None = typer.Option(None, "--message", "-m", help="Run description/message"),
     watch: bool = typer.Option(True, "--watch/--no-watch", help="Watch progress until complete"),
     stream: bool = typer.Option(True, "--stream/--no-stream", help="Stream logs during watch"),
+    wait: bool = typer.Option(
+        False, "--wait", help="If blocked by earlier runs, wait in queue instead of exiting"
+    ),
+    discard_older: bool = typer.Option(
+        False, "--discard-older", help="Automatically discard earlier runs blocking the queue"
+    ),
+    debug_run: bool = typer.Option(
+        False, "--debug-run", help="Enable verbose/debug logging in TFC for this run"
+    ),
 ):
     """Create a new plan (run) for a workspace.
 
@@ -309,8 +390,11 @@ def run_plan(
         # Create plan for current workspace
         terrapyne run plan
 
-        # Create plan with message
-        terrapyne run plan --message "Testing new config"
+        # Create plan with TFC debug mode enabled
+        terrapyne run plan --debug-run
+
+        # Create plan and clear any blocking runs
+        terrapyne run plan --discard-older
 
         # Create plan without watching
         terrapyne run plan --no-watch
@@ -325,9 +409,12 @@ def run_plan(
         console.print(f"[dim]Creating plan for workspace:[/dim] {workspace_name}")
 
         # Create run
-        run = client.runs.create(workspace_id=ws.id, message=message, auto_apply=False)
+        run = client.runs.create(
+            workspace_id=ws.id, message=message, auto_apply=False, debug=debug_run
+        )
 
-        console.print(f"[green]✓[/green] Created run: {run.id}")
+        run_type = "plan-only"
+        console.print(f"[green]✓[/green] Created [bold]{run_type}[/bold] run: {run.id}")
         console.print(f"[dim]Status:[/dim] {run.status.emoji} {run.status.value}")
 
         if not watch:
@@ -338,7 +425,9 @@ def run_plan(
 
         # Watch
         if stream:
-            final_run = _stream_run_logs(client, run.id)
+            final_run = _stream_run_logs(
+                client, run.id, allow_blocked=wait, discard_older=discard_older
+            )
         else:
             console.print("\n[dim]Polling run status...[/dim]")
 
@@ -444,6 +533,12 @@ def run_apply(
     ),
     watch: bool = typer.Option(True, "--watch/--no-watch", help="Watch progress until complete"),
     stream: bool = typer.Option(True, "--stream/--no-stream", help="Stream logs during watch"),
+    wait: bool = typer.Option(
+        False, "--wait", help="If blocked by earlier runs, wait in queue instead of exiting"
+    ),
+    discard_older: bool = typer.Option(
+        False, "--discard-older", help="Automatically discard earlier runs blocking the queue"
+    ),
 ):
     """Apply infrastructure changes.
 
@@ -497,7 +592,9 @@ def run_apply(
 
         # Watch
         if stream:
-            final_run = _stream_run_logs(client, run_id)
+            final_run = _stream_run_logs(
+                client, run_id, allow_blocked=wait, discard_older=discard_older
+            )
         else:
             console.print("\n[dim]Polling apply status...[/dim]")
 
@@ -657,17 +754,32 @@ def run_trigger(
     refresh_only: Annotated[
         bool, typer.Option("--refresh-only", help="Create a refresh-only run")
     ] = False,
-    auto_approve: Annotated[
-        bool, typer.Option("--auto-approve", "-y", help="Skip confirmation")
+    auto_apply: Annotated[
+        bool, typer.Option("--auto-apply", "-y", help="Automatically apply the plan if successful")
     ] = False,
     watch: bool = typer.Option(True, "--watch/--no-watch", help="Watch progress until complete"),
     stream: bool = typer.Option(True, "--stream/--no-stream", help="Stream logs during watch"),
+    wait: bool = typer.Option(
+        False, "--wait", help="If blocked by earlier runs, wait in queue instead of exiting"
+    ),
+    discard_older: bool = typer.Option(
+        False, "--discard-older", help="Automatically discard earlier runs blocking the queue"
+    ),
+    debug_run: bool = typer.Option(
+        False, "--debug-run", help="Enable verbose/debug logging in TFC for this run"
+    ),
 ):
     """Trigger a new run with optional targeting or replacement.
 
     Examples:
         # Trigger normal plan
         terrapyne run trigger my-app-dev
+
+        # Trigger plan with TFC debug mode enabled
+        terrapyne run trigger my-app-dev --debug-run
+
+        # Trigger plan and automatically apply
+        terrapyne run trigger my-app-dev --auto-apply
 
         # Targeted plan for specific resources
         terrapyne run trigger --target aws_instance.web --target aws_iam_role.admin
@@ -684,7 +796,7 @@ def run_trigger(
     # Destroy confirmation
     if (
         destroy
-        and not auto_approve
+        and not auto_apply
         and not typer.confirm(
             f"[bold red]⚠️  WARNING:[/bold red] This will destroy all resources in '{workspace_name}'. Continue?"
         )
@@ -706,16 +818,25 @@ def run_trigger(
         run = client.runs.create(
             workspace_id=ws.id,
             message=message,
-            auto_apply=auto_approve
-            if destroy
-            else False,  # Destroy usually needs auto-apply if confirmed
+            auto_apply=auto_apply,
             is_destroy=destroy,
             target_addrs=target,
             replace_addrs=replace,
             refresh_only=refresh_only,
+            debug=debug_run,
         )
 
-        console.print(f"[green]✓[/green] Created run: {run.id}")
+        # Determine run type for display
+        if destroy:
+            run_type = "destroy"
+        elif refresh_only:
+            run_type = "refresh-only"
+        elif auto_apply:
+            run_type = "plan-and-apply"
+        else:
+            run_type = "plan-only"
+
+        console.print(f"[green]✓[/green] Created [bold]{run_type}[/bold] run: {run.id}")
         console.print(f"[dim]Status:[/dim] {run.status.emoji} {run.status.value}")
 
         if not watch:
@@ -726,7 +847,9 @@ def run_trigger(
 
         # Watch
         if stream:
-            final_run = _stream_run_logs(client, run.id)
+            final_run = _stream_run_logs(
+                client, run.id, allow_blocked=wait, discard_older=discard_older
+            )
         else:
             console.print("\n[dim]Watching run progress...[/dim]")
 
@@ -769,6 +892,12 @@ def run_watch(
         ),
     ] = None,
     stream: bool = typer.Option(True, "--stream/--no-stream", help="Stream logs"),
+    wait: bool = typer.Option(
+        False, "--wait", help="If blocked by earlier runs, wait in queue instead of exiting"
+    ),
+    discard_older: bool = typer.Option(
+        False, "--discard-older", help="Automatically discard earlier runs blocking the queue"
+    ),
 ):
     """Watch run progress until terminal state.
 
@@ -785,7 +914,9 @@ def run_watch(
         console.print(f"[dim]Watching run:[/dim] {run_id}")
 
         if stream:
-            final_run = _stream_run_logs(client, run_id)
+            final_run = _stream_run_logs(
+                client, run_id, allow_blocked=wait, discard_older=discard_older
+            )
         else:
             console.print("\n[dim]Watching run progress...[/dim]")
 

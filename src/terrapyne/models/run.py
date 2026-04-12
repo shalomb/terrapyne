@@ -88,6 +88,16 @@ class RunStatus(StrEnum):
         ]
 
     @property
+    def is_awaiting_approval(self) -> bool:
+        """Check if status indicates the run is waiting for manual approval."""
+        return self in {
+            self.PLANNED,
+            self.COST_ESTIMATED,
+            self.POLICY_CHECKED,
+            self.POLICY_SOFT_FAILED,
+        }
+
+    @property
     def is_terminal(self) -> bool:
         """Check if status is terminal (run complete)."""
         return self in {
@@ -105,13 +115,17 @@ class RunStatus(StrEnum):
 
     @property
     def is_successful(self) -> bool:
-        """Check if status indicates success."""
-        return self in {
-            self.APPLIED,
-            self.PLANNED_AND_FINISHED,
-            self.PLANNED_AND_SAVED,
-            self.POST_APPLY_COMPLETED,
-        }
+        """Check if status indicates success or a successful plan ready for approval."""
+        return (
+            self
+            in {
+                self.APPLIED,
+                self.PLANNED_AND_FINISHED,
+                self.PLANNED_AND_SAVED,
+                self.POST_APPLY_COMPLETED,
+            }
+            or self.is_awaiting_approval
+        )
 
     @property
     def is_error(self) -> bool:
@@ -263,6 +277,11 @@ class Run(BaseModel):
     def resource_destructions(self) -> int | None:
         """Extract resource destructions from plan summary."""
         return self.destructions
+
+    @property
+    def is_awaiting_approval(self) -> bool:
+        """Check if run is waiting for human approval."""
+        return self.status.is_awaiting_approval
 
     @property
     def status_display(self) -> str:

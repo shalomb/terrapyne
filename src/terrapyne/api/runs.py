@@ -132,6 +132,7 @@ class RunsAPI:
         target_addrs: builtins.list[str] | None = None,
         replace_addrs: builtins.list[str] | None = None,
         refresh_only: bool = False,
+        debug: bool = False,
     ) -> Run:
         """Create a new run (plan).
 
@@ -143,6 +144,7 @@ class RunsAPI:
             target_addrs: List of resource addresses to target
             replace_addrs: List of resource addresses to replace (force recreation)
             refresh_only: Create refresh-only run
+            debug: Enable verbose/debug logging in TFC (debugging-mode)
 
         Returns:
             Created Run instance
@@ -170,10 +172,13 @@ class RunsAPI:
             payload["data"]["attributes"]["message"] = message
 
         if target_addrs:
-            payload["data"]["attributes"]["target-addresses"] = target_addrs
+            payload["data"]["attributes"]["target-addrs"] = target_addrs
 
         if replace_addrs:
             payload["data"]["attributes"]["replace-addrs"] = replace_addrs
+
+        if debug:
+            payload["data"]["attributes"]["debugging-mode"] = True
 
         response = self.client.post(path, json_data=payload)
         return Run.from_api_response(response["data"])
