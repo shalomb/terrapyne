@@ -26,13 +26,29 @@ For evaluating live TFC behavior, use the following workspace directory:
 | 10 | Enhanced Run Lifecycle (Trigger types, Queue wait, Approvals) | 🔴 | M | 2.0 | TODO |
 | 14 | Restore test coverage minimum `fail-under` to 80% (Long-term goal) | 🔴 | M | 2.0 | TODO |
 | 20 | [MINOR] Use `RunStatus` enum instead of hardcoded strings | 🟡 | S | 2.0 | ✅ |
-| 9 | `--raw` flag for `state outputs` for single unquoted values | 🟡 | S | 2.0 | TODO |
-| 13 | `--json` full structured output for `workspace show` and `project show` | 🟡 | S | 2.0 | TODO |
+| 9 | `--raw` flag for `state outputs` for single unquoted values | 🟡 | S | 2.0 | ✅ |
+| 13.1 | `--json` output for `workspace show` command | 🟡 | S | 2.0 | TODO |
+| 13.2 | `--json` output for `project show` command | 🟡 | S | 2.0 | TODO |
+| 13.3 | Decomposed: Workspace enrichment (health, active runs, VCS metadata) | 🟡 | M | 1.33 | TODO |
+| 13.4 | Decomposed: Log streaming for run follow | 🟡 | M | 1.33 | TODO |
 | 21 | [MINOR] Consolidate `workspace_show` API calls (Optimization) | 🟡 | M | 1.0 | TODO |
 | 22 | [MINOR] Add strict validation to `Run.from_api_response` | 🟡 | M | 1.0 | ✅ |
 | 6 | `--debug` flag for API call tracing | 🟡 | M | 1.0 | TODO |
 | 1c | `tfc project show` 'single glance' snapshot | 🟡 | M | 1.0 | TODO |
 | 8 | Local file-based response cache | 🟢 | L | 0.3 | TODO |
+
+## Decomposition Notes (April 13, 2026)
+
+The original "workspace enrichment" PR had become a "God PR" with 20+ commits mixing multiple concerns. It's been decomposed into atomic PRs:
+
+| Original | Decomposed | Scope |
+|----------|-----------|-------|
+| PR #43 | #13.1, #13.2 | JSON output (high priority, small effort) |
+| PR #43 | #13.3 | Workspace health enrichment (medium priority) |
+| PR #43 | #13.4 | Log streaming (medium priority, can be separate) |
+| PR #44 | N/A | Code quality merged into PR #45 |
+
+**Strategy**: Implement #13.1, #13.2 first (quick wins, high value). Then reassess #13.3, #13.4 based on user feedback.
 
 ## Task Details (Intent, Context, Success Criteria)
 
