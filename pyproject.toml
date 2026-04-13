@@ -64,6 +64,7 @@ addopts = "-v --cov=src --cov-report=term-missing --cov-report=html --cov-fail-u
 asyncio_mode = "strict"
 markers = [
     "slow: slow terraform integration tests",
+    "integration: integration tests (subprocess, CLI, real I/O)",
     "uat: user acceptance tests (require external TFC credentials)",
     "fast: fast unit tests",
 ]

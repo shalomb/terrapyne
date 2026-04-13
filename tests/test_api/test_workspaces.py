@@ -58,10 +58,45 @@ class TestWorkspaceVariableOperations:
             },
         }
 
-    def test_create_variable_basic(
+    def test_create_variable_sends_post_request(
         self, api, mock_client, sample_workspace_id, sample_variable_response
     ):
-        """Test creating a basic terraform variable."""
+        """Test that create_variable sends POST request to /vars endpoint."""
+        mock_client.post.return_value = {"data": sample_variable_response}
+
+        api.create_variable(
+            workspace_id=sample_workspace_id,
+            key="environment",
+            value="production",
+        )
+
+        mock_client.post.assert_called_once()
+        call_args = mock_client.post.call_args
+        assert call_args[0][0] == "/vars"
+
+    def test_create_variable_payload_structure(
+        self, api, mock_client, sample_workspace_id, sample_variable_response
+    ):
+        """Test that create_variable constructs correct payload structure."""
+        mock_client.post.return_value = {"data": sample_variable_response}
+
+        api.create_variable(
+            workspace_id=sample_workspace_id,
+            key="environment",
+            value="production",
+        )
+
+        payload = mock_client.post.call_args[1]["json_data"]
+        assert payload["data"]["type"] == "vars"
+        assert payload["data"]["attributes"]["key"] == "environment"
+        assert payload["data"]["attributes"]["value"] == "production"
+        assert payload["data"]["attributes"]["category"] == "terraform"
+        assert payload["data"]["relationships"]["workspace"]["data"]["id"] == sample_workspace_id
+
+    def test_create_variable_returns_workspace_variable_object(
+        self, api, mock_client, sample_workspace_id, sample_variable_response
+    ):
+        """Test that create_variable returns WorkspaceVariable instance with correct fields."""
         mock_client.post.return_value = {"data": sample_variable_response}
 
         variable = api.create_variable(
@@ -70,20 +105,6 @@ class TestWorkspaceVariableOperations:
             value="production",
         )
 
-        # Verify API call
-        mock_client.post.assert_called_once()
-        call_args = mock_client.post.call_args
-        assert call_args[0][0] == "/vars"
-
-        # Verify payload structure
-        payload = call_args[1]["json_data"]
-        assert payload["data"]["type"] == "vars"
-        assert payload["data"]["attributes"]["key"] == "environment"
-        assert payload["data"]["attributes"]["value"] == "production"
-        assert payload["data"]["attributes"]["category"] == "terraform"
-        assert payload["data"]["relationships"]["workspace"]["data"]["id"] == sample_workspace_id
-
-        # Verify returned variable
         assert isinstance(variable, WorkspaceVariable)
         assert variable.key == "environment"
         assert variable.value == "production"

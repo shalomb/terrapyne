@@ -102,6 +102,7 @@ class TestPlanParser:
         assert summary["destroy"] == 0
 
 
+@pytest.mark.integration
 class TestParsePlanCLIOutput:
     """Tests for parse-plan CLI JSON output correctness."""
 
