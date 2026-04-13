@@ -1,14 +1,12 @@
 """Team CLI commands."""
 
 import typer
-from rich.console import Console
 from rich.table import Table
 
 from terrapyne.api.client import TFCClient
-from terrapyne.cli.utils import handle_cli_errors, validate_context
+from terrapyne.cli.utils import console, handle_cli_errors, validate_context
 
 app = typer.Typer(help="Team management commands")
-console = Console()
 
 
 @app.callback(invoke_without_command=True)

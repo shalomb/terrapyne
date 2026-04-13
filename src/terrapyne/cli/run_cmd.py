@@ -1,3 +1,5 @@
+"""Run CLI commands."""
+
 from __future__ import annotations
 
 import datetime
@@ -8,15 +10,13 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import typer
-from rich.console import Console
 
 from terrapyne.api.client import TFCClient
-from terrapyne.cli.utils import handle_cli_errors, validate_context
+from terrapyne.cli.utils import console, emit_json, handle_cli_errors, validate_context
 from terrapyne.models.run import Run
 from terrapyne.utils.rich_tables import render_run_detail, render_runs
 
 app = typer.Typer(help="Run management commands")
-console = Console()
 
 
 @app.callback(invoke_without_command=True)
@@ -74,8 +74,6 @@ def run_list(
             return
 
         if output_format == "json":
-            from terrapyne.cli.utils import emit_json
-
             emit_json(runs)
             return
 
@@ -127,8 +125,6 @@ def run_show(
                 plan = client.runs.get_plan(run.plan_id)
 
         if output_format == "json":
-            from terrapyne.cli.utils import emit_json
-
             emit_json(
                 {
                     "id": run.id,
@@ -471,7 +467,7 @@ def run_errors(
     ] = None,
     days: Annotated[int, typer.Option("--days", "-d", help="Look back period in days")] = 1,
     limit: Annotated[
-        int, typer.Option("--limit", "-n", help="Maximum number of errors to show")
+        int, typer.Option("--limit", "-n", help="Maximum number of runs to show")
     ] = 50,
 ):
     """Find errored runs across workspaces."""
@@ -814,7 +810,7 @@ def run_parse_plan(
     if plan_file is None or str(plan_file) == "-":
         plan_text = sys.stdin.read()
     elif not plan_file.exists():
-        Console(stderr=True).print(f"[red]❌ Plan file not found:[/red] {plan_file}")
+        console.print(f"[red]❌ Plan file not found:[/red] {plan_file}")
         raise typer.Exit(1)
     else:
         with open(plan_file) as f:

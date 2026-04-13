@@ -6,16 +6,14 @@ import os
 import sys
 
 import typer
-from rich.console import Console
 
 from terrapyne.api.client import TFCClient
 from terrapyne.api.vcs import VCSAPI
 from terrapyne.api.workspaces import WorkspaceAPI
-from terrapyne.cli.utils import handle_cli_errors, validate_context
+from terrapyne.cli.utils import console, handle_cli_errors, validate_context
 from terrapyne.utils.rich_tables import render_vcs_detail, render_vcs_repos
 
 app = typer.Typer(help="VCS operations (repository, branch management)")
-console = Console()
 
 
 @app.callback(invoke_without_command=True)

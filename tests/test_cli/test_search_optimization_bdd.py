@@ -11,13 +11,16 @@ from terrapyne.models.workspace import Workspace
 runner = CliRunner()
 
 
-@scenario("../features/search_optimization.feature", "Workspace list uses wildcard search parameter")
+@scenario(
+    "../features/search_optimization.feature", "Workspace list uses wildcard search parameter"
+)
 def test_workspace_wildcard_search():
     pass
 
 
 @scenario(
-    "../features/search_optimization.feature", "Workspace list without search warns about large result sets"
+    "../features/search_optimization.feature",
+    "Workspace list without search warns about large result sets",
 )
 def test_workspace_list_no_search_hint():
     pass
@@ -51,9 +54,15 @@ def list_workspaces_with_search(pattern):
         mock_client.return_value.__enter__.return_value = mock_instance
 
         ws = Workspace.model_construct(
-            id="ws-1", name="prod-app", terraform_version="1.9.0",
-            created_at=None, updated_at=None, auto_apply=False,
-            execution_mode="remote", locked=False, tag_names=[],
+            id="ws-1",
+            name="prod-app",
+            terraform_version="1.9.0",
+            created_at=None,
+            updated_at=None,
+            auto_apply=False,
+            execution_mode="remote",
+            locked=False,
+            tag_names=[],
         )
         mock_instance.workspaces.list.return_value = (iter([ws]), 1)
 
@@ -85,9 +94,15 @@ def list_workspaces_no_search():
         mock_client.return_value.__enter__.return_value = mock_instance
 
         ws = Workspace.model_construct(
-            id="ws-1", name="some-ws", terraform_version="1.9.0",
-            created_at=None, updated_at=None, auto_apply=False,
-            execution_mode="remote", locked=False, tag_names=[],
+            id="ws-1",
+            name="some-ws",
+            terraform_version="1.9.0",
+            created_at=None,
+            updated_at=None,
+            auto_apply=False,
+            execution_mode="remote",
+            locked=False,
+            tag_names=[],
         )
         mock_instance.workspaces.list.return_value = (iter([ws]), 1)
 
