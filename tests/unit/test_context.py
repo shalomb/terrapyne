@@ -22,72 +22,75 @@ class TestGetContextFromTFState:
         result = get_context_from_tfstate(tmp_path)
         assert result == (None, None, None)
 
-    def test_valid_tfstate_with_workspace_name(self, tmp_path):
-        """Test reading valid tfstate with workspace name."""
-        terraform_dir = tmp_path / ".terraform"
-        terraform_dir.mkdir()
-
-        tfstate_data = {
-            "backend": {
-                "config": {
+    @pytest.mark.parametrize(
+        "backend_config,expected_workspace,expected_org,expected_hostname",
+        [
+            # With all fields
+            (
+                {
                     "organization": "Takeda",
                     "hostname": "app.terraform.io",
                     "workspaces": {"name": "my-workspace"},
-                }
-            }
-        }
-
-        tfstate_file = terraform_dir / "terraform.tfstate"
-        tfstate_file.write_text(json.dumps(tfstate_data))
-
-        workspace, org, hostname = get_context_from_tfstate(tmp_path)
-
-        assert workspace == "my-workspace"
-        assert org == "Takeda"
-        assert hostname == "app.terraform.io"
-
-    def test_valid_tfstate_without_workspace(self, tmp_path):
-        """Test reading tfstate without workspace name."""
-        terraform_dir = tmp_path / ".terraform"
-        terraform_dir.mkdir()
-
-        tfstate_data = {
-            "backend": {
-                "config": {
+                },
+                "my-workspace",
+                "Takeda",
+                "app.terraform.io",
+            ),
+            # Without workspace name
+            (
+                {
                     "organization": "MyOrg",
                     "hostname": "tfe.example.com",
-                }
-            }
-        }
+                },
+                None,
+                "MyOrg",
+                "tfe.example.com",
+            ),
+            # Missing hostname (should default)
+            (
+                {
+                    "organization": "Takeda",
+                    "workspaces": {"name": "test"},
+                },
+                "test",
+                "Takeda",
+                "app.terraform.io",
+            ),
+            # Workspace with prefix (not name)
+            (
+                {
+                    "organization": "Takeda",
+                    "workspaces": {"prefix": "env-"},
+                },
+                None,
+                "Takeda",
+                "app.terraform.io",
+            ),
+        ],
+        ids=[
+            "valid_tfstate_with_all_fields",
+            "valid_tfstate_without_workspace",
+            "hostname_defaults_to_app_terraform_io",
+            "workspaces_as_prefix_not_name",
+        ],
+    )
+    def test_valid_tfstate_variants(
+        self, tmp_path, backend_config, expected_workspace, expected_org, expected_hostname
+    ):
+        """Test reading tfstate with various backend configurations."""
+        terraform_dir = tmp_path / ".terraform"
+        terraform_dir.mkdir()
+
+        tfstate_data = {"backend": {"config": backend_config}}
 
         tfstate_file = terraform_dir / "terraform.tfstate"
         tfstate_file.write_text(json.dumps(tfstate_data))
 
         workspace, org, hostname = get_context_from_tfstate(tmp_path)
 
-        assert workspace is None
-        assert org == "MyOrg"
-        assert hostname == "tfe.example.com"
-
-    def test_tfstate_defaults_hostname(self, tmp_path):
-        """Test that hostname defaults to app.terraform.io."""
-        terraform_dir = tmp_path / ".terraform"
-        terraform_dir.mkdir()
-
-        tfstate_data = {
-            "backend": {
-                "config": {
-                    "organization": "Takeda",
-                    "workspaces": {"name": "test"},
-                }
-            }
-        }
-
-        tfstate_file = terraform_dir / "terraform.tfstate"
-        tfstate_file.write_text(json.dumps(tfstate_data))
-
-        _, _, hostname = get_context_from_tfstate(tmp_path)
-        assert hostname == "app.terraform.io"
+        assert workspace == expected_workspace
+        assert org == expected_org
+        assert hostname == expected_hostname
 
     def test_tfstate_invalid_json(self, tmp_path):
         """Test handling of invalid JSON in tfstate."""
