@@ -16,12 +16,12 @@ repos:
         pass_filenames: false
         types: [python]
 
-  # --- Pre-push (outer loop: every push) ---
+  # --- Pre-push (inner loop: fast checks only) ---
   - repo: local
     hooks:
-      - id: test-ci
-        name: test-ci (outer loop)
-        entry: make test-ci
+      - id: test-fast
+        name: test-fast (lint + typecheck)
+        entry: make test-fast
         language: system
         pass_filenames: false
         stages: [pre-push]
