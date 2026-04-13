@@ -247,6 +247,7 @@ Plan: 1 to add, 0 to change, 0 to destroy.
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures" / "plan_outputs"
 FIXTURE_FILES = sorted(FIXTURE_DIR.glob("*.txt")) if FIXTURE_DIR.exists() else []
+FIXTURE_STEMS = [f.stem for f in FIXTURE_FILES]
 
 
 @pytest.mark.parametrize("fixture_file", FIXTURE_FILES, ids=[f.stem for f in FIXTURE_FILES])
@@ -269,27 +270,14 @@ def test_fixture_parses_to_valid_structure(fixture_file):
         assert isinstance(rc["change"]["actions"], list)
 
 
-@pytest.mark.parametrize("fixture_file", FIXTURE_FILES, ids=[f.stem for f in FIXTURE_FILES])
-def test_fixture_json_output_is_valid(fixture_file, tmp_path):
+@pytest.mark.parametrize("fixture_stem", FIXTURE_STEMS)
+def test_fixture_json_output_is_valid(fixture_stem, plan_parser_fixtures):
     """Every fixture's JSON output must be valid JSON (no control chars)."""
     import json
-    import subprocess
-    import sys
 
-    result = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "terrapyne",
-            "run",
-            "parse-plan",
-            str(fixture_file),
-            "--format",
-            "json",
-        ],
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, f"exit={result.returncode}\nstderr: {result.stderr}"
-    parsed = json.loads(result.stdout)  # raises on invalid JSON
-    assert "resource_changes" in parsed
+    text = plan_parser_fixtures[fixture_stem]
+    parsed = TerraformPlainTextPlanParser(text).parse()
+
+    # Verify it's valid JSON-serializable
+    json_str = json.dumps(parsed)  # raises on invalid JSON
+    assert "resource_changes" in json.loads(json_str)

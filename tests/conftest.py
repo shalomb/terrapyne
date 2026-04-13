@@ -37,6 +37,23 @@ def fixtures_dir(tmp_path_factory) -> Path:
     return Path(__file__).parent / "fixtures"
 
 
+@pytest.fixture(scope="session")
+def plan_parser_fixtures() -> dict[str, str]:
+    """Cache all plan fixture files keyed by stem.
+
+    Returns dict mapping fixture stem (e.g., 'basic_create.stdout') to file content.
+    """
+    fixture_dir = Path(__file__).parent / "fixtures" / "plan_outputs"
+    fixtures = {}
+
+    if fixture_dir.exists():
+        for fixture_file in sorted(fixture_dir.glob("*.txt")):
+            stem = fixture_file.stem
+            fixtures[stem] = fixture_file.read_text()
+
+    return fixtures
+
+
 @pytest.fixture
 def temp_terraform_dir(tmp_path: Path) -> Path:
     """Create temporary directory for Terraform files."""
