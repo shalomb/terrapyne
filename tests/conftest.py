@@ -17,6 +17,23 @@ from pathlib import Path
 
 import pytest
 
+from tests.fixtures.factories import (
+    error_forbidden,
+    error_not_found,
+    error_unauthorized,
+    project_list_response,
+    project_response,
+    run_list_response,
+    run_response,
+    team_project_access_list_response,
+    team_project_access_response,
+    team_response,
+    variable_response,
+    workspace_list_response,
+    workspace_response,
+    workspace_variables_response,
+)
+
 # Add src directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
@@ -66,6 +83,91 @@ def temp_terraform_dir(tmp_path: Path) -> Path:
 
 # Register API response fixtures
 pytest_plugins = ["tests.fixtures.api_responses"]
+
+
+# Backwards-compatible fixtures (wrap factories for existing test code)
+@pytest.fixture
+def factory_workspace_response():
+    """Factory fixture for workspace responses."""
+    return workspace_response
+
+
+@pytest.fixture
+def factory_workspace_list_response():
+    """Factory fixture for workspace list responses."""
+    return workspace_list_response
+
+
+@pytest.fixture
+def factory_variable_response():
+    """Factory fixture for variable responses."""
+    return variable_response
+
+
+@pytest.fixture
+def factory_workspace_variables_response():
+    """Factory fixture for workspace variable list responses."""
+    return workspace_variables_response
+
+
+@pytest.fixture
+def factory_run_response():
+    """Factory fixture for run responses."""
+    return run_response
+
+
+@pytest.fixture
+def factory_run_list_response():
+    """Factory fixture for run list responses."""
+    return run_list_response
+
+
+@pytest.fixture
+def factory_project_response():
+    """Factory fixture for project responses."""
+    return project_response
+
+
+@pytest.fixture
+def factory_project_list_response():
+    """Factory fixture for project list responses."""
+    return project_list_response
+
+
+@pytest.fixture
+def factory_team_response():
+    """Factory fixture for team responses."""
+    return team_response
+
+
+@pytest.fixture
+def factory_team_project_access_response():
+    """Factory fixture for team project access responses."""
+    return team_project_access_response
+
+
+@pytest.fixture
+def factory_team_project_access_list_response():
+    """Factory fixture for team project access list responses."""
+    return team_project_access_list_response
+
+
+@pytest.fixture
+def factory_error_not_found():
+    """Factory fixture for not found errors."""
+    return error_not_found
+
+
+@pytest.fixture
+def factory_error_unauthorized():
+    """Factory fixture for unauthorized errors."""
+    return error_unauthorized
+
+
+@pytest.fixture
+def factory_error_forbidden():
+    """Factory fixture for forbidden errors."""
+    return error_forbidden
 
 
 def pytest_configure(config):
