@@ -4,6 +4,8 @@ import json
 import os
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from terrapyne.utils.context import (
     get_context_from_tfstate,
     get_workspace_context,
@@ -20,72 +22,75 @@ class TestGetContextFromTFState:
         result = get_context_from_tfstate(tmp_path)
         assert result == (None, None, None)
 
-    def test_valid_tfstate_with_workspace_name(self, tmp_path):
-        """Test reading valid tfstate with workspace name."""
-        terraform_dir = tmp_path / ".terraform"
-        terraform_dir.mkdir()
-
-        tfstate_data = {
-            "backend": {
-                "config": {
+    @pytest.mark.parametrize(
+        "backend_config,expected_workspace,expected_org,expected_hostname",
+        [
+            # With all fields
+            (
+                {
                     "organization": "Takeda",
                     "hostname": "app.terraform.io",
                     "workspaces": {"name": "my-workspace"},
-                }
-            }
-        }
-
-        tfstate_file = terraform_dir / "terraform.tfstate"
-        tfstate_file.write_text(json.dumps(tfstate_data))
-
-        workspace, org, hostname = get_context_from_tfstate(tmp_path)
-
-        assert workspace == "my-workspace"
-        assert org == "Takeda"
-        assert hostname == "app.terraform.io"
-
-    def test_valid_tfstate_without_workspace(self, tmp_path):
-        """Test reading tfstate without workspace name."""
-        terraform_dir = tmp_path / ".terraform"
-        terraform_dir.mkdir()
-
-        tfstate_data = {
-            "backend": {
-                "config": {
+                },
+                "my-workspace",
+                "Takeda",
+                "app.terraform.io",
+            ),
+            # Without workspace name
+            (
+                {
                     "organization": "MyOrg",
                     "hostname": "tfe.example.com",
-                }
-            }
-        }
+                },
+                None,
+                "MyOrg",
+                "tfe.example.com",
+            ),
+            # Missing hostname (should default)
+            (
+                {
+                    "organization": "Takeda",
+                    "workspaces": {"name": "test"},
+                },
+                "test",
+                "Takeda",
+                "app.terraform.io",
+            ),
+            # Workspace with prefix (not name)
+            (
+                {
+                    "organization": "Takeda",
+                    "workspaces": {"prefix": "env-"},
+                },
+                None,
+                "Takeda",
+                "app.terraform.io",
+            ),
+        ],
+        ids=[
+            "valid_tfstate_with_all_fields",
+            "valid_tfstate_without_workspace",
+            "hostname_defaults_to_app_terraform_io",
+            "workspaces_as_prefix_not_name",
+        ],
+    )
+    def test_valid_tfstate_variants(
+        self, tmp_path, backend_config, expected_workspace, expected_org, expected_hostname
+    ):
+        """Test reading tfstate with various backend configurations."""
+        terraform_dir = tmp_path / ".terraform"
+        terraform_dir.mkdir()
+
+        tfstate_data = {"backend": {"config": backend_config}}
 
         tfstate_file = terraform_dir / "terraform.tfstate"
         tfstate_file.write_text(json.dumps(tfstate_data))
 
         workspace, org, hostname = get_context_from_tfstate(tmp_path)
 
-        assert workspace is None
-        assert org == "MyOrg"
-        assert hostname == "tfe.example.com"
-
-    def test_tfstate_defaults_hostname(self, tmp_path):
-        """Test that hostname defaults to app.terraform.io."""
-        terraform_dir = tmp_path / ".terraform"
-        terraform_dir.mkdir()
-
-        tfstate_data = {
-            "backend": {
-                "config": {
-                    "organization": "Takeda",
-                    "workspaces": {"name": "test"},
-                }
-            }
-        }
-
-        tfstate_file = terraform_dir / "terraform.tfstate"
-        tfstate_file.write_text(json.dumps(tfstate_data))
-
-        _, _, hostname = get_context_from_tfstate(tmp_path)
-        assert hostname == "app.terraform.io"
+        assert workspace == expected_workspace
+        assert org == expected_org
+        assert hostname == expected_hostname
 
     def test_tfstate_invalid_json(self, tmp_path):
         """Test handling of invalid JSON in tfstate."""
@@ -234,75 +239,70 @@ class TestGetWorkspaceContext:
 class TestResolveWorkspace:
     """Test resolve_workspace function."""
 
-    def test_explicit_workspace_arg(self):
-        """Test that explicit workspace argument is returned."""
-        result = resolve_workspace("explicit-workspace")
-        assert result == "explicit-workspace"
-
-    def test_fallback_to_context(self):
-        """Test fallback to detected context."""
+    @pytest.mark.parametrize(
+        "arg,context,expected",
+        [
+            # Explicit argument always wins
+            ("explicit-workspace", (None, None, None), "explicit-workspace"),
+            ("my-workspace", ("detected", "org", "host"), "my-workspace"),
+            # Fallback to detected context
+            (None, ("detected-workspace", "Org", "app.terraform.io"), "detected-workspace"),
+            # No workspace detected
+            (None, (None, None, None), None),
+        ],
+        ids=[
+            "explicit_arg_takes_precedence",
+            "explicit_arg_overrides_context",
+            "fallback_to_context",
+            "no_workspace_detected",
+        ],
+    )
+    def test_resolve_workspace(self, arg, context, expected):
+        """Test resolve_workspace with various argument and context combinations."""
         with patch(
             "terrapyne.utils.context.get_workspace_context",
-            return_value=("detected-workspace", "Org", "app.terraform.io"),
+            return_value=context,
         ):
-            result = resolve_workspace(None)
+            result = resolve_workspace(arg)
 
-        assert result == "detected-workspace"
-
-    def test_no_workspace_detected(self):
-        """Test when no workspace can be resolved."""
-        with patch(
-            "terrapyne.utils.context.get_workspace_context", return_value=(None, None, None)
-        ):
-            result = resolve_workspace(None)
-
-        assert result is None
+        assert result == expected
 
 
 class TestResolveOrganization:
     """Test resolve_organization function."""
 
-    def test_explicit_org_arg(self):
-        """Test that explicit organization argument is returned."""
-        result = resolve_organization("explicit-org")
-        assert result == "explicit-org"
-
-    def test_fallback_to_env_var(self):
-        """Test fallback to TFC_ORG environment variable."""
-        with patch.dict(os.environ, {"TFC_ORG": "env-org"}):
-            result = resolve_organization(None)
-
-        assert result == "env-org"
-
-    def test_fallback_to_context(self):
-        """Test fallback to detected context when no env var."""
-        with patch.dict(os.environ, {}, clear=True):
+    @pytest.mark.parametrize(
+        "arg,env_var,context,expected",
+        [
+            # Explicit argument always wins
+            ("explicit-org", None, (None, None, None), "explicit-org"),
+            ("my-org", "env-org", ("ws", "ctx-org", "host"), "my-org"),
+            # Fallback to environment variable
+            (None, "env-org", (None, None, None), "env-org"),
+            # Fallback to context when no env var
+            (None, None, ("workspace", "context-org", "app.terraform.io"), "context-org"),
+            # Env var takes precedence over context
+            (None, "env-org", ("workspace", "context-org", "app.terraform.io"), "env-org"),
+            # No organization detected
+            (None, None, (None, None, None), None),
+        ],
+        ids=[
+            "explicit_arg_takes_precedence",
+            "explicit_arg_over_env_and_context",
+            "fallback_to_env_var",
+            "fallback_to_context",
+            "env_var_over_context",
+            "no_organization_detected",
+        ],
+    )
+    def test_resolve_organization(self, arg, env_var, context, expected):
+        """Test resolve_organization with various argument, env, and context combinations."""
+        env_dict = {"TFC_ORG": env_var} if env_var else {}
+        with patch.dict(os.environ, env_dict, clear=True):
             with patch(
                 "terrapyne.utils.context.get_workspace_context",
-                return_value=("workspace", "context-org", "app.terraform.io"),
+                return_value=context,
             ):
-                result = resolve_organization(None)
+                result = resolve_organization(arg)
 
-        assert result == "context-org"
-
-    def test_no_organization_detected(self):
-        """Test when no organization can be resolved."""
-        with patch.dict(os.environ, {}, clear=True):
-            with patch(
-                "terrapyne.utils.context.get_workspace_context",
-                return_value=(None, None, None),
-            ):
-                result = resolve_organization(None)
-
-        assert result is None
-
-    def test_env_var_takes_precedence_over_context(self):
-        """Test that TFC_ORG env var takes precedence over detected context."""
-        with patch.dict(os.environ, {"TFC_ORG": "env-org"}):
-            with patch(
-                "terrapyne.utils.context.get_workspace_context",
-                return_value=("workspace", "context-org", "app.terraform.io"),
-            ):
-                result = resolve_organization(None)
-
-        assert result == "env-org"
+        assert result == expected

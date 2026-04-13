@@ -81,53 +81,39 @@ def _make_client_mock() -> MagicMock:
 class TestListTeamsServerSideFiltering:
     """list_teams() must pass filter params to the API rather than filter client-side."""
 
-    def test_no_filter_sends_no_params(self):
+    @pytest.mark.parametrize(
+        "search,names,expected_params",
+        [
+            # No filters
+            (None, None, {}),
+            # Search only (forwarded as q parameter)
+            ("platform", None, {"q": "platform"}),
+            # Names only (forwarded as filter[names])
+            (
+                None,
+                ["platform-developer", "platform-viewer"],
+                {"filter[names]": "platform-developer,platform-viewer"},
+            ),
+            # Both filters combined
+            ("platform", ["platform-admin"], {"q": "platform", "filter[names]": "platform-admin"}),
+        ],
+        ids=[
+            "no_filters",
+            "search_only",
+            "names_only",
+            "search_and_names_combined",
+        ],
+    )
+    def test_list_teams_filters(self, search, names, expected_params):
+        """Test list_teams parameter handling for various filter combinations."""
         client = _make_client_mock()
         client.paginate_with_meta.return_value = (iter([]), 0)
 
         api = TeamsAPI(client)
-        api.list_teams(organization="my-org")
-
-        client.paginate_with_meta.assert_called_once_with("/organizations/my-org/teams", params={})
-
-    def test_search_sends_q_param(self):
-        """search= must be forwarded as q= (server-side substring search)."""
-        client = _make_client_mock()
-        client.paginate_with_meta.return_value = (iter([]), 0)
-
-        api = TeamsAPI(client)
-        api.list_teams(organization="my-org", search="platform")
+        api.list_teams(organization="my-org", search=search, names=names)
 
         client.paginate_with_meta.assert_called_once_with(
-            "/organizations/my-org/teams", params={"q": "platform"}
-        )
-
-    def test_names_sends_filter_names_param(self):
-        """names= must be forwarded as filter[names]= (server-side exact match)."""
-        client = _make_client_mock()
-        client.paginate_with_meta.return_value = (iter([]), 0)
-
-        api = TeamsAPI(client)
-        api.list_teams(
-            organization="my-org",
-            names=["platform-developer", "platform-viewer"],
-        )
-
-        client.paginate_with_meta.assert_called_once_with(
-            "/organizations/my-org/teams",
-            params={"filter[names]": "platform-developer,platform-viewer"},
-        )
-
-    def test_search_and_names_can_be_combined(self):
-        client = _make_client_mock()
-        client.paginate_with_meta.return_value = (iter([]), 0)
-
-        api = TeamsAPI(client)
-        api.list_teams(organization="my-org", search="platform", names=["platform-admin"])
-
-        client.paginate_with_meta.assert_called_once_with(
-            "/organizations/my-org/teams",
-            params={"q": "platform", "filter[names]": "platform-admin"},
+            "/organizations/my-org/teams", params=expected_params
         )
 
     def test_returns_team_instances(self):
