@@ -60,9 +60,10 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "-v --cov=terrapyne --cov-report=term-missing --cov-report=html --cov-fail-under=65"
+addopts = "-v --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=71 -m 'not slow and not uat'"
 asyncio_mode = "strict"
 markers = [
+    "slow: slow terraform integration tests",
     "uat: user acceptance tests (require external TFC credentials)",
     "fast: fast unit tests",
 ]
