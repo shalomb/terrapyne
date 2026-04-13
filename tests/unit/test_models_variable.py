@@ -68,3 +68,78 @@ class TestWorkspaceVariableModel:
 
         assert var.hcl is True
         assert var.category == "terraform"
+
+    def test_workspace_variable_display_value_masked(self):
+        """Test display_value property masks sensitive variables."""
+        api_response = {
+            "id": "var-secret",
+            "type": "vars",
+            "attributes": {
+                "key": "db_password",
+                "value": "super-secret-password",
+                "category": "env",
+                "sensitive": True,
+                "hcl": False,
+            },
+        }
+
+        var = WorkspaceVariable.from_api_response(api_response)
+
+        assert var.display_value == "••••••••"
+        assert var.value == "super-secret-password"  # actual value unchanged
+
+    def test_workspace_variable_display_value_visible(self):
+        """Test display_value property shows non-sensitive values."""
+        api_response = {
+            "id": "var-visible",
+            "type": "vars",
+            "attributes": {
+                "key": "app_name",
+                "value": "my-app",
+                "category": "env",
+                "sensitive": False,
+                "hcl": False,
+            },
+        }
+
+        var = WorkspaceVariable.from_api_response(api_response)
+
+        assert var.display_value == "my-app"
+
+    def test_workspace_variable_is_env_var(self):
+        """Test is_env_var property."""
+        api_response = {
+            "id": "var-env",
+            "type": "vars",
+            "attributes": {
+                "key": "path",
+                "value": "/usr/bin",
+                "category": "env",
+                "sensitive": False,
+                "hcl": False,
+            },
+        }
+
+        var = WorkspaceVariable.from_api_response(api_response)
+
+        assert var.is_env_var is True
+        assert var.is_terraform_var is False
+
+    def test_workspace_variable_is_terraform_var(self):
+        """Test is_terraform_var property."""
+        api_response = {
+            "id": "var-tf",
+            "type": "vars",
+            "attributes": {
+                "key": "instance_count",
+                "value": "3",
+                "category": "terraform",
+                "sensitive": False,
+                "hcl": False,
+            },
+        }
+
+        var = WorkspaceVariable.from_api_response(api_response)
+
+        assert var.is_terraform_var is True
+        assert var.is_env_var is False
