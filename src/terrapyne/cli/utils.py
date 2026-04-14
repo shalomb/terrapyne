@@ -49,8 +49,11 @@ def validate_context(
     org = resolve_organization(organization)
     if not org:
         raise ValueError(
-            "No organization specified and could not detect from context. "
-            "Specify: --organization ORGANIZATION or run in terraform directory."
+            "No organization specified and could not detect from context.\n"
+            "Specify one of:\n"
+            "  1. --organization ORGANIZATION flag\n"
+            "  2. TFC_ORG environment variable (e.g., export TFC_ORG=Takeda)\n"
+            "  3. Run in a terraform directory with .terraform/terraform.tfstate or terraform.tf"
         )
 
     ws = resolve_workspace(workspace)
