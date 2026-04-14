@@ -1,129 +1,115 @@
-# 🐢 Terrapyne
+# Terrapyne
 
-**The high-performance CLI & Python SDK for Terraform Cloud.**
+A Python CLI and SDK for Terraform Cloud.
 
-Terrapyne (Terra + Py + Spine) is a robust orchestrator designed for DevOps engineers who need more than what the standard TFC web UI or CLI provides. It combines a rich, interactive terminal experience with a clean, Pydantic-powered SDK.
+Terraform Cloud is great, but sometimes you just want to check a workspace status from your terminal or write a quick Python script to automate a tedious task without fighting raw REST APIs. Terrapyne gives you a clean CLI for daily ad-hoc work and a Pydantic-typed SDK for building heavier automation.
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![TFC Supported](https://img.shields.io/badge/TFC-Supported-orange.svg)](https://app.terraform.io/)
 
----
+## Use Cases
 
-## ✨ Features
+Depending on what you're trying to do, you can use Terrapyne in a few different ways:
 
-- 📊 **Workspace Dashboard:** Instant "Health & Activity Snapshot" for any workspace.
-- 📜 **Log Streaming:** Follow Terraform runs in real-time with beautiful `rich` terminal output.
-- 🔍 **Plan Parser:** Deep-dive into Terraform plan files without leaving the CLI.
-- 💰 **Cost Analysis:** Integrated cost estimates and trends for your infrastructure.
-- 📦 **Pydantic Models:** A fully-typed SDK that makes building TFC automation a breeze.
-- 🔌 **VCS Integration:** Manage VCS connections, webhooks, and commit metadata.
-- 🛠️ **DevOps First:** JSON output for every command, making it perfectly pipeable for automation.
+**Daily CLI driver**
+If you're tired of clicking through the TFC UI, the `tfc` command lets you check workspace health, list runs, and stream plan logs directly in your terminal.
 
----
+**CI/CD pipelines**
+Every CLI command supports `--format json`. You can pipe the output straight into `jq` to extract exactly what you need for your GitHub Actions or GitLab jobs.
 
-## 🚀 Quick Start
+**Custom automation**
+When bash scripts aren't enough, the Python SDK gives you typed models and API clients to build complex workflows—like bulk-updating workspace variables, triggering runs, or parsing plan outputs programmatically.
 
-### Installation
+## Installation
 
 ```bash
-# Using uv (recommended)
+# If you use uv (recommended)
 uv add terrapyne
 
-# Using pip
+# Or plain pip
 pip install terrapyne
 ```
 
-### CLI Usage
+## CLI Usage
 
-Terrapyne installs the `tfc` (and `terrapyne`) command-line tool.
+When you install the package, you get the `tfc` command-line tool.
 
 ```bash
-# 1. View workspace health at a glance
+# Check what's happening in a workspace
 tfc workspace show my-app-prod
 
-# 2. List recent runs with status and duration
+# See recent runs
 tfc run list -w my-app-prod --limit 5
 
-# 3. Stream logs for a specific run
+# Follow the logs for a specific run in real-time
 tfc run show run-123abc456 --stream
 
-# 4. Get machine-readable output for your scripts
+# Grab raw data for a shell script
 tfc project list --format json | jq '.[].name'
 ```
 
-### SDK Usage
+## SDK Usage
 
-Building your own TFC automation? The SDK is built for speed and type safety.
+If you're writing your own tooling, the SDK handles the API boilerplate and gives you typed objects back.
 
 ```python
 from terrapyne import TFCClient
 
 with TFCClient(organization="my-org") as client:
-    # Get workspace health
+    # Check workspace status
     ws = client.workspaces.get("web-frontend")
     print(f"Status: {ws.status}")
 
-    # List active runs
+    # List recent successful runs
     runs, total = client.runs.list(workspace_id=ws.id, status="applied")
     for run in runs:
         print(f"Run {run.id}: {run.message}")
 ```
 
-### Advanced Automation
+### Orchestrating Workflows
 
-Terrapyne makes it easy to orchestrate complex workflows, like discovering a workspace's VCS repository and triggering a plan with real-time status polling.
+For more involved tasks, you can string together different API calls. Here's how you might discover where a workspace's code lives, trigger a plan, and wait for it to finish.
 
 ```python
 from terrapyne import TFCClient
 
 with TFCClient(organization="my-org") as client:
-    # 1. Discover VCS details for a workspace
+    # Discover the VCS connection
     vcs = client.vcs.get_workspace_vcs(workspace_id="ws-123")
     if vcs:
         print(f"Connected to: {vcs.identifier} ({vcs.branch})")
 
-    # 2. Trigger a new plan with a custom message
+    # Trigger a plan with debug mode on
     run = client.runs.create(
         workspace_id="ws-123",
         message="SDK-triggered infrastructure update",
-        debug=True  # Enables TFC debugging-mode
+        debug=True
     )
-    print(f"Run triggered: {run.id}")
+    print(f"Started run: {run.id}")
 
-    # 3. Poll until the plan is ready or fails
+    # Block until the plan completes or fails
     final_run = client.runs.poll_until_complete(
         run.id,
         callback=lambda r: print(f"Current Status: {r.status.value}")
     )
 
     if final_run.status.value == "planned":
-        print("✅ Plan complete! Review the changes in TFC.")
+        print("Plan finished. Ready for review.")
 ```
 
----
+## Documentation
 
-## 📚 Documentation
+If you want to dig into how this is built or how to use specific features:
 
-For deep-dives into the architecture, design decisions (ADRs), and user guides:
+- [Architecture Decision Records (ADRs)](docs/explanation/architecture/) — Why we made certain design choices.
+- [SDK Guide](docs/reference/sdk.md) — Reference for the Python library.
+- [BDD Specifications](docs/explanation/bdd-specifications.md) — The behavior specifications driving the features.
+- [Plan Parser Analysis](docs/explanation/plan-parser.md) — Details on how we extract data from plain text plans.
 
-- [Architecture Decision Records (ADRs)](docs/explanation/architecture/) — Why we built it this way.
-- [SDK Guide](docs/reference/sdk.md) — Exhaustive SDK reference.
-- [BDD Specifications](docs/explanation/bdd-specifications.md) — Living documentation of features.
-- [Plan Parser Analysis](docs/explanation/plan-parser.md) — Deep-dive into plan parsing.
+## Engineering Standards
 
----
+We try to hold ourselves to a strict standard here. The project relies heavily on Farley TDD (Red-Green-Refactor cycles), Adzic BDD (Gherkin feature files for real-world behaviors), and Atomic Commits. 
 
-## 🏗️ Engineering Standards
-
-Terrapyne is built with extreme engineering rigor. We follow:
-
-- **Farley TDD:** Every feature is built using strict Red-Green-Refactor cycles.
-- **Adzic BDD:** User behaviors are defined in Gherkin `.feature` files to ensure they meet real-world needs.
-- **Atomic Commits:** Every change is self-contained, tested, and documented.
-
----
-
-## 📄 License
+## License
 
 Licensed under the [Apache License, Version 2.0](LICENSE).
