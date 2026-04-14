@@ -156,6 +156,30 @@ def workspace_show(
             )
 
         if output_format == "json":
+            # Fetch VCS and variables for enriched JSON output
+            vcs = None
+            variables = None
+
+            try:
+                vcs = client.vcs.get_workspace_vcs(ws.id)
+            except httpx.HTTPStatusError:
+                pass
+
+            try:
+                variables = client.workspaces.get_variables(ws.id)
+            except httpx.HTTPStatusError:
+                pass
+
+            # Build variable summary
+            variable_summary = None
+            if variables:
+                variable_summary = {
+                    "total": len(variables),
+                    "terraform": sum(1 for v in variables if v.category == "terraform"),
+                    "env": sum(1 for v in variables if v.category == "env"),
+                    "sensitive": sum(1 for v in variables if v.sensitive),
+                }
+
             emit_json(
                 {
                     "id": ws.id,
@@ -165,8 +189,21 @@ def workspace_show(
                     "locked": ws.locked,
                     "auto_apply": ws.auto_apply,
                     "created_at": ws.created_at,
+                    "updated_at": ws.updated_at,
                     "project_id": ws.project_id,
+                    "project_name": ws.project_name,
+                    "environment": ws.environment,
+                    "working_directory": ws.working_directory,
                     "tag_names": ws.tag_names,
+                    "vcs": {
+                        "identifier": vcs.identifier,
+                        "branch": vcs.branch,
+                        "working_directory": vcs.working_directory,
+                        "repository_url": vcs.repository_http_url,
+                    }
+                    if vcs
+                    else None,
+                    "variable_summary": variable_summary,
                     "snapshot": {
                         "latest_run": (
                             {

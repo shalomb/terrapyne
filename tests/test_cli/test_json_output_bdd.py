@@ -132,6 +132,7 @@ def workspace_named(name):
         project_id=None,
     )
     m.workspaces.get_variables.return_value = []
+    m.vcs.get_workspace_vcs.return_value = None
     m.runs.list.return_value = ([], 0)
     return m
 
