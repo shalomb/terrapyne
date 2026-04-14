@@ -70,14 +70,25 @@ def update_branch(
     # Get current VCS config
     current_vcs = vcs_api.get_workspace_vcs(workspace_obj.id)
     if not current_vcs:
-        console.print(f"[red]Error: Workspace '{workspace_name}' has no VCS connection[/red]")
+        console.print(
+            f"[red]Error:[/red] Workspace '{workspace_name}' has no VCS connection.\n"
+            f"VCS is required for this operation (updating branches, VCS-triggered runs, etc).\n"
+            f"To add VCS:\n"
+            f"  1. Visit: https://app.terraform.io/app/{org}/workspaces/{workspace_name}/settings\n"
+            f"  2. Scroll to 'VCS Connection'\n"
+            f"  3. Choose a repository"
+        )
         sys.exit(1)
 
     # Get OAuth token from environment or use the one from workspace
     oauth_token_id = os.getenv("TFC_VCS_OAUTH_TOKEN") or current_vcs.oauth_token_id
     if not oauth_token_id:
-        console.print("[red]Error: Cannot determine OAuth token ID[/red]")
-        console.print("\nSet your OAuth token:\n  export TFC_VCS_OAUTH_TOKEN='ot-xxxxx'\n")
+        console.print(
+            "[red]Error:[/red] Cannot determine OAuth token for VCS operations.\n"
+            "Set your VCS OAuth token ID:\n"
+            "  export TFC_VCS_OAUTH_TOKEN='ot-xxxxx'\n"
+            "Find your token ID in Terraform Cloud settings > VCS connections"
+        )
         sys.exit(1)
 
     # Confirmation prompt

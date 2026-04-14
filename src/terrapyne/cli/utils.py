@@ -49,8 +49,11 @@ def validate_context(
     org = resolve_organization(organization)
     if not org:
         raise ValueError(
-            "No organization specified and could not detect from context. "
-            "Specify: --organization ORGANIZATION or run in terraform directory."
+            "No organization specified and could not detect from context.\n"
+            "Specify one of:\n"
+            "  1. --organization ORGANIZATION flag\n"
+            "  2. TFC_ORG environment variable (e.g., export TFC_ORG=Takeda)\n"
+            "  3. Run in a terraform directory with .terraform/terraform.tfstate or terraform.tf"
         )
 
     ws = resolve_workspace(workspace)
@@ -98,8 +101,11 @@ def resolve_project_context(
         org, ws_name = validate_context(organization, require_workspace=True)
     except ValueError:
         raise ValueError(
-            "No project specified and could not detect from workspace context. "
-            "Specify a PROJECT_NAME or run in a terraform directory."
+            "No project specified and could not detect from workspace context.\n"
+            "Specify one of:\n"
+            "  1. --project PROJECT_NAME flag\n"
+            "  2. Run in a terraform directory with workspace configuration\n"
+            "  3. Use a workspace that is assigned to a project"
         ) from None
 
     try:
@@ -110,6 +116,12 @@ def resolve_project_context(
         ) from e
 
     if not ws.project_id:
-        raise ValueError(f"Workspace '{ws_name}' is not assigned to a project.")
+        raise ValueError(
+            f"Workspace '{ws_name}' is not assigned to a project.\n"
+            f"To assign this workspace to a project:\n"
+            f"  1. Visit: https://app.terraform.io/app/{org}/workspaces/{ws_name}/settings\n"
+            f"  2. Select a project under 'Project'\n"
+            f"  3. Click 'Save settings'"
+        )
 
     return org, client.projects.get_by_id(ws.project_id)

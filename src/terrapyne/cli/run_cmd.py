@@ -209,7 +209,13 @@ def run_plan(
                 try:
                     client.runs.poll_until_complete(current_run.id)
                 except TimeoutError:
-                    console.print("[red]Timeout waiting for current run to finish.[/red]")
+                    console.print(
+                        "[red]Timeout:[/red] Current run did not finish within 30 minutes.\n"
+                        "Options:\n"
+                        "  1. Use --discard-older to cancel the blocking run and proceed\n"
+                        "  2. Check the run status manually in Terraform Cloud\n"
+                        "  3. Try again with --max-wait <seconds> to increase timeout"
+                    )
                     raise typer.Exit(1) from None
 
         console.print(f"[dim]Creating plan for workspace:[/dim] {workspace_name}")
@@ -299,7 +305,10 @@ def run_logs(
                 raise typer.Exit(1) from None
         else:
             if not run.plan_id:
-                console.print("[red]Error: Run has no plan ID.[/red]")
+                console.print(
+                    "[red]Error:[/red] Cannot show logs — this run did not reach the plan stage.\n"
+                    "This usually means the run failed during initialization or was discarded early."
+                )
                 raise typer.Exit(1)
             try:
                 logs = client.runs.get_plan_logs(run.plan_id)
@@ -402,7 +411,13 @@ def run_apply(
                     try:
                         client.runs.poll_until_complete(current_run.id)
                     except TimeoutError:
-                        console.print("[red]Timeout waiting for current run to finish.[/red]")
+                        console.print(
+                            "[red]Timeout:[/red] Current run did not finish within 30 minutes.\n"
+                            "Options:\n"
+                            "  1. Use --discard-older to cancel the blocking run and proceed\n"
+                            "  2. Check the run status manually in Terraform Cloud\n"
+                            "  3. Try again with --max-wait <seconds> to increase timeout"
+                        )
                         raise typer.Exit(1) from None
 
             console.print(
@@ -624,7 +639,13 @@ def run_trigger(
                 try:
                     client.runs.poll_until_complete(current_run.id)
                 except TimeoutError:
-                    console.print("[red]Timeout waiting for current run to finish.[/red]")
+                    console.print(
+                        "[red]Timeout:[/red] Current run did not finish within 30 minutes.\n"
+                        "Options:\n"
+                        "  1. Use --discard-older to cancel the blocking run and proceed\n"
+                        "  2. Check the run status manually in Terraform Cloud\n"
+                        "  3. Try again with --max-wait <seconds> to increase timeout"
+                    )
                     raise typer.Exit(1) from None
 
         # Identify run type
