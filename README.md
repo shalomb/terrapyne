@@ -107,10 +107,10 @@ with TFCClient(organization="my-org") as client:
 
 For deep-dives into the architecture, design decisions (ADRs), and user guides:
 
-- [Architecture Decision Records (ADRs)](docs/architecture/) — Why we built it this way.
-- [SDK Guide](docs/SDK.md) — Exhaustive SDK reference.
-- [BDD Specifications](docs/guides/bdd-specifications.md) — Living documentation of features.
-- [Plan Parser Analysis](docs/terraform-plan-parser-analysis.md) — Deep-dive into plan parsing.
+- [Architecture Decision Records (ADRs)](docs/explanation/architecture/) — Why we built it this way.
+- [SDK Guide](docs/reference/sdk.md) — Exhaustive SDK reference.
+- [BDD Specifications](docs/explanation/bdd-specifications.md) — Living documentation of features.
+- [Plan Parser Analysis](docs/explanation/plan-parser.md) — Deep-dive into plan parsing.
 
 ---
 

@@ -5,7 +5,7 @@ Detailed conventions and workflows for Terrapyne development.
 ## Quick Links
 
 - **[Python & Testing](python-and-testing.md)** — Type hints, imports, test structure, pytest-bdd patterns
-- **[BDD Specifications](bdd-specifications.md)** — Writing Adzic-aligned feature files and step definitions
+- **[BDD Specifications](../explanation/bdd-specifications.md)** — Writing Adzic-aligned feature files and step definitions
 - **[Commits & Review](commits-and-review.md)** — Atomic commits, conventional format, PR workflow
 
 ## For Agents
@@ -14,10 +14,10 @@ Start with the relevant guide based on your task:
 
 | Task | Guide |
 |------|-------|
-| Writing tests or features | [BDD Specifications](bdd-specifications.md) + [Python & Testing](python-and-testing.md) |
+| Writing tests or features | [BDD Specifications](../explanation/bdd-specifications.md) + [Python & Testing](python-and-testing.md) |
 | Python code (models, CLI, utils) | [Python & Testing](python-and-testing.md) |
 | Creating commits or PRs | [Commits & Review](commits-and-review.md) |
-| Understanding project structure | [AGENTS.md](../../AGENTS.md) + architecture in `docs/architecture/` |
+| Understanding project structure | [AGENTS.md](../../AGENTS.md) + architecture in `../explanation/architecture/` |
 
 ## Skills to Use
 

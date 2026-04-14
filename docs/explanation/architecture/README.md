@@ -83,5 +83,5 @@ When proposing a new ADR:
   - `src/terrapyne/api/runs.py` — RunsAPI with include parameter
   - `src/terrapyne/cli/workspace_cmd.py` — workspace show command
   - `src/terrapyne/utils/rich_tables.py` — render_workspace_dashboard()
-  - `tests/features/workspace_enrichment.feature` — BDD specification
-  - `tests/test_cli/test_workspace_enrichment_bdd.py` — BDD test implementation
+  - `tests/features/workspace_dashboard.feature` — BDD specification
+  - `tests/test_cli/test_workspace_dashboard_bdd.py` — BDD test implementation
