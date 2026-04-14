@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from terrapyne.api.runs import RunsAPI
     from terrapyne.api.state_versions import StateVersionsAPI
     from terrapyne.api.teams import TeamsAPI
+    from terrapyne.api.vcs import VCSAPI
     from terrapyne.api.workspaces import WorkspaceAPI
 
 logger = logging.getLogger("terrapyne.api")
@@ -103,6 +104,13 @@ class TFCClient:
         from terrapyne.api.state_versions import StateVersionsAPI
 
         return StateVersionsAPI(self)
+
+    @cached_property
+    def vcs(self) -> "VCSAPI":
+        """Get VCS API instance."""
+        from terrapyne.api.vcs import VCSAPI
+
+        return VCSAPI(self)
 
     def _log_request(self, method: str, url: str, params: Any = None) -> float:
         if self.debug:
