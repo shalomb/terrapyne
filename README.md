@@ -2,23 +2,10 @@
 
 A Python CLI and SDK for Terraform Cloud.
 
-Terraform Cloud is great, but sometimes you just want to check a workspace status from your terminal or write a quick Python script to automate a tedious task without fighting raw REST APIs. Terrapyne gives you a clean CLI for daily ad-hoc work and a Pydantic-typed SDK for building heavier automation.
+We built Terrapyne because Terraform Cloud is great, but sometimes you just want to check a workspace status from your terminal or write a quick script to automate a tedious task—without fighting raw REST APIs. Terrapyne gives you a clean CLI for daily ad-hoc work and a Pydantic-typed SDK for building heavier automation.
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-
-## Use Cases
-
-Depending on what you're trying to do, you can use Terrapyne in a few different ways:
-
-**Daily CLI driver**
-If you're tired of clicking through the TFC UI, the `tfc` command lets you check workspace health, list runs, and stream plan logs directly in your terminal.
-
-**CI/CD pipelines**
-Every CLI command supports `--format json`. You can pipe the output straight into `jq` to extract exactly what you need for your GitHub Actions or GitLab jobs.
-
-**Custom automation**
-When bash scripts aren't enough, the Python SDK gives you typed models and API clients to build complex workflows—like bulk-updating workspace variables, triggering runs, or parsing plan outputs programmatically.
 
 ## Installation
 
@@ -30,27 +17,69 @@ uv add terrapyne
 pip install terrapyne
 ```
 
-## CLI Usage
+## CLI Workflows
 
-When you install the package, you get the `tfc` command-line tool.
+When you install the package, you get the `tfc` command-line tool. We designed this tool around the actual workflows DevOps engineers do every day. Instead of just wrapping the API one-to-one, `tfc` combines calls to give you the answers you actually need.
+
+### 1. Incident Response & Debugging
+When a deploy fails, you don't want to click through 5 pages of the TFC web UI to find the error. You want the logs right now.
 
 ```bash
-# Check what's happening in a workspace
-tfc workspace show my-app-prod
+# Find runs that recently errored across the whole organization
+tfc run errors
 
-# See recent runs
+# Follow a run's logs in real-time as it executes
+tfc run follow run-123abc456
+
+# Pull a specific state output (like a database password) directly
+tfc state outputs db_password -w my-app-prod --raw
+```
+
+### 2. Workspace Health & Cost Visibility
+It can be surprisingly hard to answer simple questions like "is this workspace healthy?" or "how much does this project cost?". We built commands to surface this immediately.
+
+```bash
+# Get a health snapshot of a workspace (latest run, lock state, VCS config)
+tfc workspace health my-app-prod
+
+# See the total monthly cost estimate for an entire project
+tfc project costs "Core Infrastructure"
+
+# List out the recent run history
 tfc run list -w my-app-prod --limit 5
+```
 
-# Follow the logs for a specific run in real-time
-tfc run show run-123abc456 --stream
+### 3. Managing Variables & Configuration
+Setting up a new environment often involves copying dozens of variables. Doing this manually is a nightmare.
 
-# Grab raw data for a shell script
-tfc project list --format json | jq '.[].name'
+```bash
+# Copy all variables from staging to production
+tfc workspace var-copy --from my-app-staging --to my-app-prod
+
+# Clone an entire workspace, including its VCS config and variables
+tfc workspace clone my-app-staging --new-name my-app-prod
+
+# Dump all project details as JSON for a CI script
+tfc project show "Core Infrastructure" --format json | jq .
+```
+
+### 4. Run Orchestration
+Sometimes you need to override the normal workflow or trigger things manually.
+
+```bash
+# Trigger a new run, ignoring the normal auto-apply rules
+tfc run trigger -w my-app-prod
+
+# Cancel a run that got stuck in the queue
+tfc run cancel run-123abc456
+
+# Discard a speculative plan
+tfc run discard run-123abc456
 ```
 
 ## SDK Usage
 
-If you're writing your own tooling, the SDK handles the API boilerplate and gives you typed objects back.
+If you're writing your own tooling, the SDK handles the API boilerplate and gives you typed objects back. Every CLI command is built on top of this SDK.
 
 ```python
 from terrapyne import TFCClient
