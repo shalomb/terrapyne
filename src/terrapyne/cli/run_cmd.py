@@ -743,6 +743,114 @@ def run_watch(
             raise typer.Exit(1) from None
 
 
+def _print_log_delta(full_log: str, last_pos: int) -> int:
+    """Print new log content since last position.
+
+    Args:
+        full_log: Complete log content
+        last_pos: Last position read
+
+    Returns:
+        New position (length of full_log)
+    """
+    new_content = full_log[last_pos:]
+    if new_content:
+        print(new_content, end="", flush=True)
+    return len(full_log)
+
+
+@app.command("follow")
+@handle_cli_errors
+def run_follow(
+    run_id: Annotated[str, typer.Argument(help="Run ID to follow")],
+    organization: Annotated[
+        str | None,
+        typer.Option(
+            "--organization",
+            "-o",
+            help="TFC organization",
+        ),
+    ] = None,
+    max_wait: Annotated[
+        int,
+        typer.Option(
+            "--max-wait",
+            help="Maximum time to wait in seconds (default: 30 minutes)",
+        ),
+    ] = 1800,
+):
+    """Follow a run's logs in real-time.
+
+    Streams plan and apply logs as they happen, polling at exponential intervals.
+    Exits when the run reaches a terminal state.
+
+    Examples:
+        # Follow a specific run
+        terrapyne run follow run-abc123
+
+        # Follow with custom timeout (5 minutes)
+        terrapyne run follow run-abc123 --max-wait 300
+    """
+    org, _ = validate_context(organization)
+
+    with TFCClient(organization=org) as client:
+        console.print(f"\n[dim]Following run {run_id}...[/dim]\n")
+
+        last_plan_pos = 0
+        last_apply_pos = 0
+        current_stage = None  # Track which stage we're in
+
+        def stream_logs(run: Run) -> None:
+            nonlocal last_plan_pos, last_apply_pos, current_stage
+
+            # Determine which logs to fetch based on run status
+            if run.plan_id and run.status.value in [
+                "planning",
+                "planned",
+                "queued",
+                "applying",
+                "applied",
+            ]:
+                if current_stage != "plan":
+                    current_stage = "plan"
+                    console.print("[dim]📋 Plan:[/dim]")
+                try:
+                    plan_log = client.runs.get_plan_logs(run.plan_id)
+                    last_plan_pos = _print_log_delta(plan_log, last_plan_pos)
+                except Exception:
+                    pass  # Silently skip if logs not available yet
+
+            # Once in apply stage, show apply logs
+            if run.apply_id and run.status.value in ["applying", "applied"]:
+                if current_stage != "apply":
+                    current_stage = "apply"
+                    console.print("\n[dim]⚙️  Apply:[/dim]")
+                try:
+                    apply_log = client.runs.get_apply_logs(run.apply_id)
+                    last_apply_pos = _print_log_delta(apply_log, last_apply_pos)
+                except Exception:
+                    pass  # Silently skip if logs not available yet
+
+        try:
+            final_run = client.runs.poll_until_complete(
+                run_id, callback=stream_logs, max_wait=float(max_wait)
+            )
+
+            # Print final newline and status
+            print()
+            if final_run.status.is_successful:
+                console.print(f"\n[green]✓ Run {run_id} completed successfully[/green]")
+            elif final_run.status.is_awaiting_approval:
+                console.print(f"\n[yellow]⏸ Run {run_id} is awaiting approval[/yellow]")
+            else:
+                console.print(f"\n[red]✗ Run {run_id} failed: {final_run.status.value}[/red]")
+                raise typer.Exit(1)
+
+        except TimeoutError as e:
+            console.print(f"\n[yellow]Warning:[/yellow] {e}")
+            raise typer.Exit(1) from None
+
+
 @app.command("discard")
 @handle_cli_errors
 def run_discard(
