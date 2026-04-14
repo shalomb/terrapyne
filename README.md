@@ -70,6 +70,37 @@ with TFCClient(organization="my-org") as client:
         print(f"Run {run.id}: {run.message}")
 ```
 
+### Advanced Automation
+
+Terrapyne makes it easy to orchestrate complex workflows, like discovering a workspace's VCS repository and triggering a plan with real-time status polling.
+
+```python
+from terrapyne import TFCClient
+
+with TFCClient(organization="my-org") as client:
+    # 1. Discover VCS details for a workspace
+    vcs = client.vcs.get_workspace_vcs(workspace_id="ws-123")
+    if vcs:
+        print(f"Connected to: {vcs.identifier} ({vcs.branch})")
+
+    # 2. Trigger a new plan with a custom message
+    run = client.runs.create(
+        workspace_id="ws-123",
+        message="SDK-triggered infrastructure update",
+        debug=True  # Enables TFC debugging-mode
+    )
+    print(f"Run triggered: {run.id}")
+
+    # 3. Poll until the plan is ready or fails
+    final_run = client.runs.poll_until_complete(
+        run.id,
+        callback=lambda r: print(f"Current Status: {r.status.value}")
+    )
+
+    if final_run.status.value == "planned":
+        print("✅ Plan complete! Review the changes in TFC.")
+```
+
 ---
 
 ## 📚 Documentation
