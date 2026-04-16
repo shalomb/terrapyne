@@ -99,3 +99,8 @@ namespace_packages = true
 # Check only src, exclude legacy files pending refactor
 files = ["src"]
 exclude = ["src/terrapyne/logging.py", "src/terrapyne/terrapyne.py"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
