@@ -1,43 +1,27 @@
-# Development Guides
+# How-to Guides
 
-Detailed conventions and workflows for Terrapyne development.
+How-to guides are problem-oriented. They provide recipes and step-by-step instructions for accomplishing specific tasks with Terrapyne, whether you are a user or a developer.
 
-## Quick Links
+## 🛠️ Development Workflows
 
-- **[Python & Testing](python-and-testing.md)** — Type hints, imports, test structure, pytest-bdd patterns
-- **[BDD Specifications](../explanation/bdd-specifications.md)** — Writing Adzic-aligned feature files and step definitions
-- **[Commits & Review](commits-and-review.md)** — Atomic commits, conventional format, PR workflow
+Detailed conventions for contributing to the Terrapyne codebase.
 
-## For Agents
+- **[Python & Testing](python-and-testing.md)** — Type hints, imports, test structure, and pytest-bdd patterns.
+- **[Commits & Review](commits-and-review.md)** — Atomic commits, conventional formats, and our PR workflow.
+- **[BDD Specifications](../explanation/bdd-specifications.md)** — Writing Adzic-aligned feature files and step definitions.
 
-Start with the relevant guide based on your task:
+## 🖥️ CLI Operations
 
-| Task | Guide |
-|------|-------|
-| Writing tests or features | [BDD Specifications](../explanation/bdd-specifications.md) + [Python & Testing](python-and-testing.md) |
-| Python code (models, CLI, utils) | [Python & Testing](python-and-testing.md) |
-| Creating commits or PRs | [Commits & Review](commits-and-review.md) |
-| Understanding project structure | [AGENTS.md](../../AGENTS.md) + architecture in `../explanation/architecture/` |
+Practical recipes for common terminal tasks.
 
-## Skills to Use
+- **[List workspaces by project](list-workspaces-by-project.md)** — Filter and organize workspaces effectively.
+- **[Create workspace variables in bulk](bulk-variable-creation.md)** *(planned)* — Automate variable injection across multiple environments.
+- **[Stream and monitor run logs](monitor-run-logs.md)** — Follow real-time plan/apply output in your terminal.
+- **[Clone workspace configuration](clone-workspaces.md)** — Duplicate workspace state and variables safely.
 
-These guides link to Claude Code skills:
-- **adzic-index** — Audit BDD feature file quality
-- **farley-index** — Audit test suite health
-- **test-accordion** — Expand/contract test scope elastically
-- **git** — Safety guardrails before git operations
-- **commit** — Craft safe, verified commits
-- **using-git-worktrees** — Create isolated feature branches
+## 🐍 SDK Recipes *(planned)*
 
-See [AGENTS.md](../../AGENTS.md) for skill details.
+Building custom automation with the Terrapyne library.
 
-## Development Workflow
-
-1. Create a worktree: `/using-git-worktrees`
-2. Write failing test (Red): Feature file or unit test
-3. Make it pass (Green): Minimal implementation
-4. Refactor (optional): Improve clarity
-5. Commit: `/commit` skill
-6. Push & create PR
-
-See [Commits & Review](commits-and-review.md) for detailed workflow.
+- **[Filter runs by custom metadata](filter-runs-by-metadata.md)** — Query and organize runs based on complex criteria.
+- **[Automated state comparisons](state-comparisons.md)** — Scripted diffs between workspace state versions.

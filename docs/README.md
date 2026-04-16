@@ -7,86 +7,59 @@
 
 | Role | Start Here | Focus |
 |------|-----------|-------|
-| **New User** | [Getting Started](#tutorials) | Learn to use the CLI |
-| **Developer** | [Architecture](architecture/) | Understand the codebase |
-| **Operator** | [How-to Guides](#how-to-guides) | Common tasks and troubleshooting |
-| **Architect** | [Platform Integration](reference/platform-dependency-mapping.md) | Ecosystem fit and dependencies |
+| **New User** | [Tutorials](tutorials/) | Learn to use the CLI |
+| **Developer** | [How-to Guides](how-to/) | Development workflows |
+| **Architect** | [Architecture](explanation/architecture/) | System design and ADRs |
+| **Operator** | [Reference](reference/) | Specs and dependencies |
 
 ---
 
 ## 📚 Documentation Structure (Diataxis)
 
-### 📖 Tutorials (Learning-oriented)
-**Learn by doing** — step-by-step guides for common workflows
+### 📖 [Tutorials](tutorials/) (Learning-oriented)
+**Learn by doing** — step-by-step guides for common workflows.
 
-- **[Workspace Management Tutorial](tutorials/workspace-management.md)** *(planned)* — Create, list, show, and configure workspaces
-- **[Run Execution Tutorial](tutorials/run-execution.md)** *(planned)* — Trigger, monitor, and debug runs
+- **[Workspace Management Tutorial](tutorials/workspace-management.md)** *(planned)* — Create, list, show, and configure workspaces.
+- **[Run Execution Tutorial](tutorials/run-execution.md)** *(planned)* — Trigger, monitor, and debug runs.
 
-### 🛠️ How-to Guides (Problem-oriented)
-**Accomplish a goal** — recipes for specific tasks
+### 🛠️ [How-to Guides](how-to/) (Problem-oriented)
+**Accomplish a goal** — recipes for development and operational tasks.
+
+#### **Development**
+- **[Python & Testing](how-to/python-and-testing.md)** — Type hints, imports, test structure, and pytest-bdd.
+- **[Commits & Review](how-to/commits-and-review.md)** — Atomic commits, conventional formats, and PR workflow.
 
 #### **Workspace Operations**
-- **[List workspaces by project](how-to-guides/list-workspaces-by-project.md)** *(planned)* — Filter and organize workspaces
-- **[Create workspace variables in bulk](how-to-guides/bulk-variable-creation.md)** *(planned)* — Automate variable injection
+- **[List workspaces by project](how-to/list-workspaces-by-project.md)** — Filter and organize workspaces.
+- **[Create workspace variables in bulk](how-to/bulk-variable-creation.md)** *(planned)* — Automate variable injection.
 
-#### **Run Management**
-- **[Stream and monitor run logs](how-to-guides/monitor-run-logs.md)** *(planned)* — Follow real-time plan/apply output
-- **[Troubleshoot failed runs](how-to-guides/troubleshoot-runs.md)** *(planned)* — Diagnose and fix run issues
+### 💡 [Explanation](explanation/) (Understanding-oriented)
+**Why things are the way they are** — conceptual backgrounds and design.
 
-#### **State & Configuration**
-- **[Export and analyze state](how-to-guides/export-and-analyze-state.md)** *(planned)* — Download state versions, compare outputs
-- **[Clone workspace configuration](how-to-guides/clone-workspaces.md)** *(planned)* — Duplicate workspace state and variables
+- **[Architecture & ADRs](explanation/architecture/)** — System context, container diagrams, and decision records.
+- **[Design Philosophy](explanation/design-philosophy.md)** — Why we built Terrapyne as a CLI/SDK hybrid.
+- **[BDD Specifications](explanation/bdd-specifications.md)** — Understanding our behavior-driven development approach.
+- **[Plan Parser Analysis](explanation/plan-parser.md)** — How we extract data from plain text plans.
 
-#### **VCS Integration**
-- **[Manage VCS branches](how-to-guides/manage-vcs-branches.md)** — Update workspace source control settings
+### 📖 [Reference](reference/) (Information-oriented)
+**How things work** — specs, APIs, and technical details.
 
-### 📖 Reference (Information-oriented)
-**How things work** — specs, APIs, and technical details
-
-#### **Architecture**
-- **[System Context (C4-L1)](architecture/c4-l1-system-context.md)** — terrapyne + TFC + terraform binary + external systems
-- **[Containers (C4-L2)](architecture/c4-l2-containers.md)** — CLI vs SDK boundary, data flows
-- **[Components (C4-L3)](architecture/c4-l3-components.md)** — API classes, models, utilities, context resolution
-- **[Architecture Decision Records](architecture/)** — Design decisions (ADR-001 through ADR-004)
-
-#### **Integration & Dependencies**
-- **[Platform Dependency Mapping](reference/platform-dependency-mapping.md)** — External systems, integration points, risks
-- **[Takeda Ecosystem Integration](reference/takeda-ecosystem.md)** *(planned)* — AVM, TEC, LeanIX patterns
-
-#### **API Reference**
-- **[CLI Command Reference](reference/cli-reference.md)** *(planned)* — All commands, flags, examples
-- **[SDK Reference](reference/sdk-reference.md)** *(planned)* — Python API, models, exceptions
-
-#### **Data Formats**
-- **[Terraform State Format](reference/terraform-state-format.md)** *(planned)* — State structure, outputs, remote config
-- **[TFC JSON:API Format](reference/tfc-json-api.md)** *(planned)* — Request/response structure, pagination
-
-### 💡 Explanation (Understanding-oriented)
-**Why things are the way they are** — conceptual backgrounds
-
-- **[Design Philosophy](explanation/design-philosophy.md)** *(planned)* — Why we built terrapyne this way
-- **[TFC Workspace Model](explanation/tfc-workspace-model.md)** *(planned)* — How TFC organizes workspaces and runs
-- **[Local Context Resolution](explanation/local-context-resolution.md)** *(planned)* — How terrapyne discovers your organization and workspace
+- **[SDK Reference](reference/sdk.md)** — Python library documentation and examples.
+- **[CLI Command Reference](reference/cli-reference.md)** — All commands, flags, and examples.
+- **[Platform Dependency Mapping](reference/platform-dependency-mapping.md)** — External systems, integration points, and risks.
 
 ---
 
-## 🗂️ Directory Structure
+## 🗂️ Project Documentation Map
 
 ```
 docs/
-├── README.md                          (You are here)
-├── architecture/                      (C4 diagrams + ADRs)
-│   ├── README.md
-│   ├── c4-l1-system-context.md
-│   ├── c4-l2-containers.md
-│   ├── c4-l3-components.md
-│   └── ADR-*.md
-├── reference/                         (Technical specs, dependencies)
-│   ├── platform-dependency-mapping.md
-│   └── (cli-reference, sdk-reference, etc. — planned)
-├── how-to-guides/                     (Task-oriented recipes — planned)
-├── tutorials/                         (Learning-oriented walkthroughs — planned)
-└── explanation/                       (Conceptual backgrounds — planned)
+├── explanation/       (Concepts, Architecture, Design)
+│   └── architecture/  (ADRs, C4 Diagrams)
+├── how-to/            (Dev workflows, operational recipes)
+├── reference/         (Specs, API docs, dependency maps)
+├── tutorials/         (Step-by-step walkthroughs)
+└── README.md          (Navigation hub)
 ```
 
 ---

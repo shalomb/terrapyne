@@ -10,7 +10,7 @@ import pytest
 
 from terrapyne import TFCClient
 
-TFC_ORG = os.environ.get("TFC_ORG", "Takeda")
+TFC_ORG = os.environ.get("TFC_ORG", "my-org")
 
 
 @pytest.fixture(scope="session")

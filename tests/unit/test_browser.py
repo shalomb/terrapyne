@@ -170,33 +170,33 @@ class TestGetWorkspaceURL:
 
     def test_basic_workspace_url(self):
         """Test basic workspace URL without page."""
-        url = get_workspace_url("Takeda", "my-workspace")
-        assert url == "https://app.terraform.io/app/Takeda/workspaces/my-workspace"
+        url = get_workspace_url("my-org", "my-workspace")
+        assert url == "https://app.terraform.io/app/my-org/workspaces/my-workspace"
 
     def test_workspace_url_with_page_overview(self):
         """Test workspace URL with overview page."""
-        url = get_workspace_url("Takeda", "my-workspace", page="overview")
-        assert url == "https://app.terraform.io/app/Takeda/workspaces/my-workspace/overview"
+        url = get_workspace_url("my-org", "my-workspace", page="overview")
+        assert url == "https://app.terraform.io/app/my-org/workspaces/my-workspace/overview"
 
     def test_workspace_url_with_page_runs(self):
         """Test workspace URL with runs page."""
-        url = get_workspace_url("Takeda", "my-workspace", page="runs")
-        assert url == "https://app.terraform.io/app/Takeda/workspaces/my-workspace/runs"
+        url = get_workspace_url("my-org", "my-workspace", page="runs")
+        assert url == "https://app.terraform.io/app/my-org/workspaces/my-workspace/runs"
 
     def test_workspace_url_with_page_states(self):
         """Test workspace URL with states page."""
-        url = get_workspace_url("Takeda", "my-workspace", page="states")
-        assert url == "https://app.terraform.io/app/Takeda/workspaces/my-workspace/states"
+        url = get_workspace_url("my-org", "my-workspace", page="states")
+        assert url == "https://app.terraform.io/app/my-org/workspaces/my-workspace/states"
 
     def test_workspace_url_with_page_variables(self):
         """Test workspace URL with variables page."""
-        url = get_workspace_url("Takeda", "my-workspace", page="variables")
-        assert url == "https://app.terraform.io/app/Takeda/workspaces/my-workspace/variables"
+        url = get_workspace_url("my-org", "my-workspace", page="variables")
+        assert url == "https://app.terraform.io/app/my-org/workspaces/my-workspace/variables"
 
     def test_workspace_url_with_page_settings(self):
         """Test workspace URL with settings page."""
-        url = get_workspace_url("Takeda", "my-workspace", page="settings")
-        assert url == "https://app.terraform.io/app/Takeda/workspaces/my-workspace/settings"
+        url = get_workspace_url("my-org", "my-workspace", page="settings")
+        assert url == "https://app.terraform.io/app/my-org/workspaces/my-workspace/settings"
 
     def test_workspace_url_custom_host(self):
         """Test workspace URL with custom host."""
@@ -214,8 +214,8 @@ class TestGetRunURL:
 
     def test_basic_run_url(self):
         """Test basic run URL."""
-        url = get_run_url("Takeda", "my-workspace", "run-abc123")
-        assert url == "https://app.terraform.io/app/Takeda/workspaces/my-workspace/runs/run-abc123"
+        url = get_run_url("my-org", "my-workspace", "run-abc123")
+        assert url == "https://app.terraform.io/app/my-org/workspaces/my-workspace/runs/run-abc123"
 
     def test_run_url_custom_host(self):
         """Test run URL with custom host."""
@@ -226,6 +226,6 @@ class TestGetRunURL:
         """Test run URL with various run ID formats."""
         run_ids = ["run-123", "run-abc-def", "run-xyz123xyz"]
         for run_id in run_ids:
-            url = get_run_url("Takeda", "my-workspace", run_id)
+            url = get_run_url("my-org", "my-workspace", run_id)
             assert run_id in url
             assert "runs/" in url

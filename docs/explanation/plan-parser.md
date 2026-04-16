@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-The **Terraform Plain Text Plan Parser** is production-ready code in the `oneTakeda` monorepo with **comprehensive test suite and fixtures**. It's already been abstracted into a generic agent skill, but the Python implementation lives in multiple project repos. The **authoritative version** is in the most-active terraform-aws module templates, complete with 2,093-line unit test suite, 15+ BDD scenarios, and 25+ real-world plan output fixtures.
+The **Terraform Plain Text Plan Parser** is production-ready code in the `internal-org` monorepo with **comprehensive test suite and fixtures**. It's already been abstracted into a generic agent skill, but the Python implementation lives in multiple project repos. The **authoritative version** is in the most-active terraform-aws module templates, complete with 2,093-line unit test suite, 15+ BDD scenarios, and 25+ real-world plan output fixtures.
 
 ---
 
@@ -10,7 +10,7 @@ The **Terraform Plain Text Plan Parser** is production-ready code in the `oneTak
 
 **Primary Source**: 
 ```
-~/oneTakeda/terraform-aws-ACMCertificate/examples/import/src/framework/parsers/
+~/internal-org/terraform-aws-ACMCertificate/examples/import/src/framework/parsers/
   └── terraform_plain_text_plan_parser.py (60.5KB, 1,559 lines)
 ```
 
@@ -41,12 +41,12 @@ The **Terraform Plain Text Plan Parser** is production-ready code in the `oneTak
 
 ## What Code Is Where
 
-### In `oneTakeda` - Parser Code
+### In `internal-org` - Parser Code
 
 Multiple copies of the same parser (replicated pattern):
 
 ```
-~/oneTakeda/
+~/internal-org/
 ├── terraform-aws-RDS/examples/import/src/framework/parsers/terraform_plain_text_plan_parser.py
 ├── terraform-aws-Lambda/examples/import/src/framework/parsers/terraform_plain_text_plan_parser.py
 ├── terraform-aws-ACMCertificate/examples/import/src/framework/parsers/terraform_plain_text_plan_parser.py
@@ -57,12 +57,12 @@ Multiple copies of the same parser (replicated pattern):
 ├── terraform-aws-IAMRole/examples/import/src/framework/parsers/terraform_plain_text_plan_parser.py
 ├── terraform-aws-SecretsManager/examples/import/src/framework/parsers/terraform_plain_text_plan_parser.py
 ├── terraform-aws-BuildingBlock-Template/examples/import/src/framework/parsers/terraform_plain_text_plan_parser.py
-├── gmsgq-moda-92243-tec-man-qua-GMOD-MODA-Global/modules/terraform-aws-EC2/examples/import/src/framework/parsers/terraform_plain_text_plan_parser.py
-├── gmsgq-moda-92243-tec-man-qua-GMOD-MODA-Global/modules/terraform-aws-SecurityGroup/examples/import/src/framework/parsers/terraform_plain_text_plan_parser.py
+├── internal-repo-name/modules/terraform-aws-EC2/...
+├── internal-repo-name/modules/terraform-aws-SecurityGroup/...
 └── ... (15+ modules total)
 ```
 
-### In `oneTakeda` - Test Assets
+### In `internal-org` - Test Assets
 
 **Authoritative Test Location**: `terraform-aws-ACMCertificate/examples/import/src/framework/parsers/tests/`
 
@@ -185,7 +185,7 @@ terrapyne/
 Copy the authoritative parser:
 
 ```bash
-cp ~/oneTakeda/terraform-aws-ACMCertificate/examples/import/src/framework/parsers/terraform_plain_text_plan_parser.py \
+cp ~/internal-org/terraform-aws-ACMCertificate/examples/import/src/framework/parsers/terraform_plain_text_plan_parser.py \
    ~/shalomb/terrapyne/src/terrapyne/core/plan_parser.py
 ```
 
@@ -319,7 +319,7 @@ result = tf.parse_plain_text_plan(plan_text)
 | Error handling | 200 | Terraform error extraction |
 | Utility methods | 109 | Value parsing, symbol mapping, etc. |
 
-### Test Coverage (From oneTakeda projects)
+### Test Coverage (From internal-org projects)
 
 - Unit tests: 200+ test cases across all terraform-aws modules
 - BDD scenarios: 15+ scenarios specified in terrapyne
@@ -353,13 +353,13 @@ These are acceptable because the parser captures 95% of useful information for p
 
 ### ✅ What Can Be Reused
 
-**All of it!** The test suite is completely independent of oneTakeda-specific code.
+**All of it!** The test suite is completely independent of internal-org-specific code.
 
 #### 1. Copy Unit Tests (2,093 lines)
 
 ```bash
 # Copy unit test file
-cp ~/oneTakeda/terraform-aws-ACMCertificate/examples/import/src/framework/parsers/tests/unit/test_plain_text_plan_parser.py \
+cp ~/internal-org/terraform-aws-ACMCertificate/examples/import/src/framework/parsers/tests/unit/test_plain_text_plan_parser.py \
    ~/shalomb/terrapyne/tests/unit/test_plan_parser.py
 
 # Update imports:
@@ -382,7 +382,7 @@ cp ~/oneTakeda/terraform-aws-ACMCertificate/examples/import/src/framework/parser
 
 ```bash
 # Copy feature file (already exists in terrapyne but can be refreshed)
-cp ~/oneTakeda/terraform-aws-ACMCertificate/examples/import/src/framework/parsers/tests/features/plain_text_plan_parsing.feature \
+cp ~/internal-org/terraform-aws-ACMCertificate/examples/import/src/framework/parsers/tests/features/plain_text_plan_parsing.feature \
    ~/shalomb/terrapyne/tests/features/plan_parser.feature
 ```
 
@@ -392,7 +392,7 @@ cp ~/oneTakeda/terraform-aws-ACMCertificate/examples/import/src/framework/parser
 
 ```bash
 # Copy BDD step definitions
-cp ~/oneTakeda/terraform-aws-ACMCertificate/examples/import/src/framework/parsers/tests/test_plain_text_plan_parsing_steps.py \
+cp ~/internal-org/terraform-aws-ACMCertificate/examples/import/src/framework/parsers/tests/test_plain_text_plan_parsing_steps.py \
    ~/shalomb/terrapyne/tests/step_definitions/plan_parser_steps.py
 
 # Update imports:
@@ -406,7 +406,7 @@ cp ~/oneTakeda/terraform-aws-ACMCertificate/examples/import/src/framework/parser
 
 ```bash
 # Copy all test fixtures
-cp -r ~/oneTakeda/terraform-aws-ACMCertificate/examples/import/src/framework/parsers/tests/fixtures/plan_outputs \
+cp -r ~/internal-org/terraform-aws-ACMCertificate/examples/import/src/framework/parsers/tests/fixtures/plan_outputs \
       ~/shalomb/terrapyne/tests/fixtures/plan_outputs
 
 # These are real terraform plan outputs - no modification needed
@@ -424,7 +424,7 @@ cp -r ~/oneTakeda/terraform-aws-ACMCertificate/examples/import/src/framework/par
 
 The tests are already **adapter-agnostic**, but need minimal import updates:
 
-**Before** (oneTakeda):
+**Before** (internal-org):
 ```python
 from src.parsers.terraform_plain_text_plan_parser import TerraformPlainTextPlanParser
 ```
@@ -483,7 +483,7 @@ pytest tests/unit/test_plan_parser.py -k "fixture" -v
 
 ## References
 
-- **Authoritative Source**: `~/oneTakeda/terraform-aws-ACMCertificate/examples/import/src/framework/parsers/terraform_plain_text_plan_parser.py`
+- **Authoritative Source**: `~/internal-org/terraform-aws-ACMCertificate/examples/import/src/framework/parsers/terraform_plain_text_plan_parser.py`
 - **Implementation Plan**: `~/shalomb/terrapyne/docs/plan-parser-implementation.md`
 - **BDD Spec**: `~/shalomb/terrapyne/tests/features/terrapyne_plan_parser_bdd.feature`
 - **Generic Skill**: `~/shalomb/agent-skills/skills/terraform-plan-parser/SKILL.md`
@@ -496,7 +496,7 @@ pytest tests/unit/test_plan_parser.py -k "fixture" -v
 
 #### Authoritative Test Suite Location
 ```
-~/oneTakeda/terraform-aws-ACMCertificate/examples/import/src/framework/parsers/
+~/internal-org/terraform-aws-ACMCertificate/examples/import/src/framework/parsers/
 ├── terraform_plain_text_plan_parser.py              [1,559 lines]
 └── tests/
     ├── unit/test_plain_text_plan_parser.py          [2,093 lines] ← COPY
@@ -509,14 +509,14 @@ pytest tests/unit/test_plan_parser.py -k "fixture" -v
 
 #### Parallel Sources (All Identical - Any Can Be Used)
 ```
-~/oneTakeda/terraform-aws-RDS/examples/import/src/framework/parsers/
-~/oneTakeda/terraform-aws-Lambda/examples/import/src/framework/parsers/
-~/oneTakeda/terraform-aws-SecurityGroup/examples/import/src/framework/parsers/
-~/oneTakeda/terraform-aws-KMS/examples/import/src/framework/parsers/
-~/oneTakeda/terraform-aws-FSxWindows/examples/import/src/framework/parsers/
-~/oneTakeda/terraform-aws-ApplicationLoadBalancer/examples/import/src/framework/parsers/
-~/oneTakeda/terraform-aws-IAMRole/examples/import/src/framework/parsers/
-~/oneTakeda/terraform-aws-SecretsManager/examples/import/src/framework/parsers/
+~/internal-org/terraform-aws-RDS/examples/import/src/framework/parsers/
+~/internal-org/terraform-aws-Lambda/examples/import/src/framework/parsers/
+~/internal-org/terraform-aws-SecurityGroup/examples/import/src/framework/parsers/
+~/internal-org/terraform-aws-KMS/examples/import/src/framework/parsers/
+~/internal-org/terraform-aws-FSxWindows/examples/import/src/framework/parsers/
+~/internal-org/terraform-aws-ApplicationLoadBalancer/examples/import/src/framework/parsers/
+~/internal-org/terraform-aws-IAMRole/examples/import/src/framework/parsers/
+~/internal-org/terraform-aws-SecretsManager/examples/import/src/framework/parsers/
 ... and 12+ more modules total
 ```
 
@@ -631,8 +631,8 @@ pytest tests/unit/test_plan_parser.py -k "fixture" -v
 
 ## References
 
-- **Authoritative Parser Source**: `~/oneTakeda/terraform-aws-ACMCertificate/examples/import/src/framework/parsers/terraform_plain_text_plan_parser.py`
-- **Authoritative Tests**: `~/oneTakeda/terraform-aws-ACMCertificate/examples/import/src/framework/parsers/tests/`
+- **Authoritative Parser Source**: `~/internal-org/terraform-aws-ACMCertificate/examples/import/src/framework/parsers/terraform_plain_text_plan_parser.py`
+- **Authoritative Tests**: `~/internal-org/terraform-aws-ACMCertificate/examples/import/src/framework/parsers/tests/`
 - **Implementation Plan**: `~/shalomb/terrapyne/docs/plan-parser-implementation.md`
 - **Generic Skill**: `~/shalomb/agent-skills/skills/terraform-plan-parser/SKILL.md`
 - **TFC Docs**: https://developer.hashicorp.com/terraform/cloud-docs

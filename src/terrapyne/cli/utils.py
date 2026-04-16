@@ -52,7 +52,7 @@ def validate_context(
             "No organization specified and could not detect from context.\n"
             "Specify one of:\n"
             "  1. --organization ORGANIZATION flag\n"
-            "  2. TFC_ORG environment variable (e.g., export TFC_ORG=Takeda)\n"
+            "  2. TFC_ORG environment variable (e.g., export TFC_ORG=my-org)\n"
             "  3. Run in a terraform directory with .terraform/terraform.tfstate or terraform.tf"
         )
 

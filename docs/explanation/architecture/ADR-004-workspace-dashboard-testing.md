@@ -49,7 +49,7 @@ def workspace_with_recent_run(context):
     context.latest_run = Mock(spec=Run)
     context.latest_run.status = RunStatus.APPLIED
     context.latest_run.commit_sha = "abc123"
-    context.latest_run.commit_author = "Alice <alice@example.com>"
+    context.latest_run.commit_author = "Alice"
     context.latest_run.commit_message = "Enable auto-scaling"
     
     # Mock API to return this run
