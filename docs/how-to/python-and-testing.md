@@ -212,32 +212,39 @@ uv run pytest --cov=terrapyne --cov-report=html
 
 **Target:** 65% coverage minimum (enforced by pre-commit).
 
-## TDD Workflow
+## Double-Loop Workflow (BDD + TDD)
 
-Use the `test-accordion` skill to expand/contract test scope elastically:
+Use the `test-accordion` skill to manage the "Elastic Loop" of development, moving between high-level specifications and low-level logic.
 
-1. **Red**: Write a failing test (feature file or unit test)
-2. **Green**: Minimal code to make it pass
-3. **Refactor**: Improve clarity without changing behavior
-4. **Repeat**: Expand scope with next test
+1.  **Outer Loop (Red BDD)**: Write a failing scenario in `tests/features/`.
+2.  **Inner Loop (Red TDD)**: Write a failing unit test for the supporting model/API in `tests/unit/`.
+3.  **Green TDD**: Write minimal code to make the unit test pass.
+4.  **Refactor**: Clean up the inner implementation.
+5.  **Green BDD**: Implement the CLI wrapper/logic to make the scenario pass.
+6.  **ACP**: Commit the feature and all tests (BDD + TDD) in one atomic unit.
 
 Example workflow:
 ```bash
-# Write test for workspace listing
-uv run pytest tests/test_cli/test_workspace_commands.py::test_list_workspaces -v
+# 1. Write and run failing BDD scenario
+uv run pytest tests/test_cli/test_workspace_commands.py::test_new_feature
 
-# Code makes it pass
-uv run pytest tests/test_cli/test_workspace_commands.py -v
+# 2. Write and run failing unit test
+uv run pytest tests/unit/test_models.py::test_model_logic
 
-# Add pagination test
-uv run pytest tests/test_cli/test_workspace_commands.py::test_list_workspaces_pagination -v
+# 3. Code logic -> unit test passes
+uv run pytest tests/unit/test_models.py
 
-# All pass
-uv run pytest tests/test_cli/test_workspace_commands.py -v
+# 4. Refactor logic
+
+# 5. Code CLI -> BDD scenario passes
+uv run pytest tests/test_cli/test_workspace_commands.py
+
+# 6. Run full suite and commit
+uv run pytest && /commit
 ```
 
 ## Coverage
-
+...
 - Minimum: 65% (enforced by `uv run pytest --cov-fail-under=65`)
 - Target: ≥75% for new features
 - Exception: Exclude vendored code, test fixtures, CLI shell layer

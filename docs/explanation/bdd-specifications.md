@@ -230,6 +230,30 @@ This scores your feature file on:
 
 Target: **≥7.0/10** for release-ready features.
 
+## Double-Loop Development (BDD + TDD Coherence)
+
+In Terrapyne, BDD and TDD are not independent; they form a **Double-Loop Development** cycle.
+
+1.  **Outer Loop (BDD):** We start by writing a failing Gherkin scenario in a `.feature` file. This defines the *what*—the user-visible behavior.
+2.  **Inner Loop (TDD):** To make the BDD scenario pass, we often need to implement new models, API methods, or utilities. We use Farley TDD (Red-Green-Refactor) to build these components in isolation.
+3.  **Coherence:** Once the inner loops are complete, the outer BDD loop turns green.
+
+### How they connect
+
+| Level | Focus | Tooling | Mocking |
+|-------|-------|---------|---------|
+| **Outer (BDD)** | User Intent / CLI Behavior | `pytest-bdd` | Mock at `TFCClient` / SDK level |
+| **Inner (TDD)** | Logic / Models / API | `pytest` | Mock at HTTP / System level |
+
+**The Workflow:**
+1.  **Red BDD:** Write a scenario (e.g., `Scenario: Trigger a run`). Run it; it fails because the CLI command doesn't exist.
+2.  **Red TDD:** Write a unit test for the SDK method (`client.runs.trigger`). Run it; it fails because the method isn't implemented.
+3.  **Green TDD:** Implement `client.runs.trigger`. Unit test passes.
+4.  **Refactor:** Clean up the SDK code.
+5.  **Green BDD:** Implement the CLI command using the now-working SDK. BDD scenario passes.
+
+This ensures that we only build code that directly supports a user-visible outcome, and that every line of code is verified at multiple levels of abstraction.
+
 ## Related Resources
 
 - [ADR-004: Workspace Dashboard Testing Strategy](../architecture/ADR-004-workspace-dashboard-testing.md)
