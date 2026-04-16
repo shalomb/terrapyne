@@ -1,0 +1,23 @@
+[importlinter]
+root_package = terrapyne
+include_external_packages = True
+
+[importlinter:contract:layers]
+name = Internal Architecture Layers
+type = layers
+layers =
+    terrapyne.cli
+    terrapyne.api
+    terrapyne.core
+    terrapyne.models
+
+[importlinter:contract:cli-isolation]
+name = CLI Isolation
+type = forbidden
+source_modules =
+    terrapyne.api
+    terrapyne.core
+    terrapyne.models
+    terrapyne.utils
+forbidden_modules =
+    terrapyne.cli

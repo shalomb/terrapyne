@@ -85,15 +85,18 @@ test-lint: ## Rung 0.5: Lint (blocking, fast)
 test-typecheck: ## Rung 0.35: Type check (blocking, fast)
 	uv run mypy src/
 
+test-imports: ## Rung 0.3: Import linter (blocking, fast)
+	PYTHONPATH=src uv run lint-imports
+
 test-all: ## Rung 2.0: Full test suite (blocking)
 	uv run python -m pytest tests/ -v --no-cov
 
 test-coverage: ## Rung 3.0: Coverage report (informational)
 	uv run python -m pytest tests/ --cov=src --cov-report=term --no-header -q --no-cov-on-fail || true
 
-test-fast: test-lint test-typecheck ## Inner loop: lint + typecheck (< 10s)
+test-fast: test-lint test-typecheck test-imports ## Inner loop: lint + typecheck + imports (< 10s)
 
-test-ci: test-lint test-typecheck test-all test-coverage ## Outer loop: full accordion
+test-ci: test-lint test-typecheck test-imports test-all test-coverage ## Outer loop: full accordion
 
 # --- End Test Accordion ---
 
