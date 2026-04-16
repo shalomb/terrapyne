@@ -28,12 +28,12 @@ class TestGetContextFromTFState:
             # With all fields
             (
                 {
-                    "organization": "Takeda",
+                    "organization": "my-org",
                     "hostname": "app.terraform.io",
                     "workspaces": {"name": "my-workspace"},
                 },
                 "my-workspace",
-                "Takeda",
+                "my-org",
                 "app.terraform.io",
             ),
             # Without workspace name
@@ -49,21 +49,21 @@ class TestGetContextFromTFState:
             # Missing hostname (should default)
             (
                 {
-                    "organization": "Takeda",
+                    "organization": "my-org",
                     "workspaces": {"name": "test"},
                 },
                 "test",
-                "Takeda",
+                "my-org",
                 "app.terraform.io",
             ),
             # Workspace with prefix (not name)
             (
                 {
-                    "organization": "Takeda",
+                    "organization": "my-org",
                     "workspaces": {"prefix": "env-"},
                 },
                 None,
-                "Takeda",
+                "my-org",
                 "app.terraform.io",
             ),
         ],
@@ -125,7 +125,7 @@ class TestGetContextFromTFState:
         tfstate_data = {
             "backend": {
                 "config": {
-                    "organization": "Takeda",
+                    "organization": "my-org",
                     "workspaces": {"prefix": "env-"},  # Not a "name" entry
                 }
             }
@@ -137,7 +137,7 @@ class TestGetContextFromTFState:
         workspace, org, _ = get_context_from_tfstate(tmp_path)
 
         assert workspace is None
-        assert org == "Takeda"
+        assert org == "my-org"
 
     def test_tfstate_permission_error(self, tmp_path):
         """Test handling of permission error when reading tfstate."""

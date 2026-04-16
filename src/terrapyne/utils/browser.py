@@ -124,11 +124,11 @@ def get_workspace_url(
         Fully qualified workspace URL
 
     Examples:
-        >>> get_workspace_url("Takeda", "my-workspace")
-        'https://app.terraform.io/app/Takeda/workspaces/my-workspace'
+        >>> get_workspace_url("my-org", "my-workspace")
+        'https://app.terraform.io/app/my-org/workspaces/my-workspace'
 
-        >>> get_workspace_url("Takeda", "my-workspace", page="runs")
-        'https://app.terraform.io/app/Takeda/workspaces/my-workspace/runs'
+        >>> get_workspace_url("my-org", "my-workspace", page="runs")
+        'https://app.terraform.io/app/my-org/workspaces/my-workspace/runs'
 
         >>> get_workspace_url("MyOrg", "ws", host="tfe.example.com", page="states")
         'https://tfe.example.com/app/MyOrg/workspaces/ws/states'
@@ -160,7 +160,7 @@ def get_run_url(
         Fully qualified run URL
 
     Example:
-        >>> get_run_url("Takeda", "my-workspace", "run-abc123")
-        'https://app.terraform.io/app/Takeda/workspaces/my-workspace/runs/run-abc123'
+        >>> get_run_url("my-org", "my-workspace", "run-abc123")
+        'https://app.terraform.io/app/my-org/workspaces/my-workspace/runs/run-abc123'
     """
     return f"https://{host}/app/{organization}/workspaces/{workspace}/runs/{run_id}"

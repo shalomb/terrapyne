@@ -132,13 +132,13 @@ graph TB
 ## Data Flow: `tfc workspace show`
 
 ```
-User: $ tfc workspace show my-app -o Takeda
+User: $ tfc workspace show my-app -o my-org
   ↓
 CLI: validate_context() → resolve from TFC_ORG env + flags
   ↓
-CLI: TFCClient(organization="Takeda")
+CLI: TFCClient(organization="my-org")
   ↓
-CLI: client.workspaces.get("my-app", "Takeda")
+CLI: client.workspaces.get("my-app", "my-org")
   ↓
 SDK: TFCClient routes → WorkspaceAPI.get()
   ↓

@@ -56,7 +56,7 @@ def workspace_list(
         terrapyne workspace list
 
         # List workspaces in specific organization
-        terrapyne workspace list --organization Takeda
+        terrapyne workspace list --organization my-org
 
         # Search for workspaces
         terrapyne workspace list --search my-app
@@ -122,7 +122,7 @@ def workspace_show(
         terrapyne workspace show my-app-dev
 
         # Show workspace in specific organization
-        terrapyne workspace show my-app-dev --organization Takeda
+        terrapyne workspace show my-app-dev --organization my-org
     """
     org, ws_name = validate_context(organization, workspace, require_workspace=True)
 
@@ -314,7 +314,7 @@ def workspace_variables(
         terrapyne workspace variables my-app-dev
 
         # List variables in specific organization
-        terrapyne workspace variables my-app-dev --organization Takeda
+        terrapyne workspace variables my-app-dev --organization my-org
     """
     org, ws_name = validate_context(organization, workspace, require_workspace=True)
 
@@ -673,7 +673,7 @@ def workspace_open(
         terrapyne workspace open
 
         # Open specific workspace
-        terrapyne workspace open my-app-dev --organization Takeda
+        terrapyne workspace open my-app-dev --organization my-org
 
         # Open workspace runs page
         terrapyne workspace open --page runs

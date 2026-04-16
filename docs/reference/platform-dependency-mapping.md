@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This document maps the dependencies and integration points between terrapyne and the Terraform Cloud ecosystem, along with the broader Takeda infrastructure platform. Understanding these dependencies is crucial for ensuring seamless integration, avoiding conflicts, and planning compatibility with AVM/TEC standards.
+This document maps the dependencies and integration points between terrapyne and the Terraform Cloud ecosystem, along with the broader infrastructure platform. Understanding these dependencies is crucial for ensuring seamless integration, avoiding conflicts, and planning compatibility with AVM/Internal Platform standards.
 
 ## Dependency Matrix
 
@@ -59,7 +59,7 @@ This document maps the dependencies and integration points between terrapyne and
 | **State Outputs** | Data Extract | List outputs from state versions | Medium | ✅ Implemented |
 | **S3 Signed URLs** | External URL | Download state exports | Medium | ✅ Implemented |
 
-### 3. **Takeda Infrastructure Platform (TEC)**
+### 3. **Infrastructure Platform (Internal)**
 
 #### **AVM (Automated Vending Machine)**
 | Dependency | Type | Purpose | Impact | Status |
@@ -68,20 +68,20 @@ This document maps the dependencies and integration points between terrapyne and
 | **AVM Resource Tagging** | Data Pattern | Filter by AVM ownership tags | High | ⏳ Planned (Phase 2) |
 | **AVM Building Blocks** | Module Library | Reference implementations for IaC patterns | High | ⏳ Planned (Phase 3) |
 
-#### **TEC AWS Accounts**
+#### **Internal Platform AWS Accounts**
 | Dependency | Type | Purpose | Impact | Status |
 |------------|------|---------|--------|--------|
 | **Cross-Account Role Patterns** | Authentication | TFC workspace IAM role assumption | High | ⏳ Planned |
 | **Resource Tagging Standards** | Data Pattern | APMS-ID, cost center, environment tags | High | ⏳ Planned |
 | **Network Architecture** | Infrastructure | VPC, subnet, security group discovery | Medium | ⏳ Planned |
 
-#### **TEC Service Integration**
+#### **Internal Platform Service Integration**
 | Dependency | Type | Purpose | Impact | Status |
 |------------|------|---------|--------|--------|
 | **TFC Workspace Standards** | Convention | Naming, tagging, team assignment patterns | Medium | ⏳ Planned |
 | **State Management Strategy** | Strategy | Remote state consolidation, organization | Medium | ⏳ Planned |
 
-### 4. **External Takeda Systems**
+### 4. **External Internal Systems**
 
 #### **LeanIX Integration**
 | Dependency | Type | Purpose | Impact | Status |
@@ -316,14 +316,14 @@ This document maps the dependencies and integration points between terrapyne and
 
 ## Compatibility & Standards
 
-### **Takeda AVM Standards** (Planned Integration)
+### **Internal Standards** (Planned Integration)
 
 | Standard | Relevance | Status | Notes |
 |----------|-----------|--------|-------|
 | **AVM Foundational Resources** | Filter excluded resources during discovery | ⏳ Phase 2 | Requires AVM resource tagging standards |
-| **Resource Tagging** | APMS-ID, cost center, environment tagging | ⏳ Phase 2 | Align with TEC tagging policies |
+| **Resource Tagging** | APMS-ID, cost center, environment tagging | ⏳ Phase 2 | Align with Internal Platform tagging policies |
 | **Building Block Patterns** | Terraform module composition, versions | ⏳ Phase 3 | Reference AVM building blocks for code generation |
-| **Cross-Account Architecture** | Multi-account workspace organization | ⏳ Phase 2 | Support TEC cross-account patterns |
+| **Cross-Account Architecture** | Multi-account workspace organization | ⏳ Phase 2 | Support Internal Platform cross-account patterns |
 
 ### **Terraform Best Practices**
 
@@ -354,9 +354,9 @@ terrapyne
 ├── Terraform Binary
 │   ├── show -json (plan/apply parsing)
 │   └── login (OAuth flow)
-├── Takeda Platform (Future)
+├── Internal Platform (Future)
 │   ├── AVM (resource filtering)
-│   ├── TEC (account/network context)
+│   ├── Internal Platform (account/network context)
 │   └── LeanIX (application metadata)
 └── External Systems (Future)
     ├── GitHub (repository enumeration)
@@ -388,7 +388,7 @@ This document should be reviewed quarterly or when:
 - Major API breaking changes occur in TFC
 - New integrations are planned
 - Risk assessments reveal new dependencies
-- AVM/TEC standards are finalized
+- AVM/Internal Platform standards are finalized
 
 **Last Updated**: 2026-04-14  
 **Next Review**: 2026-07-14  
