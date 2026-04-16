@@ -102,5 +102,6 @@ exclude = ["src/terrapyne/logging.py", "src/terrapyne/terrapyne.py"]
 
 [dependency-groups]
 dev = [
+    "import-linter>=2.11",
     "pytest>=9.0.3",
 ]
