@@ -75,30 +75,38 @@ init: uv-init ## Initialize development environment using uv
 
 test: test-all ## (alias) Run all tests
 
-# --- Test Accordion (inner → outer) ---
-# Inner loop: run before every commit     → make test-fast  (< 10s)
-# Outer loop: run before every push / PR  → make test-ci    (< 60s)
+# --- Test Ladder (Accordion Pattern) ---
+# Apertures:
+#   Inner Loop (3-5s):  make test-fast  (Rungs 0.0 - 0.5)
+#   Outer Loop (2-3m):  make test-ci    (Rungs 0.0 - 3.0)
+#   UAT Loop (3-5m):    make test-uat   (Final validation)
 
-test-lint: ## Rung 0.5: Lint (blocking, fast)
-	uv run ruff check src/ tests/
+test-structure: ## Rung 0.0: Syntax check (blocking)
+	uv run ruff check src/ tests/ --select=E9,F63,F7,F82
 
-test-typecheck: ## Rung 0.35: Type check (blocking, fast)
-	uv run mypy src/
-
-test-imports: ## Rung 0.3: Import linter (blocking, fast)
+test-imports: ## Rung 0.25: Import linter (blocking)
 	PYTHONPATH=src uv run lint-imports
 
-test-all: ## Rung 2.0: Full test suite (blocking)
+test-typecheck: ## Rung 0.35: Type check (blocking)
+	uv run mypy src/
+
+test-lint: ## Rung 0.5: Full lint (blocking)
+	uv run ruff check src/ tests/
+
+test-last-failed: ## Rung 1.0: Regressions (fast)
+	uv run python -m pytest tests/ --lf -x -q --no-header --no-cov || true
+
+test-all: ## Rung 2.0: Logic / Full suite (blocking)
 	uv run python -m pytest tests/ -v --no-cov
 
 test-coverage: ## Rung 3.0: Coverage report (informational)
 	uv run python -m pytest tests/ --cov=src --cov-report=term --no-header -q --no-cov-on-fail || true
 
-test-fast: test-lint test-typecheck test-imports ## Inner loop: lint + typecheck + imports (< 10s)
+test-fast: test-structure test-imports test-typecheck test-lint ## Inner Loop: Rungs 0.0 - 0.5 (< 10s)
 
-test-ci: test-lint test-typecheck test-imports test-all test-coverage ## Outer loop: full accordion
+test-ci: test-fast test-last-failed test-all test-coverage ## Outer Loop: Full ladder accordion
 
-# --- End Test Accordion ---
+# --- End Test Ladder ---
 
 test-unit: ## Run unit tests only
 	uv run python -m pytest tests/unit/ -v --no-cov
