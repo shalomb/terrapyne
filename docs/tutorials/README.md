@@ -4,7 +4,7 @@ Tutorials are learning-oriented guides. They are designed to take a new user by 
 
 ## 🚀 Getting Started
 
-- **[Quickstart Guide](quickstart.md)** *(planned)* — Install Terrapyne, authenticate with TFC, and run your first command in under 5 minutes.
+- **[Quickstart Guide](quickstart.md)** — Install Terrapyne, authenticate with TFC, and run your first command in under 5 minutes.
 
 ## 🛠️ CLI Walkthroughs
 

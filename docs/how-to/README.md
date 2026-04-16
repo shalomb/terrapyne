@@ -10,12 +10,12 @@ Detailed conventions for contributing to the Terrapyne codebase.
 - **[Commits & Review](commits-and-review.md)** — Atomic commits, conventional formats, and our PR workflow.
 - **[BDD Specifications](../explanation/bdd-specifications.md)** — Writing Adzic-aligned feature files and step definitions.
 
-## 🖥️ CLI Operations *(planned)*
+## 🖥️ CLI Operations
 
 Practical recipes for common terminal tasks.
 
 - **[List workspaces by project](list-workspaces-by-project.md)** — Filter and organize workspaces effectively.
-- **[Create workspace variables in bulk](bulk-variable-creation.md)** — Automate variable injection across multiple environments.
+- **[Create workspace variables in bulk](bulk-variable-creation.md)** *(planned)* — Automate variable injection across multiple environments.
 - **[Stream and monitor run logs](monitor-run-logs.md)** — Follow real-time plan/apply output in your terminal.
 - **[Clone workspace configuration](clone-workspaces.md)** — Duplicate workspace state and variables safely.
 

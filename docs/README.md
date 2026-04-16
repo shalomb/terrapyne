@@ -29,14 +29,15 @@
 - **[Python & Testing](how-to/python-and-testing.md)** — Type hints, imports, test structure, and pytest-bdd.
 - **[Commits & Review](how-to/commits-and-review.md)** — Atomic commits, conventional formats, and PR workflow.
 
-#### **Workspace Operations** *(planned)*
+#### **Workspace Operations**
 - **[List workspaces by project](how-to/list-workspaces-by-project.md)** — Filter and organize workspaces.
-- **[Create workspace variables in bulk](how-to/bulk-variable-creation.md)** — Automate variable injection.
+- **[Create workspace variables in bulk](how-to/bulk-variable-creation.md)** *(planned)* — Automate variable injection.
 
 ### 💡 [Explanation](explanation/) (Understanding-oriented)
 **Why things are the way they are** — conceptual backgrounds and design.
 
 - **[Architecture & ADRs](explanation/architecture/)** — System context, container diagrams, and decision records.
+- **[Design Philosophy](explanation/design-philosophy.md)** — Why we built Terrapyne as a CLI/SDK hybrid.
 - **[BDD Specifications](explanation/bdd-specifications.md)** — Understanding our behavior-driven development approach.
 - **[Plan Parser Analysis](explanation/plan-parser.md)** — How we extract data from plain text plans.
 
@@ -44,6 +45,7 @@
 **How things work** — specs, APIs, and technical details.
 
 - **[SDK Reference](reference/sdk.md)** — Python library documentation and examples.
+- **[CLI Command Reference](reference/cli-reference.md)** — All commands, flags, and examples.
 - **[Platform Dependency Mapping](reference/platform-dependency-mapping.md)** — External systems, integration points, and risks.
 
 ---

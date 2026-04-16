@@ -5,7 +5,7 @@ Explanation-oriented documentation provides conceptual background and context. I
 ## 🏛️ Architecture & Design
 
 - **[Architecture & ADRs](architecture/)** — The blueprint of Terrapyne, including C4 diagrams and Architecture Decision Records (ADRs).
-- **[Design Philosophy](design-philosophy.md)** *(planned)* — Why we built Terrapyne as a CLI/SDK hybrid.
+- **[Design Philosophy](design-philosophy.md)** — Why we built Terrapyne as a CLI/SDK hybrid.
 
 ## ⚙️ Core Mechanics
 

@@ -8,7 +8,7 @@ Reference documentation is information-oriented. It provides technical specifica
 
 ## 🖥️ CLI Reference
 
-- **[CLI Command Reference](cli-reference.md)** *(planned)* — Exhaustive list of all `tfc` commands, flags, arguments, and environment variables.
+- **[CLI Command Reference](cli-reference.md)** — Exhaustive list of all `tfc` commands, flags, arguments, and environment variables.
 
 ## 🗺️ Ecosystem & Dependencies
 
