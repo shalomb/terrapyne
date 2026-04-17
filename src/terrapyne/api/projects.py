@@ -92,7 +92,7 @@ class ProjectAPI:
             Project instance
 
         Raises:
-            httpx.HTTPStatusError: If project not found
+            TFCAPIError: If project not found
         """
         path = f"/projects/{project_id}"
 

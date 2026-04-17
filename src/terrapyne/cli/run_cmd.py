@@ -946,7 +946,7 @@ def run_parse_plan(
             plan_text = f.read()
 
     # Parse it
-    from terrapyne.terrapyne import Terraform
+    from terrapyne.core.local_binary import Terraform
 
     tf = Terraform(".")
     result = tf.parse_plain_text_plan(plan_text)

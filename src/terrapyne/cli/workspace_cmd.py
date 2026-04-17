@@ -5,13 +5,13 @@ from datetime import UTC
 from pathlib import Path
 from typing import Annotated, cast
 
-import httpx
 import typer
 from rich.table import Table
 
 from terrapyne.api.client import TFCClient
 from terrapyne.api.vcs import VCSAPI
 from terrapyne.cli.utils import console, emit_json, handle_cli_errors, validate_context
+from terrapyne.core.exceptions import TFCAPIError
 from terrapyne.models.run import RunStatus
 from terrapyne.models.variable import WorkspaceVariable
 from terrapyne.utils.browser import get_workspace_url, open_url_in_browser
@@ -149,10 +149,10 @@ def workspace_show(
                     active_statuses = ",".join(active_list)
                     _, count = client.runs.list(ws.id, status=active_statuses, limit=1)
                     active_runs_count = count or 0
-        except httpx.HTTPStatusError as e:
+        except TFCAPIError as e:
             console.print(
                 f"\n[yellow]Warning:[/yellow] Unable to fetch run activity "
-                f"(API error {e.response.status_code})"
+                f"(API error {e.status_code})"
             )
 
         if output_format == "json":
@@ -162,12 +162,12 @@ def workspace_show(
 
             try:
                 vcs = client.vcs.get_workspace_vcs(ws.id)
-            except httpx.HTTPStatusError:
+            except TFCAPIError:
                 pass
 
             try:
                 variables = client.workspaces.get_variables(ws.id)
-            except httpx.HTTPStatusError:
+            except TFCAPIError:
                 pass
 
             # Build variable summary
@@ -231,9 +231,9 @@ def workspace_show(
         try:
             variables = client.workspaces.get_variables(ws.id)
             render_workspace_variables(variables)
-        except httpx.HTTPStatusError as e:
+        except TFCAPIError as e:
             console.print(
-                f"\n[yellow]Warning:[/yellow] Unable to fetch variables (API error {e.response.status_code})"
+                f"\n[yellow]Warning:[/yellow] Unable to fetch variables (API error {e.status_code})"
             )
 
         # 4. Render VCS configuration

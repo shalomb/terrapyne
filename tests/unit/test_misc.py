@@ -1,7 +1,12 @@
 import logging
 import sys
 
-from terrapyne.logging import PrettyExceptionFormatter, _interpret_color, cli_log_config, style
+from terrapyne.utils.logging import (
+    PrettyExceptionFormatter,
+    _interpret_color,
+    cli_log_config,
+    style,
+)
 
 
 def test_interpret_color_and_style_basic():

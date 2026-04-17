@@ -16,6 +16,14 @@ import httpx
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from terrapyne.core.credentials import TerraformCredentials
+from terrapyne.core.exceptions import (
+    TFCAPIError,
+    TFCAuthenticationError,
+    TFCConflictError,
+    TFCNotFoundError,
+    TFCRateLimitError,
+    TFCServerError,
+)
 
 if TYPE_CHECKING:
     from terrapyne.api.projects import ProjectAPI
@@ -128,10 +136,53 @@ class TFCClient:
             if response.status_code >= 400:
                 logger.info(f"  Error Body: {response.text}")
 
+    def _handle_response_error(self, response: httpx.Response) -> None:
+        """Handle HTTP response errors and raise domain-specific exceptions."""
+        try:
+            response.raise_for_status()
+        except TFCAPIError as e:
+            status_code = response.status_code
+            message = f"TFC API Error: {status_code} - {response.text}"
+
+            if status_code in (401, 403):
+                raise TFCAuthenticationError(
+                    message, status_code=status_code, response=response
+                ) from e
+            if status_code == 404:
+                raise TFCNotFoundError(message, status_code=status_code, response=response) from e
+            if status_code == 409:
+                raise TFCConflictError(message, status_code=status_code, response=response) from e
+            if status_code == 429:
+                raise TFCRateLimitError(message, status_code=status_code, response=response) from e
+            if status_code >= 500:
+                raise TFCServerError(message, status_code=status_code, response=response) from e
+
+            raise TFCAPIError(message, status_code=status_code, response=response) from e
+
+    def _request(
+        self,
+        method: str,
+        path: str,
+        params: dict[str, Any] | None = None,
+        json_data: dict[str, Any] | None = None,
+    ) -> httpx.Response:
+        """Internal generic request handler with error handling."""
+        url = path if path.startswith("http") else f"{self.base_url}{path}"
+        start_time = self._log_request(method, url, params or json_data)
+        response = self.client.request(
+            method,
+            url,
+            params=params or {},
+            json=json_data or {} if json_data is not None else None,
+        )
+        self._log_response(method, url, response, start_time)
+        self._handle_response_error(response)
+        return response
+
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type(httpx.HTTPStatusError),
+        retry=retry_if_exception_type((TFCAPIError, TFCServerError)),
         reraise=True,
     )
     def get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -145,11 +196,10 @@ class TFCClient:
             JSON response dict
 
         Raises:
-            httpx.HTTPStatusError: On HTTP errors after retries
+            TFCAPIError: On TFC API errors
         """
-        url = f"{self.base_url}{path}"
-
         # Cache check
+        url = path if path.startswith("http") else f"{self.base_url}{path}"
         cache_path = None
         if self.cache_ttl > 0:
             cache_dir = Path("~/.terrapyne/cache").expanduser()
@@ -167,10 +217,7 @@ class TFCClient:
                     with open(cache_path) as f:
                         return json.load(f)
 
-        start_time = self._log_request("GET", url, params)
-        response = self.client.get(url, params=params or {})
-        self._log_response("GET", url, response, start_time)
-        response.raise_for_status()
+        response = self._request("GET", path, params=params)
         data = response.json()
 
         # Store in cache
@@ -183,7 +230,7 @@ class TFCClient:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type(httpx.HTTPStatusError),
+        retry=retry_if_exception_type((TFCAPIError, TFCServerError)),
         reraise=True,
     )
     def post(self, path: str, json_data: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -197,19 +244,15 @@ class TFCClient:
             JSON response dict
 
         Raises:
-            httpx.HTTPStatusError: On HTTP errors after retries
+            TFCAPIError: On TFC API errors
         """
-        url = f"{self.base_url}{path}"
-        start_time = self._log_request("POST", url, json_data)
-        response = self.client.post(url, json=json_data or {})
-        self._log_response("POST", url, response, start_time)
-        response.raise_for_status()
+        response = self._request("POST", path, json_data=json_data)
         return response.json()
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type(httpx.HTTPStatusError),
+        retry=retry_if_exception_type((TFCAPIError, TFCServerError)),
         reraise=True,
     )
     def patch(self, path: str, json_data: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -223,14 +266,28 @@ class TFCClient:
             JSON response dict
 
         Raises:
-            httpx.HTTPStatusError: On HTTP errors after retries
+            TFCAPIError: On TFC API errors
         """
-        url = f"{self.base_url}{path}"
-        start_time = self._log_request("PATCH", url, json_data)
-        response = self.client.patch(url, json=json_data or {})
-        self._log_response("PATCH", url, response, start_time)
-        response.raise_for_status()
+        response = self._request("PATCH", path, json_data=json_data)
         return response.json()
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((TFCAPIError, TFCServerError)),
+        reraise=True,
+    )
+    def delete(self, path: str, json_data: dict[str, Any] | None = None) -> None:
+        """DELETE request with retry logic.
+
+        Args:
+            path: API path
+            json_data: Optional JSON payload
+
+        Raises:
+            TFCAPIError: On TFC API errors
+        """
+        self._request("DELETE", path, json_data=json_data)
 
     def paginate(
         self, path: str, params: dict[str, Any] | None = None, page_size: int = 100

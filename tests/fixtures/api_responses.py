@@ -30,11 +30,7 @@ def workspace_list_response():
                         "oauth-token-id": "ot-1a2b3c4d5e6f7g8h",
                     },
                 },
-                "relationships": {
-                    "project": {
-                        "data": {"id": "prj-abc123", "type": "projects"}
-                    }
-                },
+                "relationships": {"project": {"data": {"id": "prj-abc123", "type": "projects"}}},
             },
             {
                 "id": "ws-2a3b4c5d6e7f8g9h",
@@ -85,11 +81,7 @@ def workspace_detail_response():
                     "working-directory": "terraform/",
                 },
             },
-            "relationships": {
-                "project": {
-                    "data": {"id": "prj-abc123", "type": "projects"}
-                }
-            },
+            "relationships": {"project": {"data": {"id": "prj-abc123", "type": "projects"}}},
         }
     }
 
@@ -146,9 +138,7 @@ def run_list_response():
                     "resource-destructions": 0,
                 },
                 "relationships": {
-                    "workspace": {
-                        "data": {"id": "ws-1a2b3c4d5e6f7g8h", "type": "workspaces"}
-                    }
+                    "workspace": {"data": {"id": "ws-1a2b3c4d5e6f7g8h", "type": "workspaces"}}
                 },
             },
             {
@@ -194,9 +184,7 @@ def run_detail_response():
                 "replace-addrs": [],
             },
             "relationships": {
-                "workspace": {
-                    "data": {"id": "ws-1a2b3c4d5e6f7g8h", "type": "workspaces"}
-                }
+                "workspace": {"data": {"id": "ws-1a2b3c4d5e6f7g8h", "type": "workspaces"}}
             },
         }
     }
@@ -217,9 +205,7 @@ def project_list_response():
                     "resource-count": 3,
                 },
                 "relationships": {
-                    "organization": {
-                        "data": {"id": "test-org", "type": "organizations"}
-                    }
+                    "organization": {"data": {"id": "test-org", "type": "organizations"}}
                 },
             },
             {
@@ -251,9 +237,7 @@ def project_detail_response():
                 "resource-count": 3,
             },
             "relationships": {
-                "organization": {
-                    "data": {"id": "test-org", "type": "organizations"}
-                }
+                "organization": {"data": {"id": "test-org", "type": "organizations"}}
             },
         }
     }
@@ -288,9 +272,7 @@ def team_project_access_response():
                 "relationships": {
                     "team": {
                         "data": {"id": "team-123", "type": "teams"},
-                        "links": {
-                            "related": "https://app.terraform.io/api/v2/teams/team-123"
-                        },
+                        "links": {"related": "https://app.terraform.io/api/v2/teams/team-123"},
                     },
                     "project": {
                         "data": {"id": "prj-abc123", "type": "projects"},
@@ -342,9 +324,7 @@ def team_detail_response():
                 "created-at": "2025-01-15T08:00:00.000Z",
             },
             "relationships": {
-                "organization": {
-                    "data": {"id": "test-org", "type": "organizations"}
-                }
+                "organization": {"data": {"id": "test-org", "type": "organizations"}}
             },
         }
     }

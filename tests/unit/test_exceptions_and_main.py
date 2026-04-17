@@ -3,7 +3,7 @@
 import sys
 from unittest.mock import patch
 
-from terrapyne.exceptions import (
+from terrapyne.core.exceptions import (
     TerraformApplyError,
     TerraformApplyException,
     TerraformError,

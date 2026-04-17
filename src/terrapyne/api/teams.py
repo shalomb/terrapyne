@@ -44,7 +44,7 @@ class TeamsAPI:
             Tuple of (iterator of Team instances, total count or None)
 
         Raises:
-            httpx.HTTPStatusError: If API request fails
+            TFCAPIError: If API request fails
 
         Examples:
             # Search by substring (server-side, efficient)
@@ -83,7 +83,7 @@ class TeamsAPI:
             Team instance
 
         Raises:
-            httpx.HTTPStatusError: If team not found
+            TFCAPIError: If team not found
         """
         path = f"/teams/{team_id}"
         response = self.client.get(path)
@@ -106,7 +106,7 @@ class TeamsAPI:
             Created Team instance
 
         Raises:
-            httpx.HTTPStatusError: If creation fails
+            TFCAPIError: If creation fails
         """
         org = self.client.get_organization(organization)
         path = f"/organizations/{org}/teams"
@@ -144,7 +144,7 @@ class TeamsAPI:
             Updated Team instance
 
         Raises:
-            httpx.HTTPStatusError: If update fails
+            TFCAPIError: If update fails
         """
         path = f"/teams/{team_id}"
 
@@ -171,12 +171,10 @@ class TeamsAPI:
             team_id: Team ID
 
         Raises:
-            httpx.HTTPStatusError: If deletion fails
+            TFCAPIError: If deletion fails
         """
         path = f"/teams/{team_id}"
-        url = f"{self.client.base_url}{path}"
-        response = self.client.client.delete(url)
-        response.raise_for_status()
+        self.client.delete(path)
 
     def list_members(self, team_id: str) -> tuple[list[dict[str, Any]], int | None]:
         """List members in a team.
@@ -188,7 +186,7 @@ class TeamsAPI:
             Tuple of (list of user dicts, total count or None)
 
         Raises:
-            httpx.HTTPStatusError: If API request fails
+            TFCAPIError: If API request fails
         """
         path = f"/teams/{team_id}/relationships/users"
 
@@ -205,7 +203,7 @@ class TeamsAPI:
             user_id: User ID
 
         Raises:
-            httpx.HTTPStatusError: If add fails (user already in team, etc.)
+            TFCAPIError: If add fails (user already in team, etc.)
         """
         path = f"/teams/{team_id}/relationships/users"
 
@@ -228,7 +226,7 @@ class TeamsAPI:
             user_id: User ID
 
         Raises:
-            httpx.HTTPStatusError: If removal fails (user not in team, etc.)
+            TFCAPIError: If removal fails (user not in team, etc.)
         """
         path = f"/teams/{team_id}/relationships/users"
 
@@ -242,9 +240,7 @@ class TeamsAPI:
         }
 
         # Use DELETE with JSON body
-        url = f"{self.client.base_url}{path}"
-        response = self.client.client.request("DELETE", url, json=payload)
-        response.raise_for_status()
+        self.client.delete(path, json_data=payload)
 
     def get_project_access(self, project_id: str, team_id: str) -> TeamProjectAccess:
         """Get a team's access record for a specific project.
@@ -295,7 +291,7 @@ class TeamsAPI:
 
         Raises:
             ValueError: If access level invalid or no existing record found
-            httpx.HTTPStatusError: If PATCH fails
+            TFCAPIError: If PATCH fails
         """
         from terrapyne.models.team_access import TeamProjectAccess
 

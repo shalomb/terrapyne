@@ -80,15 +80,11 @@ class StateVersionsAPI:
         sv = self.get(state_version_id)
         if not sv.download_url:
             raise ValueError(f"State version {state_version_id} has no download URL")
-        response = self.client.client.get(sv.download_url)
-        response.raise_for_status()
-        return response.json()
+        return self.client.get(sv.download_url)
 
     def download_from_url(self, download_url: str) -> dict[str, Any]:
         """Download raw state JSON from a signed URL directly."""
-        response = self.client.client.get(download_url)
-        response.raise_for_status()
-        return response.json()
+        return self.client.get(download_url)
 
     def list_outputs(self, state_version_id: str) -> builtins.list[StateVersionOutput]:
         """List outputs for a state version without downloading full state."""

@@ -15,8 +15,9 @@ from typing import Any
 # Use `type` aliases for readability
 from benedict import benedict
 
-from . import exceptions
-from .utils import change_directory
+from terrapyne.utils import change_directory
+
+from .exceptions import TerraformApplyError, TerraformError, TerraformVersionError
 
 NullableDict = dict[Any, Any] | None
 NullableList = list | None
@@ -57,7 +58,7 @@ class Terraform:
 
         assert self.version
         if required_version is not None and self.version != required_version:
-            raise exceptions.TerraformVersionError(
+            raise TerraformVersionError(
                 f"required version of terraform check failed: {self.version} != {required_version}"
             )
 
@@ -84,7 +85,7 @@ class Terraform:
             ignore_exit_code=True,
         )
         if c != 0:
-            raise exceptions.TerraformError(f"terraform validate failed: {c} {e}")
+            raise TerraformError(f"terraform validate failed: {c} {e}")
         return self.objectify(o)
 
     def plan(
@@ -296,7 +297,7 @@ class Terraform:
             log.debug(logmsg)
 
             if ignore_exit_code is not True and exit_code != expect_exit_code:
-                raise exceptions.TerraformApplyError(
+                raise TerraformApplyError(
                     message="Failure in running 'terraform apply'",
                     exit_code=exit_code,
                     expect_exit_code=expect_exit_code,

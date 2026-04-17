@@ -7,6 +7,7 @@ from typing import Any, TypeVar
 import typer
 from rich.console import Console
 
+from terrapyne.core.exceptions import TerrapyneError, TFCAPIError
 from terrapyne.utils.context import resolve_organization, resolve_workspace
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -30,11 +31,18 @@ def handle_cli_errors(func: F) -> F:
             return func(*args, **kwargs)
         except typer.Exit:
             raise
+        except TFCAPIError as e:
+            status = f" ({e.status_code})" if e.status_code else ""
+            console.print(f"[red]API Error{status}:[/red] {e}")
+            raise typer.Exit(code=1) from None
+        except TerrapyneError as e:
+            console.print(f"[red]Error:[/red] {e}")
+            raise typer.Exit(code=1) from None
         except ValueError as e:
-            console.print(f"[red]Error: {e}[/red]")
+            console.print(f"[red]Error:[/red] {e}")
             raise typer.Exit(code=1) from None
         except Exception as e:
-            console.print(f"[red]Unexpected error: {e}[/red]")
+            console.print(f"[red]Unexpected error:[/red] {e}")
             raise typer.Exit(code=1) from None
 
     return wrapper  # type: ignore[return-value]

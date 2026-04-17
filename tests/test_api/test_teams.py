@@ -310,9 +310,9 @@ class TestTeamDeletion:
         api.delete(team_id)
 
         # Verify API call
-        mock_client.client.delete.assert_called_once()
-        call_args = mock_client.client.delete.call_args
-        assert f"/teams/{team_id}" in call_args[0][0]
+        mock_client.delete.assert_called_once()
+        call_args = mock_client.delete.call_args
+        assert call_args[0][0] == f"/teams/{team_id}"
 
 
 class TestTeamMembers:
@@ -385,23 +385,17 @@ class TestTeamMembers:
         """Test removing a user from a team."""
         team_id = "team-members123"
         user_id = "user-remove123"
-        mock_client.base_url = "https://app.terraform.io"
-        mock_response = MagicMock()
-        mock_client.client.request.return_value = mock_response
 
         api.remove_member(team_id=team_id, user_id=user_id)
 
         # Verify API call
-        mock_client.client.request.assert_called_once()
-        call_args = mock_client.client.request.call_args
-        assert call_args[0][0] == "DELETE"
-        assert f"/teams/{team_id}/relationships/users" in call_args[0][1]
+        mock_client.delete.assert_called_once()
+        call_args = mock_client.delete.call_args
+        assert call_args[0][0] == f"/teams/{team_id}/relationships/users"
 
-        # Verify payload contains user
-        assert call_args[1]["json"]["data"][0]["id"] == user_id
-
-        # Verify response was checked
-        mock_response.raise_for_status.assert_called_once()
+        # Verify payload
+        payload = call_args[1]["json_data"]
+        assert payload["data"][0]["id"] == user_id
 
 
 class TestTeamIntegration:
