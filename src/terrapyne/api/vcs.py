@@ -31,7 +31,7 @@ class VCSAPI:
             VCSConnection instance or None if workspace has no VCS connection
 
         Raises:
-            httpx.HTTPStatusError: If workspace not found
+            TFCAPIError: If workspace not found
         """
         response = self.client.get(f"/workspaces/{workspace_id}")
         workspace_data = response["data"]
@@ -62,7 +62,7 @@ class VCSAPI:
 
         Raises:
             ValueError: If workspace has no VCS connection
-            httpx.HTTPStatusError: If API request fails
+            TFCAPIError: If API request fails
         """
         # Get current workspace config
         current_vcs = self.get_workspace_vcs(workspace_id)
@@ -106,7 +106,7 @@ class VCSAPI:
             - workspaces: List of workspace names using this repo
 
         Raises:
-            httpx.HTTPStatusError: If API request fails
+            TFCAPIError: If API request fails
         """
         workspaces_api = WorkspaceAPI(self.client)
         workspaces_iter, _ = workspaces_api.list(organization)

@@ -72,7 +72,7 @@ class WorkspaceAPI:
             Workspace instance
 
         Raises:
-            httpx.HTTPStatusError: If workspace not found
+            TFCAPIError: If workspace not found
         """
         org = self.client.get_organization(organization)
         path = f"/organizations/{org}/workspaces/{workspace_name}"
@@ -90,7 +90,7 @@ class WorkspaceAPI:
             Workspace instance
 
         Raises:
-            httpx.HTTPStatusError: If workspace not found
+            TFCAPIError: If workspace not found
         """
         path = f"/workspaces/{workspace_id}"
 
@@ -107,7 +107,7 @@ class WorkspaceAPI:
             List of WorkspaceVariable instances
 
         Raises:
-            httpx.HTTPStatusError: If API request fails
+            TFCAPIError: If API request fails
         """
         path = f"/workspaces/{workspace_id}/vars"
 
@@ -143,7 +143,7 @@ class WorkspaceAPI:
             Created WorkspaceVariable instance
 
         Raises:
-            httpx.HTTPStatusError: If API request fails
+            TFCAPIError: If API request fails
         """
 
         path = "/vars"
@@ -194,7 +194,7 @@ class WorkspaceAPI:
             Updated WorkspaceVariable instance
 
         Raises:
-            httpx.HTTPStatusError: If API request fails
+            TFCAPIError: If API request fails
         """
 
         path = f"/vars/{variable_id}"

@@ -146,7 +146,7 @@ class RunsAPI:
             Created Run instance
 
         Raises:
-            httpx.HTTPStatusError: If creation fails
+            TFCAPIError: If creation fails
         """
         path = "/runs"
         payload: dict[str, Any] = {
@@ -237,7 +237,7 @@ class RunsAPI:
             Plan instance
 
         Raises:
-            httpx.HTTPStatusError: If plan not found
+            TFCAPIError: If plan not found
         """
         path = f"/plans/{plan_id}"
         response = self.client.get(path)
@@ -253,12 +253,10 @@ class RunsAPI:
             Plan log content as string
 
         Raises:
-            httpx.HTTPStatusError: If logs not available
+            TFCAPIError: If logs not available
         """
         path = f"/plans/{plan_id}/logs"
-        response = self.client.client.get(f"{self.client.base_url}{path}")
-        response.raise_for_status()
-        return response.text
+        return self.client._request("GET", path).text
 
     def get_apply_logs(self, apply_id: str) -> str:
         """Get apply logs.
@@ -270,12 +268,10 @@ class RunsAPI:
             Apply log content as string
 
         Raises:
-            httpx.HTTPStatusError: If logs not available
+            TFCAPIError: If logs not available
         """
         path = f"/applies/{apply_id}/logs"
-        response = self.client.client.get(f"{self.client.base_url}{path}")
-        response.raise_for_status()
-        return response.text
+        return self.client._request("GET", path).text
 
     def get_apply(self, apply_id: str) -> Apply:
         """Get apply details.
@@ -287,7 +283,7 @@ class RunsAPI:
             Apply instance
 
         Raises:
-            httpx.HTTPStatusError: If apply not found
+            TFCAPIError: If apply not found
         """
         path = f"/applies/{apply_id}"
 
@@ -302,9 +298,7 @@ class RunsAPI:
         This is a simple version that returns all lines.
         A future version will support real-time streaming.
         """
-        response = self.client.client.get(url)
-        response.raise_for_status()
-        return response.text.splitlines()
+        return self.client._request("GET", url).text.splitlines()
 
     def poll_until_complete(
         self,
@@ -324,7 +318,7 @@ class RunsAPI:
 
         Raises:
             TimeoutError: If max_wait exceeded
-            httpx.HTTPStatusError: If API errors occur
+            TFCAPIError: If API errors occur
         """
         # Exponential backoff intervals (seconds)
         intervals = [2, 2, 3, 5, 5, 10, 10, 15, 30]
