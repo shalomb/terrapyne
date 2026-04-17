@@ -9,7 +9,6 @@ Library Usage:
 
 __version__ = "0.1.0"
 
-from . import exceptions
 from .api.client import TFCClient
 from .api.projects import ProjectAPI
 from .api.runs import RunsAPI
@@ -19,6 +18,19 @@ from .api.workspace_clone import CloneWorkspaceAPI
 from .api.workspaces import WorkspaceAPI
 from .core.backend import RemoteBackend
 from .core.credentials import TerraformCredentials
+from .core.exceptions import (
+    TerraformApplyError,
+    TerraformError,
+    TerraformVersionError,
+    TerrapyneError,
+    TFCAPIError,
+    TFCAuthenticationError,
+    TFCConflictError,
+    TFCNotFoundError,
+    TFCRateLimitError,
+    TFCServerError,
+)
+from .core.local_binary import Terraform
 from .core.plan_parser import TerraformPlainTextPlanParser as PlanParser
 from .models.plan import Plan
 from .models.project import Project
@@ -28,7 +40,6 @@ from .models.team_access import TeamProjectAccess
 from .models.variable import WorkspaceVariable
 from .models.vcs import VCSConnection
 from .models.workspace import Workspace, WorkspaceVCS
-from .terrapyne import Terraform
 from .utils.context import resolve_organization, resolve_workspace
 
 __all__ = [
@@ -41,18 +52,27 @@ __all__ = [
     "RemoteBackend",
     "Run",
     "RunsAPI",
+    "TFCAPIError",
+    "TFCAuthenticationError",
     "TFCClient",
+    "TFCConflictError",
+    "TFCNotFoundError",
+    "TFCRateLimitError",
+    "TFCServerError",
     "Team",
     "TeamProjectAccess",
     "TeamsAPI",
     "Terraform",
+    "TerraformApplyError",
     "TerraformCredentials",
+    "TerraformError",
+    "TerraformVersionError",
+    "TerrapyneError",
     "VCSConnection",
     "Workspace",
     "WorkspaceAPI",
     "WorkspaceVCS",
     "WorkspaceVariable",
-    "exceptions",
     "resolve_organization",
     "resolve_workspace",
 ]

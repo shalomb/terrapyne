@@ -189,14 +189,12 @@ class TestWorkspaceShowJSONEnrichment:
 
     def test_json_handles_vcs_api_error_gracefully(self, sample_workspace):
         """When VCS API call fails, JSON should still produce valid output with vcs=null."""
-        import httpx
+        from terrapyne import TFCAPIError
 
         mock_client = MagicMock()
         mock_client.workspaces.get.return_value = sample_workspace
         mock_client.runs.list.return_value = ([], 0)
-        mock_client.vcs.get_workspace_vcs.side_effect = httpx.HTTPStatusError(
-            "Not found", request=MagicMock(), response=MagicMock(status_code=404)
-        )
+        mock_client.vcs.get_workspace_vcs.side_effect = TFCAPIError("Not found", status_code=404)
         mock_client.workspaces.get_variables.return_value = []
 
         result = self._invoke_with_mocks(mock_client)
@@ -208,15 +206,13 @@ class TestWorkspaceShowJSONEnrichment:
 
     def test_json_handles_variables_api_error_gracefully(self, sample_workspace, sample_vcs):
         """When variables API call fails, JSON should still produce valid output with variable_summary=null."""
-        import httpx
+        from terrapyne import TFCAPIError
 
         mock_client = MagicMock()
         mock_client.workspaces.get.return_value = sample_workspace
         mock_client.runs.list.return_value = ([], 0)
         mock_client.vcs.get_workspace_vcs.return_value = sample_vcs
-        mock_client.workspaces.get_variables.side_effect = httpx.HTTPStatusError(
-            "Forbidden", request=MagicMock(), response=MagicMock(status_code=403)
-        )
+        mock_client.workspaces.get_variables.side_effect = TFCAPIError("Forbidden", status_code=403)
 
         result = self._invoke_with_mocks(mock_client)
 
