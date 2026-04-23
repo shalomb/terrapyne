@@ -1,6 +1,5 @@
 """Tests for VCS models oauth_token_id reconciliation."""
 
-import pytest
 from terrapyne.models.vcs import VCSConnection
 from terrapyne.models.workspace import WorkspaceVCS
 

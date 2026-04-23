@@ -1,9 +1,10 @@
 """Tests for Terraform plain text plan parser."""
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
-from unittest.mock import patch, MagicMock
+
 from terrapyne.core.plan_parser import TerraformPlainTextPlanParser
 
 
@@ -62,14 +63,16 @@ class TestPlanParser:
     def test_state_machine_is_used_for_resource_parsing(self, sample_plan_create):
         """Confirm that the state machine path is used for parsing resources."""
         parser = TerraformPlainTextPlanParser(sample_plan_create)
-        
+
         # Mock the state machine's parse_resources method to verify it's called
-        with patch.object(parser._state_machine, 'parse_resources', wraps=parser._state_machine.parse_resources) as mock_parse:
+        with patch.object(
+            parser._state_machine, "parse_resources", wraps=parser._state_machine.parse_resources
+        ) as mock_parse:
             result = parser.parse()
-            
+
             # State machine should be used for resource parsing
             mock_parse.assert_called()
-            
+
             # And we should get valid results
             assert len(result["resource_changes"]) == 1
 

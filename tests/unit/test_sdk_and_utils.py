@@ -59,6 +59,7 @@ class TestValidateContext:
         from terrapyne.cli.utils import validate_context
 
         mock_resolve_org.return_value = "my-org"
+        mock_resolve_ws.return_value = None
 
         org, ws = validate_context("my-org", require_workspace=False)
 

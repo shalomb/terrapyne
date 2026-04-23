@@ -496,7 +496,7 @@ class TestCloneWorkflowIntegration:
     def test_full_clone_source_not_found(self, api, mock_client):
         """Test clone fails when source workspace not found."""
         from terrapyne.api.workspace_clone import WorkspaceNotFoundError
-        
+
         # Mock 404 response for source lookup
         mock_client.get.side_effect = Exception("404 not found")
 
@@ -522,7 +522,7 @@ class TestCloneWorkflowIntegration:
         }
 
         from terrapyne.api.workspace_clone import WorkspaceAlreadyExistsError
-        
+
         # First get is source, second get is target (exists and force=False)
         mock_client.get.side_effect = [{"data": source_ws_data}, {"data": existing_target_data}]
 

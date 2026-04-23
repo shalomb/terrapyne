@@ -839,7 +839,7 @@ class TestCloneWithTeamAccess:
     def test_clone_raises_not_implemented_for_with_team_access(self, mock_client):
         """clone() should raise NotImplementedError when with_team_access=True is passed."""
         from terrapyne.api.workspace_clone import CloneWorkspaceAPI
-        
+
         source_data = {
             "id": "ws-src",
             "type": "workspaces",
@@ -853,9 +853,9 @@ class TestCloneWithTeamAccess:
                 "updated_at": "2024-01-10T12:00:00Z",
             },
         }
-        
+
         mock_client.get_organization.return_value = "test-org"
-        
+
         # Mock get to return source workspace but not find target
         def mock_get_side_effect(path):
             if "target" in path:
@@ -863,11 +863,11 @@ class TestCloneWithTeamAccess:
                 raise Exception("404 Not found")
             # source exists
             return {"data": source_data}
-        
+
         mock_client.get.side_effect = mock_get_side_effect
-        
+
         clone_api = CloneWorkspaceAPI(mock_client)
-        
+
         # WHEN: clone is called with with_team_access=True
         # THEN: should raise NotImplementedError
         with pytest.raises(NotImplementedError) as exc_info:
@@ -875,9 +875,9 @@ class TestCloneWithTeamAccess:
                 source_workspace_name="source",
                 target_workspace_name="target",
                 organization="test-org",
-                with_team_access=True
+                with_team_access=True,
             )
-        
+
         assert "team_access" in str(exc_info.value).lower() or "not" in str(exc_info.value).lower()
 
 
@@ -893,26 +893,26 @@ class TestCloneExceptionHandling:
         """clone() should propagate exceptions from validate_clone_args instead of swallowing them."""
         # GIVEN: validate_clone_args raises an exception
         from terrapyne.api.workspace_clone import CloneWorkspaceAPI, WorkspaceNotFoundError
-        
+
         mock_client.get_organization.return_value = "test-org"
         mock_client.get.side_effect = Exception("Source workspace not found")
-        
+
         clone_api = CloneWorkspaceAPI(mock_client)
-        
+
         # WHEN: calling clone with nonexistent source workspace
         # THEN: should raise the exception (not return a dict with error status)
         with pytest.raises(WorkspaceNotFoundError):
             clone_api.clone(
                 source_workspace_name="nonexistent",
                 target_workspace_name="target",
-                organization="test-org"
+                organization="test-org",
             )
 
     def test_clone_propagates_exception_from_inner_failure(self, mock_client):
         """clone() should propagate exceptions from internal operations, not return error dict."""
         # GIVEN: an inner operation (like workspace creation) raises an exception
         from terrapyne.api.workspace_clone import CloneWorkspaceAPI
-        
+
         source_data = {
             "id": "ws-src",
             "type": "workspaces",
@@ -926,9 +926,9 @@ class TestCloneExceptionHandling:
                 "updated_at": "2024-01-10T12:00:00Z",
             },
         }
-        
+
         mock_client.get_organization.return_value = "test-org"
-        
+
         # Mock get to return source workspace but not find target (so create will be attempted)
         def mock_get_side_effect(path):
             if "target" in path:
@@ -936,20 +936,20 @@ class TestCloneExceptionHandling:
                 raise Exception("404 Not found")
             # source exists
             return {"data": source_data}
-        
+
         mock_client.get.side_effect = mock_get_side_effect
         # Post fails when creating workspace
         mock_client.post.side_effect = Exception("API rate limit exceeded")
-        
+
         clone_api = CloneWorkspaceAPI(mock_client)
-        
+
         # WHEN: an inner operation fails
         # THEN: should raise the exception (not return {"status": "error"})
         with pytest.raises(Exception) as exc_info:
             clone_api.clone(
                 source_workspace_name="source",
                 target_workspace_name="target",
-                organization="test-org"
+                organization="test-org",
             )
-        
+
         assert "API rate limit exceeded" in str(exc_info.value)
