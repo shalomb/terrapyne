@@ -655,6 +655,11 @@ def run_trigger(
         elif refresh_only:
             run_type = "REFRESH"
 
+        if target:
+            run_type = f"TARGETED {run_type}"
+        if replace:
+            run_type = f"REPLACE {run_type}"
+
         console.print(
             f"[dim]Triggering [bold cyan]{run_type}[/bold cyan] run for workspace:[/dim] "
             f"{workspace_name}"
@@ -673,6 +678,8 @@ def run_trigger(
         )
 
         console.print(f"[green]✓[/green] Created {run_type} run: {run.id}")
+        if message:
+            console.print(f"[dim]Message:[/dim] {message}")
         console.print(f"[dim]Status:[/dim] {run.status.emoji} {run.status.value}")
 
         if not wait:
@@ -699,10 +706,11 @@ def run_trigger(
 
             render_run_detail(final_run, workspace_name=workspace_name, organization=org, plan=plan)
 
+            if final_run.status.is_awaiting_approval:
+                console.print("\n[yellow]⏸ Run paused for manual approval.[/yellow]")
+                raise typer.Exit(0)
+
             if not final_run.status.is_successful:
-                if final_run.status.is_awaiting_approval:
-                    console.print("\n[yellow]⏸ Run paused for manual approval.[/yellow]")
-                    raise typer.Exit(0)
                 raise typer.Exit(1)
 
         except TimeoutError as e:
