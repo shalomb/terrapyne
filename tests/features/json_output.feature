@@ -40,3 +40,9 @@ Feature: Machine-readable command output
       When I request the run detail as JSON
       Then the output is valid JSON
       And the result is a JSON object with key "id"
+
+    Scenario: Project detail produces a JSON object
+      Given project "Core Infrastructure" exists
+      When I request the project detail as JSON
+      Then the output is valid JSON
+      And the result is a JSON object with key "id"
