@@ -15,7 +15,7 @@ class VCSConnection(BaseModel):
     ingress_submodules: bool = Field(
         False, alias="ingress-submodules", description="Include submodules"
     )
-    oauth_token_id: str = Field(..., alias="oauth-token-id", description="OAuth token ID")
+    oauth_token_id: str | None = Field(None, alias="oauth-token-id", description="OAuth token ID")
     repository_http_url: str | None = Field(
         None, alias="repository-http-url", description="Repository URL"
     )
@@ -70,4 +70,6 @@ class VCSConnection(BaseModel):
         """Return masked OAuth token ID for display."""
         if self.oauth_token_id and len(self.oauth_token_id) > 3:
             return f"{self.oauth_token_id[:3]}***"
-        return "***"
+        elif self.oauth_token_id:
+            return "***"
+        return "(not configured)"

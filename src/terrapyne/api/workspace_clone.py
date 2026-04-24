@@ -627,118 +627,113 @@ class CloneWorkspaceAPI:
             VCSTokenRequiredError: If VCS clone needs explicit token
             Exception: On API errors
         """
+        # Check for not-yet-implemented features early
+        if with_team_access:
+            raise NotImplementedError(
+                "Team access cloning (with_team_access=True) is not yet implemented. "
+                "Please check back in a future release."
+            )
+
         org = self.client.get_organization(organization)
 
-        try:
-            # Validate arguments
-            source_ws, target_ws = self.validate_clone_args(
-                source_workspace_name=source_workspace_name,
-                target_workspace_name=target_workspace_name,
-                organization=org,
-                force=force,
-            )
+        # Validate arguments
+        source_ws, target_ws = self.validate_clone_args(
+            source_workspace_name=source_workspace_name,
+            target_workspace_name=target_workspace_name,
+            organization=org,
+            force=force,
+        )
 
+        logger.info(
+            f"Cloning workspace '{source_workspace_name}' to '{target_workspace_name}' "
+            f"in organization '{org}'"
+        )
+
+        # Build clone specification
+        clone_spec = self.build_clone_spec(
+            source_workspace=source_ws,
+            include_variables=with_variables,
+            include_vcs=with_vcs,
+            include_team_access=with_team_access,
+            include_state=with_state,
+        )
+        # Step 1: Create or update target workspace with source settings
+        if target_ws and force:
+            # Workspace exists and we're forcing - just note it
             logger.info(
-                f"Cloning workspace '{source_workspace_name}' to '{target_workspace_name}' "
-                f"in organization '{org}'"
+                f"Target workspace '{target_workspace_name}' exists; proceeding with force flag"
+            )
+            target_workspace_id = target_ws.id
+        else:
+            # Create new target workspace with source settings
+            logger.debug(f"Creating target workspace '{target_workspace_name}'")
+            target_ws = self.create_workspace(
+                workspace_name=target_workspace_name,
+                organization=org,
+                terraform_version=source_ws.terraform_version,
+                execution_mode=source_ws.execution_mode,
+                auto_apply=source_ws.auto_apply,
+                tags=source_ws.tag_names if source_ws.tag_names else None,
+            )
+            target_workspace_id = target_ws.id
+            logger.info(
+                f"Created target workspace '{target_workspace_name}' (id: {target_workspace_id})"
             )
 
-            # Build clone specification
-            clone_spec = self.build_clone_spec(
-                source_workspace=source_ws,
-                include_variables=with_variables,
-                include_vcs=with_vcs,
-                include_team_access=with_team_access,
-                include_state=with_state,
+        # Step 2: Clone variables if requested
+        variables_result = None
+        if clone_spec["include_variables"]:
+            logger.info("Cloning variables...")
+            variables_result = self.clone_variables(
+                source_workspace_id=source_ws.id,
+                target_workspace_id=target_workspace_id,
             )
-            # Step 1: Create or update target workspace with source settings
-            if target_ws and force:
-                # Workspace exists and we're forcing - just note it
+            logger.info(f"Variables cloned: {variables_result.get('variables_cloned', 0)}")
+
+        # Step 3: Clone VCS config if requested
+        vcs_result = None
+        if clone_spec["include_vcs"]:
+            logger.info("Cloning VCS configuration...")
+            vcs_result = self.clone_vcs_configuration(
+                source_workspace_id=source_ws.id,
+                target_workspace_id=target_workspace_id,
+                source_organization=org,
+                target_organization=org,
+                vcs_oauth_token_id=vcs_oauth_token_id,
+            )
+            if vcs_result.get("vcs_cloned"):
                 logger.info(
-                    f"Target workspace '{target_workspace_name}' exists; proceeding with force flag"
+                    f"VCS configured: {vcs_result.get('identifier')} "
+                    f"(branch: {vcs_result.get('branch', 'default')})"
                 )
-                target_workspace_id = target_ws.id
             else:
-                # Create new target workspace with source settings
-                logger.debug(f"Creating target workspace '{target_workspace_name}'")
-                target_ws = self.create_workspace(
-                    workspace_name=target_workspace_name,
-                    organization=org,
-                    terraform_version=source_ws.terraform_version,
-                    execution_mode=source_ws.execution_mode,
-                    auto_apply=source_ws.auto_apply,
-                    tags=source_ws.tag_names if source_ws.tag_names else None,
-                )
-                target_workspace_id = target_ws.id
-                logger.info(
-                    f"Created target workspace '{target_workspace_name}' "
-                    f"(id: {target_workspace_id})"
-                )
+                logger.info(f"No VCS to clone: {vcs_result.get('reason')}")
 
-            # Step 2: Clone variables if requested
-            variables_result = None
-            if clone_spec["include_variables"]:
-                logger.info("Cloning variables...")
-                variables_result = self.clone_variables(
-                    source_workspace_id=source_ws.id,
-                    target_workspace_id=target_workspace_id,
-                )
-                logger.info(f"Variables cloned: {variables_result.get('variables_cloned', 0)}")
-
-            # Step 3: Clone VCS config if requested
-            vcs_result = None
-            if clone_spec["include_vcs"]:
-                logger.info("Cloning VCS configuration...")
-                vcs_result = self.clone_vcs_configuration(
-                    source_workspace_id=source_ws.id,
-                    target_workspace_id=target_workspace_id,
-                    source_organization=org,
-                    target_organization=org,
-                    vcs_oauth_token_id=vcs_oauth_token_id,
-                )
-                if vcs_result.get("vcs_cloned"):
-                    logger.info(
-                        f"VCS configured: {vcs_result.get('identifier')} "
-                        f"(branch: {vcs_result.get('branch', 'default')})"
-                    )
-                else:
-                    logger.info(f"No VCS to clone: {vcs_result.get('reason')}")
-
-            # Step 4: Clone team access if requested (placeholder for future)
-            team_access_result = None
-            if clone_spec["include_team_access"]:
-                logger.info("Team access cloning not yet implemented; skipping for MVP")
-                team_access_result = {
-                    "status": "skipped",
-                    "reason": "Not yet implemented",
-                }
-
-            # Return comprehensive result
-            return {
-                "status": "success",
-                "source_workspace_id": source_ws.id,
-                "source_workspace_name": source_workspace_name,
-                "target_workspace_id": target_workspace_id,
-                "target_workspace_name": target_workspace_name,
-                "organization": org,
-                "clone_spec": clone_spec,
-                "results": {
-                    "variables": variables_result,
-                    "vcs": vcs_result,
-                    "team_access": team_access_result,
-                },
-                "message": (
-                    f"Successfully cloned workspace '{source_workspace_name}' "
-                    f"to '{target_workspace_name}'"
-                ),
+        # Step 4: Clone team access if requested (placeholder for future)
+        team_access_result = None
+        if clone_spec["include_team_access"]:
+            logger.info("Team access cloning not yet implemented; skipping for MVP")
+            team_access_result = {
+                "status": "skipped",
+                "reason": "Not yet implemented",
             }
 
-        except Exception as e:
-            logger.error(f"Clone operation failed: {e}", exc_info=True)
-            return {
-                "status": "error",
-                "error": str(e),
-                "source_workspace_name": source_workspace_name,
-                "target_workspace_name": target_workspace_name,
-                "organization": org,
-            }
+        # Return comprehensive result
+        return {
+            "status": "success",
+            "source_workspace_id": source_ws.id,
+            "source_workspace_name": source_workspace_name,
+            "target_workspace_id": target_workspace_id,
+            "target_workspace_name": target_workspace_name,
+            "organization": org,
+            "clone_spec": clone_spec,
+            "results": {
+                "variables": variables_result,
+                "vcs": vcs_result,
+                "team_access": team_access_result,
+            },
+            "message": (
+                f"Successfully cloned workspace '{source_workspace_name}' "
+                f"to '{target_workspace_name}'"
+            ),
+        }

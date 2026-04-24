@@ -145,7 +145,6 @@ class WorkspaceAPI:
         Raises:
             TFCAPIError: If API request fails
         """
-
         path = "/vars"
 
         attributes: dict[str, Any] = {
@@ -196,7 +195,6 @@ class WorkspaceAPI:
         Raises:
             TFCAPIError: If API request fails
         """
-
         path = f"/vars/{variable_id}"
 
         # Build attributes dict with only provided values

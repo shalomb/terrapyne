@@ -1,6 +1,6 @@
 """CLI tests for run commands - Refined for Adzic Index."""
 
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -546,8 +546,6 @@ def check_continuous_updates():
     target_fixture="project_errors_setup",
 )
 def project_errors_setup_step(project, datatable):
-    from datetime import UTC, datetime, timedelta
-
     # Set dates to very recent to ensure they pass the 'days' filter
     now = datetime.now(UTC)
     setup = []
