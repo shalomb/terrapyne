@@ -5,6 +5,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from terrapyne.core.exceptions import TFCAuthenticationError, TFCNotFoundError
 from terrapyne.models.apply import Apply
 from terrapyne.models.plan import Plan
 from terrapyne.models.run import Run
@@ -253,10 +254,14 @@ class RunsAPI:
             Plan log content as string
 
         Raises:
-            TFCAPIError: If logs not available
+            TFCAPIError: If logs not available (other than 404/403)
         """
         path = f"/plans/{plan_id}/logs"
-        return self.client._request("GET", path).text
+        try:
+            return self.client._request("GET", path).text
+        except (TFCNotFoundError, TFCAuthenticationError):
+            # Logs might not be ready yet
+            return ""
 
     def get_apply_logs(self, apply_id: str) -> str:
         """Get apply logs.
@@ -268,10 +273,14 @@ class RunsAPI:
             Apply log content as string
 
         Raises:
-            TFCAPIError: If logs not available
+            TFCAPIError: If logs not available (other than 404/403)
         """
         path = f"/applies/{apply_id}/logs"
-        return self.client._request("GET", path).text
+        try:
+            return self.client._request("GET", path).text
+        except (TFCNotFoundError, TFCAuthenticationError):
+            # Logs might not be ready yet
+            return ""
 
     def get_apply(self, apply_id: str) -> Apply:
         """Get apply details.
