@@ -45,6 +45,11 @@ def test_run_show_json():
     pass
 
 
+@scenario("../features/json_output.feature", "Project detail produces a JSON object")
+def test_project_show_json():
+    pass
+
+
 @given("workspaces exist in the organization", target_fixture="mock_client")
 def workspaces_exist():
     m = MagicMock()
@@ -137,6 +142,22 @@ def workspace_named(name):
     return m
 
 
+@given(parsers.parse('project "{name}" exists'), target_fixture="mock_client")
+def project_named(name):
+    m = MagicMock()
+    # Mock resolve_project_context
+    prj = Project.model_construct(
+        id="prj-123",
+        name=name,
+        created_at=None,
+        resource_count=10,
+    )
+    # We'll need to patch resolve_project_context in the when step
+    m._test_project = prj
+    m.workspaces.list.return_value = (iter([]), 0)
+    return m
+
+
 @given(parsers.parse('a run "{run_id}" exists'), target_fixture="mock_client")
 def run_named(run_id):
     m = MagicMock()
@@ -226,6 +247,21 @@ def req_run_detail(mock_client):
         c.return_value.__enter__.return_value = mock_client
         return runner.invoke(
             app, ["run", "show", "run-abc123", "-o", "test-org", "--format", "json"]
+        )
+
+
+@when("I request the project detail as JSON", target_fixture="cli_result")
+def req_prj_detail(mock_client):
+    with (
+        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.cli.project_cmd.resolve_project_context") as r,
+        patch("terrapyne.cli.project_cmd.TFCClient") as c,
+    ):
+        v.return_value = ("test-org", None)
+        r.return_value = ("test-org", mock_client._test_project)
+        c.return_value.__enter__.return_value = mock_client
+        return runner.invoke(
+            app, ["project", "show", "Core Infrastructure", "-o", "test-org", "--format", "json"]
         )
 
 
