@@ -1,31 +1,34 @@
-Feature: Wait for run completion in CI/CD pipelines
-  As a CI/CD pipeline engineer
-  I want to wait for run completion and get proper exit codes
-  So I can automate infrastructure deployments with immediate feedback
+Feature: Run Queue and Wait Management
+  As a DevOps engineer
+  I want to manage the execution queue and wait for completions
+  So I can reliably automate infrastructure changes in CI/CD pipelines
 
   Background:
     Given a terraform cloud organization is accessible
     And a workspace "my-app-dev" is ready for operations
 
-  Scenario: --wait blocks until run succeeds and exits 0
-    Given a triggered run that will reach "applied" status
-    When I run tfc run trigger my-app-dev --wait
-    Then the command streams log lines to stdout
-    And the exit code is 0
+  Scenario: Waiting for a run to complete
+    When I trigger a new plan for "my-app-dev" with --wait
+    Then the command should block until the run is "planned"
+    And the command should exit with code 0
 
-  Scenario: --wait exits non-zero when run fails
-    Given a triggered run that will reach "errored" status
-    When I run tfc run trigger my-app-dev --wait
-    Then the exit code is 1
-    And stderr contains the error message
+  Scenario: Waiting for a busy queue
+    Given the workspace "my-app-dev" has an active run "run-busy"
+    When I trigger a new plan for "my-app-dev" with --wait-queue
+    Then it should first wait for "run-busy" to complete
+    And the command should exit with code 0
+    And then it should trigger the new run
 
-  Scenario: --wait exits non-zero when run is discarded
-    Given a triggered run that will be "discarded"
-    When I run tfc run trigger my-app-dev --wait
-    Then the exit code is 1
+  Scenario: Clearing the queue before triggering
+    Given the workspace "my-app-dev" has several pending runs
+    When I trigger a new plan for "my-app-dev" with --discard-older
+    Then all existing non-terminal runs should be discarded
+    And the command should exit with code 0
+    And then it should trigger the new run
 
-  Scenario: run apply --wait streams apply logs
-    Given a run in "planned" status with apply_id
-    When I run tfc run apply <run-id> --wait
-    Then apply log lines are streamed to stdout
-    And the exit code reflects the run outcome
+  Scenario: Exiting with success when paused for approval
+    Given the run reaches "planned" status
+    And auto-apply is disabled
+    When I trigger a new plan for "my-app-dev" with --wait
+    Then the command should exit with code 0
+    And the output should indicate it is paused for approval

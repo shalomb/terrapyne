@@ -41,6 +41,10 @@ Feature: Infrastructure Change Lifecycle
       | aws_instance.api |
     Then the execution should only evaluate the specified components
 
+  Scenario: Triggering a run with TFC debugging mode
+    When I trigger a plan for "my-app-dev" with debugging enabled
+    Then the new execution should be initiated with TFC debugging mode active
+
   Scenario: Real-time monitoring of an execution
     Given an infrastructure change "run-123" is currently in progress
     When I start monitoring the progress of "run-123"
