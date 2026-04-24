@@ -109,6 +109,9 @@ def workspace_show(
         help="TFC organization (auto-detected from context if available)",
     ),
     output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
+    json_output: bool = typer.Option(
+        False, "--json", help="Output in JSON format (alias for -f json)"
+    ),
 ):
     """Show detailed workspace information.
 
@@ -125,6 +128,9 @@ def workspace_show(
         terrapyne workspace show my-app-dev --organization my-org
     """
     org, ws_name = validate_context(organization, workspace, require_workspace=True)
+
+    if json_output:
+        output_format = "json"
 
     with TFCClient(organization=org) as client:
         ws = client.workspaces.get(cast(str, ws_name), org)
@@ -155,21 +161,21 @@ def workspace_show(
                 f"(API error {e.status_code})"
             )
 
+        # 2. Fetch VCS and variables (common for both formats)
+        vcs = None
+        variables = None
+
+        try:
+            vcs = client.vcs.get_workspace_vcs(ws.id)
+        except TFCAPIError:
+            pass
+
+        try:
+            variables = client.workspaces.get_variables(ws.id)
+        except TFCAPIError:
+            pass
+
         if output_format == "json":
-            # Fetch VCS and variables for enriched JSON output
-            vcs = None
-            variables = None
-
-            try:
-                vcs = client.vcs.get_workspace_vcs(ws.id)
-            except TFCAPIError:
-                pass
-
-            try:
-                variables = client.workspaces.get_variables(ws.id)
-            except TFCAPIError:
-                pass
-
             # Build variable summary
             variable_summary = None
             if variables:
@@ -222,21 +228,16 @@ def workspace_show(
             )
             return
 
-        # 2. Render dashboard
+        # 3. Render dashboard
         render_workspace_dashboard(
             workspace=ws, latest_run=latest_run, active_runs_count=active_runs_count
         )
 
-        # 3. Fetch and render variables
-        try:
-            variables = client.workspaces.get_variables(ws.id)
+        # 4. Render variables
+        if variables:
             render_workspace_variables(variables)
-        except TFCAPIError as e:
-            console.print(
-                f"\n[yellow]Warning:[/yellow] Unable to fetch variables (API error {e.status_code})"
-            )
 
-        # 4. Render VCS configuration
+        # 5. Render VCS configuration
         render_workspace_vcs(ws)
 
 
