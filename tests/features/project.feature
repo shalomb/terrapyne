@@ -44,6 +44,18 @@ Feature: Project Operations
     And workspace count should show "5"
     And all workspaces should be displayed
 
+  Scenario: Show project health snapshot
+    Given a project with 3 workspaces:
+      | name    | health    | locked | active_runs |
+      | ws-prod | healthy   | false  | 1           |
+      | ws-stg  | unhealthy | true   | 0           |
+      | ws-dev  | warning   | false  | 2           |
+    When I show the project details
+    Then I should see a project health snapshot
+    And snapshot should show 3 workspaces and 3 active runs
+    And snapshot should show 1 healthy, 1 unhealthy and 1 warning status
+    And snapshot should show 1 locked workspace
+
   Scenario: List teams with project access
     Given I have project "my-infrastructure" with team access
     When I list team access for project
