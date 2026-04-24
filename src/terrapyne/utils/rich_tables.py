@@ -333,7 +333,7 @@ def render_project_detail(
         active_runs_count: Total active runs across all workspaces in project
     """
     # 1. Project details
-    renderer = ProjectDetailRenderer()
+    renderer = ProjectDetailRenderer(workspace_count=len(workspaces))
     renderer.render(project, console_instance=console)
 
     # 2. Project Snapshot
@@ -343,15 +343,38 @@ def render_project_detail(
     snap_table.add_column("Value")
 
     snap_table.add_row("Workspaces", str(len(workspaces)))
-    snap_table.add_row("Active Runs", str(active_runs_count))
+    snap_table.add_row("Active Runs", str(active_runs_count) if active_runs_count > 0 else "None")
 
-    # Health summary
-    # For now, just show a count of locked workspaces as an indicator
+    # Health summary aggregation
+    healthy_count = 0
+    unhealthy_count = 0
+    warning_count = 0
+
+    for ws in workspaces:
+        if ws.latest_run:
+            status = ws.latest_run.status
+            if status.is_successful:
+                healthy_count += 1
+            elif status.is_error:
+                unhealthy_count += 1
+            else:
+                warning_count += 1
+
+    health_parts = []
+    if healthy_count > 0:
+        health_parts.append(f"🟢 {healthy_count} Healthy")
+    if warning_count > 0:
+        health_parts.append(f"🟡 {warning_count} Warning")
+    if unhealthy_count > 0:
+        health_parts.append(f"🔴 {unhealthy_count} Unhealthy")
+
+    health_str = " | ".join(health_parts) if health_parts else "Unknown (no runs found)"
+    snap_table.add_row("Health Summary", health_str)
+
+    # Add locked workspaces count if any
     locked_count = sum(1 for ws in workspaces if ws.locked)
-    health_str = "🟢 Healthy"
     if locked_count > 0:
-        health_str = f"🟡 Warning ({locked_count} workspaces locked)"
-    snap_table.add_row("Status", health_str)
+        snap_table.add_row("Locked Workspaces", f"🔒 {locked_count} locked")
 
     console.print(snap_table)
 
