@@ -77,6 +77,9 @@ def main(
     ),
 ) -> None:
     """Terraform Cloud CLI orchestrator for DevOps engineers."""
+    from terrapyne.cli.utils import setup_logging
+
     set_quiet_mode(quiet)
+    setup_logging(debug)
     if ctx.invoked_subcommand is None and not quiet:
         console.print(ctx.get_help())
