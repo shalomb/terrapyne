@@ -12,7 +12,6 @@ from terrapyne.api.client import TFCClient
 from terrapyne.api.vcs import VCSAPI
 from terrapyne.cli.utils import console, emit_json, handle_cli_errors, validate_context
 from terrapyne.core.exceptions import TFCAPIError
-from terrapyne.models.run import RunStatus
 from terrapyne.models.variable import WorkspaceVariable
 from terrapyne.utils.browser import get_workspace_url, open_url_in_browser
 from terrapyne.utils.rich_tables import (
@@ -133,28 +132,23 @@ def workspace_show(
         output_format = "json"
 
     with TFCClient(organization=org) as client:
-        ws = client.workspaces.get(cast(str, ws_name), org)
+        # Optimized: Fetch workspace, project, and latest run (with commit info) in ONE call (Task 21)
+        ws = client.workspaces.get(
+            cast(str, ws_name), org, include="project,latest-run,latest-run.configuration-version"
+        )
 
-        # 1. Fetch data for dashboard (Health & Activity)
-        latest_run = None
+        # 1. Fetch active run count (optimized: use a single count-only call)
+        latest_run = ws.latest_run
         active_runs_count = 0
         try:
-            # Fetch recent runs (optimized: get latest + check for active in one go)
-            # We fetch 20 to get a good snapshot of activity
-            runs, total_count = client.runs.list(ws.id, limit=20, include="configuration-version")
-            if runs:
-                latest_run = runs[0]
+            from terrapyne.models.run import RunStatus
 
-                # Count active runs in this window
-                active_list = RunStatus.get_active_statuses()
-                active_runs_count = sum(1 for r in runs if r.status in active_list)
+            active_list = RunStatus.get_active_statuses()
+            active_statuses = ",".join(active_list)
 
-                # If we have 20 runs and we might have more active ones outside this window,
-                # we could do a dedicated count call.
-                if len(runs) == 20 and total_count and total_count > 20:
-                    active_statuses = ",".join(active_list)
-                    _, count = client.runs.list(ws.id, status=active_statuses, limit=1)
-                    active_runs_count = count or 0
+            # Efficiently get total count of active runs
+            _, total_active = client.runs.list(ws.id, status=active_statuses, limit=1)
+            active_runs_count = total_active or 0
         except TFCAPIError as e:
             console.print(
                 f"\n[yellow]Warning:[/yellow] Unable to fetch run activity "

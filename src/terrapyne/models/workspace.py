@@ -95,7 +95,7 @@ class Workspace(BaseModel):
                     if item.get("type") == "runs" and item.get("id") == run_id:
                         from terrapyne.models.run import Run
 
-                        latest_run = Run.from_api_response(item)
+                        latest_run = Run.from_api_response(item, included=included)
                         break
 
         # Detect environment from workspace name

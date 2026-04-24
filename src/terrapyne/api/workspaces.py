@@ -61,12 +61,18 @@ class WorkspaceAPI:
 
         return workspace_iterator(), total_count
 
-    def get(self, workspace_name: str, organization: str | None = None) -> Workspace:
+    def get(
+        self,
+        workspace_name: str,
+        organization: str | None = None,
+        include: str | None = "project",
+    ) -> Workspace:
         """Get workspace by name.
 
         Args:
             workspace_name: Workspace name
             organization: Organization name (uses client default if not specified)
+            include: Resources to include (default: project)
 
         Returns:
             Workspace instance
@@ -77,14 +83,19 @@ class WorkspaceAPI:
         org = self.client.get_organization(organization)
         path = f"/organizations/{org}/workspaces/{workspace_name}"
 
-        response = self.client.get(path, params={"include": "project"})
+        params = {}
+        if include:
+            params["include"] = include
+
+        response = self.client.get(path, params=params)
         return Workspace.from_api_response(response["data"], response.get("included", []))
 
-    def get_by_id(self, workspace_id: str) -> Workspace:
+    def get_by_id(self, workspace_id: str, include: str | None = "project") -> Workspace:
         """Get workspace by ID.
 
         Args:
             workspace_id: Workspace ID
+            include: Resources to include (default: project)
 
         Returns:
             Workspace instance
@@ -94,7 +105,11 @@ class WorkspaceAPI:
         """
         path = f"/workspaces/{workspace_id}"
 
-        response = self.client.get(path, params={"include": "project"})
+        params = {}
+        if include:
+            params["include"] = include
+
+        response = self.client.get(path, params=params)
         return Workspace.from_api_response(response["data"], response.get("included", []))
 
     def get_variables(self, workspace_id: str) -> list[WorkspaceVariable]:  # type: ignore[valid-type]
