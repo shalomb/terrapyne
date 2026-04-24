@@ -50,3 +50,10 @@ Feature: Infrastructure Change Lifecycle
     When I start monitoring the progress of "run-123"
     Then I should see continuous status updates
     And I should eventually see the final completion summary
+
+  Scenario: Stream logs progressively during monitoring
+    Given an infrastructure change "run-log-123" with plan and apply logs
+    When I follow the logs of "run-log-123"
+    Then the plan logs should be streamed progressively
+    And the apply logs should be streamed progressively
+    And no duplicate log lines should be printed

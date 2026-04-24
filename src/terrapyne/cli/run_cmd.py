@@ -782,9 +782,15 @@ def _print_log_delta(full_log: str, last_pos: int) -> int:
     Returns:
         New position (length of full_log)
     """
+    if len(full_log) < last_pos:
+        # Logs were truncated or rotated; reset position
+        last_pos = 0
+
     new_content = full_log[last_pos:]
     if new_content:
-        print(new_content, end="", flush=True)
+        # Use rich console to automatically handle or strip ANSI escape codes
+        # depending on terminal capabilities
+        console.print(new_content, end="", markup=False)
     return len(full_log)
 
 
@@ -859,6 +865,14 @@ def run_follow(
                     last_apply_pos = _print_log_delta(apply_log, last_apply_pos)
                 except Exception:
                     pass  # Silently skip if logs not available yet
+
+            # Feedback if run fails before generating logs
+            if run.status.is_error and last_plan_pos == 0 and last_apply_pos == 0:
+                if current_stage != "error":
+                    current_stage = "error"
+                    console.print(
+                        f"\n[red]Run failed before generating logs: {run.status.value}[/red]"
+                    )
 
         try:
             final_run = client.runs.poll_until_complete(

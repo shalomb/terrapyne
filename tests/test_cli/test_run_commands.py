@@ -125,6 +125,11 @@ def test_watch_run():
     pass
 
 
+@scenario("../features/run_lifecycle.feature", "Stream logs progressively during monitoring")
+def test_stream_logs():
+    pass
+
+
 # ============================================================================
 # Scenarios - Diagnostics
 # ============================================================================
@@ -720,6 +725,85 @@ def start_monitoring(mock_client, run_id):
 def check_continuous_updates(cli_result):
     assert cli_result.exit_code == 0
     assert "applied" in cli_result.stdout.lower()
+
+
+@given(
+    parsers.parse('an infrastructure change "{run_id}" with plan and apply logs'),
+    target_fixture="mock_client",
+)
+def change_with_logs(run_id):
+    m = MagicMock()
+    # Initial status is planning
+    m.runs.get.return_value = Run.model_construct(
+        id=run_id, status=RunStatus.PLANNING, plan_id="plan-123", apply_id="apply-123"
+    )
+
+    # We will simulate polling logs. The first time we check plan logs it returns chunk 1, next time chunk 1+2
+    plan_log_chunks = ["Plan starting...", "Plan starting...\nPlan finished."]
+    apply_log_chunks = ["Apply starting...", "Apply starting...\nApply finished."]
+
+    m.runs.get_plan_logs.side_effect = plan_log_chunks
+    m.runs.get_apply_logs.side_effect = apply_log_chunks
+
+    # Mock the poll sequence
+    m.runs.poll_until_complete.return_value = Run.model_construct(
+        id=run_id, status=RunStatus.APPLIED, plan_id="plan-123", apply_id="apply-123"
+    )
+
+    return m
+
+
+@when(parsers.parse('I follow the logs of "{run_id}"'), target_fixture="cli_result")
+def follow_logs(mock_client, run_id):
+    with (
+        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.cli.run_cmd.TFCClient") as c,
+    ):
+        v.return_value = ("test-org", None)
+        c.return_value.__enter__.return_value = mock_client
+
+        # We need to simulate the stream_logs callback execution
+        def mock_poll(run_id, callback, max_wait):
+            # Simulate planning state
+            run_planning = Run.model_construct(
+                id=run_id, status=RunStatus.PLANNING, plan_id="plan-123"
+            )
+            callback(run_planning)
+            callback(run_planning)  # call again to get next chunk
+
+            # Simulate applying state
+            run_applying = Run.model_construct(
+                id=run_id, status=RunStatus.APPLYING, plan_id="plan-123", apply_id="apply-123"
+            )
+            callback(run_applying)
+            callback(run_applying)  # call again to get next chunk
+
+            return Run.model_construct(
+                id=run_id, status=RunStatus.APPLIED, plan_id="plan-123", apply_id="apply-123"
+            )
+
+        mock_client.runs.poll_until_complete.side_effect = mock_poll
+
+        return runner.invoke(app, ["run", "follow", run_id, "-o", "test-org"])
+
+
+@then("the plan logs should be streamed progressively")
+def check_plan_logs_streamed(cli_result):
+    assert "Plan starting..." in cli_result.stdout
+    assert "Plan finished." in cli_result.stdout
+
+
+@then("the apply logs should be streamed progressively")
+def check_apply_logs_streamed(cli_result):
+    assert "Apply starting..." in cli_result.stdout
+    assert "Apply finished." in cli_result.stdout
+
+
+@then("no duplicate log lines should be printed")
+def check_no_duplicate_logs(cli_result):
+    # Ensure "Plan starting..." and "Apply starting..." only appear once despite being returned in multiple chunks
+    assert cli_result.stdout.count("Plan starting...") == 1
+    assert cli_result.stdout.count("Apply starting...") == 1
 
 
 @given(
