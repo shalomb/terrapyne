@@ -43,7 +43,6 @@ def test_dashboard_vcs_metadata():
     """Scenario: Workspace shows commit metadata from VCS."""
 
 
-@pytest.mark.xfail(reason="CLI not yet outputting active run count keywords")
 @scenario(
     "../features/workspace_dashboard.feature", "Workspace shows queued runs in activity snapshot"
 )
@@ -51,7 +50,6 @@ def test_dashboard_queued_runs():
     """Scenario: Workspace shows queued runs in activity snapshot."""
 
 
-@pytest.mark.xfail(reason="--json flag not yet implemented for workspace show")
 @scenario("../features/workspace_dashboard.feature", "JSON output includes workspace snapshot data")
 def test_dashboard_json_output():
     """Scenario: JSON output includes workspace snapshot data."""
@@ -110,6 +108,8 @@ def show_workspace_dashboard(workspace_detail_response, run_list_response):
 
         mock_instance.workspaces.get.return_value = workspace
         mock_instance.runs.list.return_value = (runs, len(runs))
+        mock_instance.vcs.get_workspace_vcs.return_value = None
+        mock_instance.workspaces.get_variables.return_value = []
 
         result = runner.invoke(
             app,
@@ -140,6 +140,8 @@ def show_workspace_no_runs(workspace_detail_response):
         workspace = Workspace.from_api_response(workspace_detail_response["data"])
         mock_instance.workspaces.get.return_value = workspace
         mock_instance.runs.list.return_value = ([], 0)
+        mock_instance.vcs.get_workspace_vcs.return_value = None
+        mock_instance.workspaces.get_variables.return_value = []
 
         result = runner.invoke(
             app,
@@ -172,6 +174,8 @@ def show_workspace_json(workspace_detail_response, run_list_response):
 
         mock_instance.workspaces.get.return_value = workspace
         mock_instance.runs.list.return_value = (runs, len(runs))
+        mock_instance.vcs.get_workspace_vcs.return_value = None
+        mock_instance.workspaces.get_variables.return_value = []
 
         result = runner.invoke(
             app,
@@ -183,6 +187,7 @@ def show_workspace_json(workspace_detail_response, run_list_response):
                 "test-org",
                 "--json",
             ],
+            catch_exceptions=False,
         )
 
         return {

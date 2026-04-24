@@ -73,15 +73,20 @@ def render_workspace_dashboard(
     health_status = "Unknown (no runs found)"
     if latest_run:
         status = latest_run.status
+        time_ago = (
+            _format_relative_time(latest_run.created_at)
+            if latest_run.created_at
+            else "unknown time"
+        )
         if status.is_successful:
-            health_status = f"🟢 Healthy (last run {status.value})"
+            health_status = f"🟢 Healthy (last run {status.value} {time_ago})"
         elif status.is_error:
-            health_status = f"🔴 Unhealthy (last run {status.value})"
+            health_status = f"🔴 Unhealthy (last run {status.value} {time_ago})"
         else:
-            health_status = f"🟡 Warning (last run {status.value})"
+            health_status = f"🟡 Warning (last run {status.value} {time_ago})"
 
     snap_table.add_row("Health", health_status)
-    snap_table.add_row("Queued Runs", str(active_runs_count))
+    snap_table.add_row("Active Runs", str(active_runs_count) if active_runs_count > 0 else "None")
 
     # VCS Commit Info
     if latest_run and latest_run.commit_sha:
