@@ -25,6 +25,7 @@ class TestWorkspaceContextResolution:
         ws.created_at = None
         ws.updated_at = None
         ws.working_directory = "iac/dev"
+        ws.latest_run = None
         return ws
 
     @patch("terrapyne.cli.workspace_cmd.validate_context")
@@ -49,7 +50,11 @@ class TestWorkspaceContextResolution:
         result = runner.invoke(app, ["show"])  # no workspace arg
 
         # Must not crash and must have called .get() with the resolved name
-        mock_client.workspaces.get.assert_called_once_with(resolved_ws_name, "MyOrg")
+        mock_client.workspaces.get.assert_called_once_with(
+            resolved_ws_name,
+            "MyOrg",
+            include="project,latest-run,latest-run.configuration-version",
+        )
         assert result.exit_code == 0, f"exit={result.exit_code}\n{result.output}"
 
     @patch("terrapyne.cli.workspace_cmd.validate_context")
