@@ -7,6 +7,7 @@ from pytest_bdd import given, parsers, scenario, then, when
 from typer.testing import CliRunner
 
 from terrapyne.cli.main import app
+from terrapyne.models.plan import Plan
 from terrapyne.models.project import Project
 from terrapyne.models.run import Run, RunStatus
 from terrapyne.models.team import Team
@@ -173,7 +174,13 @@ def run_named(run_id):
         workspace_id="ws-abc",
         plan_id="plan-1",
     )
-    m.runs.get_plan.return_value = MagicMock(additions=2, changes=1, destructions=0)
+    m.runs.get_plan.return_value = Plan.model_construct(
+        id="plan-1",
+        status="finished",
+        resource_additions=2,
+        resource_changes=1,
+        resource_destructions=0,
+    )
     m.workspaces.get_by_id.return_value = Workspace.model_construct(id="ws-abc", name="my-app-dev")
     return m
 

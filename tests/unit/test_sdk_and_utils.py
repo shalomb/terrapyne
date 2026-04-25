@@ -97,6 +97,54 @@ class TestValidateContext:
             validate_context("my-org", require_workspace=True)
 
 
+class TestEmitJson:
+    """Tests for emit_json — must serialise real objects, no unittest.mock import."""
+
+    def test_no_unittest_mock_import_in_emit_json(self):
+        """emit_json must not import unittest.mock (test-framework leak into production code)."""
+        import ast
+        import inspect
+
+        from terrapyne.cli.utils import emit_json
+
+        source = inspect.getsource(emit_json)
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    assert "unittest" not in alias.name
+            if isinstance(node, ast.ImportFrom):
+                assert node.module is None or "unittest" not in node.module
+
+    def test_serialises_dict(self, capsys):
+        from terrapyne.cli.utils import emit_json
+
+        emit_json({"key": "value"})
+        out = capsys.readouterr().out
+        assert '"key": "value"' in out
+
+    def test_serialises_datetime(self, capsys):
+        from datetime import datetime
+
+        from terrapyne.cli.utils import emit_json
+
+        emit_json({"ts": datetime(2024, 1, 2, 3, 4, 5)})
+        out = capsys.readouterr().out
+        assert "2024-01-02" in out
+
+    def test_serialises_pydantic_model(self, capsys):
+        from pydantic import BaseModel
+
+        from terrapyne.cli.utils import emit_json
+
+        class Thing(BaseModel):
+            name: str
+
+        emit_json(Thing(name="hello"))
+        out = capsys.readouterr().out
+        assert '"hello"' in out
+
+
 class TestSDKNamespace:
     def test_sdk_imports(self):
         from terrapyne import RunsAPI, TFCClient

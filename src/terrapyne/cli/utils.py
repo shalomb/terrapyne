@@ -126,12 +126,8 @@ def emit_json(data):
     """Print data as JSON to stdout."""
     import json
     from datetime import datetime
-    from unittest.mock import Mock
 
     def _default(obj):
-        # Immediate guard for mock objects to prevent infinite recursion
-        if isinstance(obj, Mock):
-            return f"<Mock id={id(obj)}>"
         if isinstance(obj, datetime):
             return obj.isoformat()
         if hasattr(obj, "model_dump"):
