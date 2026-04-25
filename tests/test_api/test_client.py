@@ -5,8 +5,18 @@ Tests the HTTP client, authentication, and pagination logic.
 
 from unittest.mock import patch
 
+import httpx
+import pytest
+
 from terrapyne.api.client import TFCClient
 from terrapyne.core.credentials import TerraformCredentials
+from terrapyne.core.exceptions import (
+    TFCAPIError,
+    TFCAuthenticationError,
+    TFCNotFoundError,
+    TFCRateLimitError,
+    TFCServerError,
+)
 
 
 class TestTFCClientInitialization:
@@ -166,6 +176,62 @@ class TestAPIResponseHandling:
 
         assert total == 5
         assert len(results_list) > 0
+
+
+class TestHandleResponseError:
+    """Test _handle_response_error maps HTTP status codes to domain exceptions."""
+
+    def _make_response(self, status_code: int) -> httpx.Response:
+        request = httpx.Request("GET", "https://app.terraform.io/api/v2/test")
+        return httpx.Response(status_code, request=request)
+
+    def test_401_raises_authentication_error(self):
+        creds = TerraformCredentials(host="app.terraform.io", token="test-token")
+        client = TFCClient(credentials=creds)
+        response = self._make_response(401)
+        with pytest.raises(TFCAuthenticationError):
+            client._handle_response_error(response)
+
+    def test_403_raises_authentication_error(self):
+        creds = TerraformCredentials(host="app.terraform.io", token="test-token")
+        client = TFCClient(credentials=creds)
+        response = self._make_response(403)
+        with pytest.raises(TFCAuthenticationError):
+            client._handle_response_error(response)
+
+    def test_404_raises_not_found_error(self):
+        creds = TerraformCredentials(host="app.terraform.io", token="test-token")
+        client = TFCClient(credentials=creds)
+        response = self._make_response(404)
+        with pytest.raises(TFCNotFoundError):
+            client._handle_response_error(response)
+
+    def test_429_raises_rate_limit_error(self):
+        creds = TerraformCredentials(host="app.terraform.io", token="test-token")
+        client = TFCClient(credentials=creds)
+        response = self._make_response(429)
+        with pytest.raises(TFCRateLimitError):
+            client._handle_response_error(response)
+
+    def test_500_raises_server_error(self):
+        creds = TerraformCredentials(host="app.terraform.io", token="test-token")
+        client = TFCClient(credentials=creds)
+        response = self._make_response(500)
+        with pytest.raises(TFCServerError):
+            client._handle_response_error(response)
+
+    def test_422_raises_generic_api_error(self):
+        creds = TerraformCredentials(host="app.terraform.io", token="test-token")
+        client = TFCClient(credentials=creds)
+        response = self._make_response(422)
+        with pytest.raises(TFCAPIError):
+            client._handle_response_error(response)
+
+    def test_200_does_not_raise(self):
+        creds = TerraformCredentials(host="app.terraform.io", token="test-token")
+        client = TFCClient(credentials=creds)
+        response = self._make_response(200)
+        client._handle_response_error(response)  # should not raise
 
 
 class TestRetryLogic:

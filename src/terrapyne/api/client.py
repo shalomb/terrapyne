@@ -140,7 +140,7 @@ class TFCClient:
         """Handle HTTP response errors and raise domain-specific exceptions."""
         try:
             response.raise_for_status()
-        except TFCAPIError as e:
+        except httpx.HTTPStatusError as e:
             status_code = response.status_code
             message = f"TFC API Error: {status_code} - {response.text}"
 
