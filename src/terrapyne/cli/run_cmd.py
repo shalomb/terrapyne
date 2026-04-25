@@ -770,8 +770,6 @@ def run_parse_plan(
         # Save to file
         terrapyne run parse-plan plan.txt --output parsed.json
     """
-    from terrapyne.core.local_binary import Terraform
-
     # Read plan from stdin or file
     if plan_file is None or str(plan_file) == "-":
         plan_text = sys.stdin.read()
@@ -783,8 +781,9 @@ def run_parse_plan(
             plan_text = f.read()
 
     # Parse it
-    tf = Terraform(".")
-    result = tf.parse_plain_text_plan(plan_text)
+    from terrapyne.core.plan_parser import TerraformPlainTextPlanParser
+
+    result = TerraformPlainTextPlanParser(plan_text).parse()
 
     # Format output
     if output_format == "json":
