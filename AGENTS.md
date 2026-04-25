@@ -21,10 +21,10 @@ uv run mypy src/                # Type check
 ## Development Guides
 
 Detailed conventions and patterns:
-- [Python & Testing](docs/guides/python-and-testing.md) — Type hints, imports, test structure, pytest-bdd
-- [BDD Specifications](docs/guides/bdd-specifications.md) — Writing Adzic-aligned feature files and step definitions
-- [Commits & Review](docs/guides/commits-and-review.md) — Atomic commits, conventional format, PR process
-- [Architecture](docs/architecture/) — ADRs, design decisions, model patterns
+- [Python & Testing](docs/how-to/python-and-testing.md) — Type hints, imports, test structure, pytest-bdd
+- [BDD Specifications](docs/explanation/bdd-specifications.md) — Writing Adzic-aligned feature files and step definitions
+- [Commits & Review](docs/how-to/commits-and-review.md) — Atomic commits, conventional format, PR process
+- [Architecture](docs/explanation/architecture/) — ADRs, design decisions, model patterns
 
 ## Essential Skills
 
@@ -103,7 +103,7 @@ mypy src/
 - **Verification**: All commits pass tests, linting, type checks
 - **Skill**: Use `/commit` skill to craft safe, verified commits
 
-See [Commits & Review Guide](docs/guides/commits-and-review.md) for details.
+See [Commits & Review Guide](docs/how-to/commits-and-review.md) for details.
 
 ## Development Workflow
 
@@ -126,12 +126,23 @@ See [Commits & Review Guide](docs/guides/commits-and-review.md) for details.
    - Only if code clarity improves
    - Re-run tests; ensure coverage stable
 
-5. Commit & push:
-   - Use `/commit` skill for safe, verified commits
-   - Push creates PR (with clear description linking to ADRs/issues)
+5. Verify — full suite must be green before committing:
+   ```bash
+   uv run pytest tests/ --ignore=tests/uat -x -q --no-header --cov=src --cov-report=term
+   uv run ruff check src/ tests/
+   uv run mypy src/
+   ```
 
-6. Review & merge:
-   - Code review focuses on intent, not style
+6. Commit & push:
+   - Use `/commit` skill for safe, verified commits
+   - Push branch before opening PR: `git push -u origin <branch>`
+   - Open PR: `gh pr create --title "..." --body "..." --base main`
+   - Fill in every section of `.github/PULL_REQUEST_TEMPLATE.md` in the PR body
+
+7. Review & merge (Bart):
+   - Bart reviews the PR adversarially
+   - No critical issues → Bart merges: `gh pr merge <number> --squash --delete-branch`
+   - Critical issues found → Bart writes them back as a new task list; Ralph resumes a new iteration
    - Ensure no AI markers in code/commits
 
 ## Continuous Integration
@@ -145,9 +156,9 @@ See [Commits & Review Guide](docs/guides/commits-and-review.md) for details.
 
 ## Getting Help
 
-- Architecture decisions: See `docs/architecture/ADR-*.md`
-- Testing strategy: See ADR-004 and [BDD Specifications guide](docs/guides/bdd-specifications.md)
-- Python patterns: See [Python & Testing guide](docs/guides/python-and-testing.md)
+- Architecture decisions: See `docs/explanation/architecture/ADR-*.md`
+- Testing strategy: See ADR-004 and [BDD Specifications guide](docs/explanation/bdd-specifications.md)
+- Python patterns: See [Python & Testing guide](docs/how-to/python-and-testing.md)
 - Git safety: Use `/git` skill before any operation
 
 ---
