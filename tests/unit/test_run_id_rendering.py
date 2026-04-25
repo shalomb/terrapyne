@@ -23,7 +23,7 @@ def _make_run(run_id: str = "run-JJpgJdhM5G8CTAWs"):
 
 class TestRunIdNotTruncated:
     def _render_to_string(self, runs) -> str:
-        from terrapyne.utils.table_renderer import RunTableRenderer
+        from terrapyne.rendering.table_renderer import RunTableRenderer
 
         buf = StringIO()
         con = Console(file=buf, width=120, highlight=False)
@@ -37,7 +37,7 @@ class TestRunIdNotTruncated:
         buf = StringIO()
         # 80 columns is a common default terminal width
         con = Console(file=buf, width=80, highlight=False)
-        from terrapyne.utils.table_renderer import RunTableRenderer
+        from terrapyne.rendering.table_renderer import RunTableRenderer
 
         RunTableRenderer().render([_make_run(run_id)], console_instance=con)
         output = buf.getvalue()
@@ -54,7 +54,7 @@ class TestRunIdNotTruncated:
         ]
         buf = StringIO()
         con = Console(file=buf, width=80, highlight=False)
-        from terrapyne.utils.table_renderer import RunTableRenderer
+        from terrapyne.rendering.table_renderer import RunTableRenderer
 
         RunTableRenderer().render([_make_run(rid) for rid in ids], console_instance=con)
         output = buf.getvalue()

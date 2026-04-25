@@ -19,5 +19,27 @@ source_modules =
     terrapyne.core
     terrapyne.models
     terrapyne.utils
+    terrapyne.rendering
 forbidden_modules =
     terrapyne.cli
+
+[importlinter:contract:utils-no-upward-imports]
+name = Utils Has No Upward Imports
+type = forbidden
+source_modules =
+    terrapyne.utils
+forbidden_modules =
+    terrapyne.api
+    terrapyne.cli
+    terrapyne.core
+    terrapyne.models
+    terrapyne.rendering
+
+[importlinter:contract:rendering-layer]
+name = Rendering Imports Only Models And Utils
+type = forbidden
+source_modules =
+    terrapyne.rendering
+forbidden_modules =
+    terrapyne.api
+    terrapyne.core

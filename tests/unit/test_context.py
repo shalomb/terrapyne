@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from terrapyne.utils.context import (
+from terrapyne.core.context import (
     get_context_from_tfstate,
     get_workspace_context,
     resolve_organization,
@@ -159,7 +159,7 @@ class TestGetContextFromTFState:
 
     def test_default_directory_uses_cwd(self, tmp_path):
         """Test that directory defaults to current working directory."""
-        with patch("terrapyne.utils.context.Path.cwd", return_value=tmp_path):
+        with patch("terrapyne.core.context.Path.cwd", return_value=tmp_path):
             result = get_context_from_tfstate(None)
 
         # Should return None values since no tfstate exists in tmp_path
@@ -186,7 +186,7 @@ class TestGetWorkspaceContext:
         tfstate_file = terraform_dir / "terraform.tfstate"
         tfstate_file.write_text(json.dumps(tfstate_data))
 
-        with patch("terrapyne.utils.context.Path.cwd", return_value=tmp_path):
+        with patch("terrapyne.core.context.Path.cwd", return_value=tmp_path):
             workspace, org, _ = get_workspace_context()
 
         assert workspace == "tfstate-workspace"
@@ -200,9 +200,9 @@ class TestGetWorkspaceContext:
         mock_backend.hostname = "tfe.example.com"
 
         with patch(
-            "terrapyne.utils.context.get_context_from_tfstate", return_value=(None, None, None)
+            "terrapyne.core.context.get_context_from_tfstate", return_value=(None, None, None)
         ):
-            with patch("terrapyne.utils.context.detect_backend", return_value=mock_backend):
+            with patch("terrapyne.core.context.detect_backend", return_value=mock_backend):
                 workspace, org, hostname = get_workspace_context()
 
         assert workspace == "backend-workspace"
@@ -212,9 +212,9 @@ class TestGetWorkspaceContext:
     def test_no_backend_detected(self):
         """Test when no backend is detected."""
         with patch(
-            "terrapyne.utils.context.get_context_from_tfstate", return_value=(None, None, None)
+            "terrapyne.core.context.get_context_from_tfstate", return_value=(None, None, None)
         ):
-            with patch("terrapyne.utils.context.detect_backend", return_value=None):
+            with patch("terrapyne.core.context.detect_backend", return_value=None):
                 result = get_workspace_context()
 
         assert result == (None, None, None)
@@ -227,9 +227,9 @@ class TestGetWorkspaceContext:
         mock_backend.hostname = "app.terraform.io"
 
         with patch(
-            "terrapyne.utils.context.get_context_from_tfstate", return_value=(None, None, None)
+            "terrapyne.core.context.get_context_from_tfstate", return_value=(None, None, None)
         ):
-            with patch("terrapyne.utils.context.detect_backend", return_value=mock_backend):
+            with patch("terrapyne.core.context.detect_backend", return_value=mock_backend):
                 workspace, org, _ = get_workspace_context()
 
         assert workspace is None
@@ -260,7 +260,7 @@ class TestResolveWorkspace:
     def test_resolve_workspace(self, arg, context, expected):
         """Test resolve_workspace with various argument and context combinations."""
         with patch(
-            "terrapyne.utils.context.get_workspace_context",
+            "terrapyne.core.context.get_workspace_context",
             return_value=context,
         ):
             result = resolve_workspace(arg)
@@ -300,7 +300,7 @@ class TestResolveOrganization:
         env_dict = {"TFC_ORG": env_var} if env_var else {}
         with patch.dict(os.environ, env_dict, clear=True):
             with patch(
-                "terrapyne.utils.context.get_workspace_context",
+                "terrapyne.core.context.get_workspace_context",
                 return_value=context,
             ):
                 result = resolve_organization(arg)

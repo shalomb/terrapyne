@@ -33,12 +33,12 @@ class TestQuietMode:
 class TestTFCOrgResolution:
     """Test TFC organization resolution including environment variables."""
 
-    @patch("terrapyne.utils.context.get_workspace_context")
+    @patch("terrapyne.core.context.get_workspace_context")
     def test_resolve_organization_env_var(self, mock_context):
         """resolve_organization should prioritize TFC_ORG environment variable."""
         import os
 
-        from terrapyne.utils.context import resolve_organization
+        from terrapyne.core.context import resolve_organization
 
         mock_context.return_value = (None, "context-org", "app.terraform.io")
 
@@ -47,12 +47,12 @@ class TestTFCOrgResolution:
             result = resolve_organization(None)
             assert result == "env-org"
 
-    @patch("terrapyne.utils.context.get_workspace_context")
+    @patch("terrapyne.core.context.get_workspace_context")
     def test_resolve_organization_fallback(self, mock_context):
         """resolve_organization should fall back to context if no env var."""
         import os
 
-        from terrapyne.utils.context import resolve_organization
+        from terrapyne.core.context import resolve_organization
 
         mock_context.return_value = (None, "context-org", "app.terraform.io")
 

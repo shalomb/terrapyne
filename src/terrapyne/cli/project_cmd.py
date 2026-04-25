@@ -14,7 +14,7 @@ from terrapyne.cli.utils import (
     resolve_project_context,
     validate_context,
 )
-from terrapyne.utils.rich_tables import (
+from terrapyne.rendering.rich_tables import (
     render_project_detail,
     render_project_team_access,
     render_projects,

@@ -13,7 +13,7 @@ from rich.table import Table
 from terrapyne.models.project import Project
 from terrapyne.models.run import Run
 from terrapyne.models.workspace import Workspace
-from terrapyne.utils.rich_tables import (
+from terrapyne.rendering.rich_tables import (
     render_projects,
     render_runs,
     render_workspaces,
@@ -42,7 +42,7 @@ class TestTableRendererInterface:
         )
 
         # Should not raise
-        with patch("terrapyne.utils.rich_tables.console") as mock_console:
+        with patch("terrapyne.rendering.rich_tables.console") as mock_console:
             render_workspaces([workspace])
             mock_console.print.assert_called()
 
@@ -53,7 +53,7 @@ class TestTableRendererInterface:
             name="test-workspace",
         )
 
-        with patch("terrapyne.utils.rich_tables.console") as mock_console:
+        with patch("terrapyne.rendering.rich_tables.console") as mock_console:
             render_workspaces([workspace], total_count=10)
             # Should have called print twice: table + pagination info
             assert mock_console.print.call_count >= 2
@@ -65,7 +65,7 @@ class TestTableRendererInterface:
             status="applied",
         )
 
-        with patch("terrapyne.utils.rich_tables.console") as mock_console:
+        with patch("terrapyne.rendering.rich_tables.console") as mock_console:
             render_runs([run])
             mock_console.print.assert_called()
 
@@ -76,7 +76,7 @@ class TestTableRendererInterface:
             name="my-infrastructure",
         )
 
-        with patch("terrapyne.utils.rich_tables.console") as mock_console:
+        with patch("terrapyne.rendering.rich_tables.console") as mock_console:
             render_projects([project])
             mock_console.print.assert_called()
 
@@ -100,7 +100,7 @@ class TestTableRendererConsistency:
             Project(id="prj-2", name="test-2"),
         ]
 
-        with patch("terrapyne.utils.rich_tables.console") as mock_console:
+        with patch("terrapyne.rendering.rich_tables.console") as mock_console:
             render_workspaces(workspaces)
             render_runs(runs)
             render_projects(projects)
@@ -110,7 +110,7 @@ class TestTableRendererConsistency:
 
     def test_all_renderers_handle_empty_sequences(self):
         """Test that all renderers handle empty lists gracefully."""
-        with patch("terrapyne.utils.rich_tables.console") as mock_console:
+        with patch("terrapyne.rendering.rich_tables.console") as mock_console:
             render_workspaces([])
             render_runs([])
             render_projects([])
@@ -123,13 +123,13 @@ class TestTableRendererConsistency:
         workspace = Workspace(id="ws-1", name="test")
 
         # Without total_count
-        with patch("terrapyne.utils.rich_tables.console") as mock_console:
+        with patch("terrapyne.rendering.rich_tables.console") as mock_console:
             render_workspaces([workspace])
             # Should still work and print at least table
             mock_console.print.assert_called()
 
         # With total_count
-        with patch("terrapyne.utils.rich_tables.console") as mock_console:
+        with patch("terrapyne.rendering.rich_tables.console") as mock_console:
             render_workspaces([workspace], total_count=100)
             # Should print table and pagination
             assert mock_console.print.call_count >= 2
@@ -140,7 +140,7 @@ class TestDetailRendererConsistency:
 
     def test_detail_renderers_format_output(self):
         """Test that detail renderers produce readable output."""
-        from terrapyne.utils.rich_tables import (
+        from terrapyne.rendering.rich_tables import (
             render_project_detail,
             render_run_detail,
             render_workspace_detail,
@@ -157,7 +157,7 @@ class TestDetailRendererConsistency:
 
         project = Project(id="prj-abc123", name="test-project")
 
-        with patch("terrapyne.utils.rich_tables.console") as mock_console:
+        with patch("terrapyne.rendering.rich_tables.console") as mock_console:
             render_workspace_detail(workspace)
             render_run_detail(run)
             render_project_detail(project, [])
@@ -177,7 +177,7 @@ class TestTableRendererOutput:
             terraform_version="1.8.0",
         )
 
-        with patch("terrapyne.utils.rich_tables.console") as mock_console:
+        with patch("terrapyne.rendering.rich_tables.console") as mock_console:
             render_workspaces([workspace])
 
             # Verify print was called with a Table object
@@ -191,7 +191,7 @@ class TestTableRendererOutput:
         """Test that run list shows status information."""
         run = Run(id="run-abc123", status="applied")
 
-        with patch("terrapyne.utils.rich_tables.console") as mock_console:
+        with patch("terrapyne.rendering.rich_tables.console") as mock_console:
             render_runs([run])
             mock_console.print.assert_called()
 
@@ -207,8 +207,8 @@ class TestTableRendererOutput:
             created_at=None,
         )
 
-        with patch("terrapyne.utils.rich_tables.console") as mock_console:
-            from terrapyne.utils.rich_tables import render_workspace_detail
+        with patch("terrapyne.rendering.rich_tables.console") as mock_console:
+            from terrapyne.rendering.rich_tables import render_workspace_detail
 
             render_workspace_detail(workspace)
 

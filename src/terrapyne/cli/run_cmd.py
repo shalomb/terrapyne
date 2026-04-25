@@ -19,7 +19,7 @@ from terrapyne.cli.utils import (
     validate_context,
 )
 from terrapyne.models.run import Run
-from terrapyne.utils.rich_tables import render_run_detail, render_runs
+from terrapyne.rendering.rich_tables import render_run_detail, render_runs
 
 app = typer.Typer(help="Run management commands")
 
