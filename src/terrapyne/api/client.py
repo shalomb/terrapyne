@@ -230,7 +230,7 @@ class TFCClient:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((TFCAPIError, TFCServerError)),
+        retry=retry_if_exception_type(TFCServerError),
         reraise=True,
     )
     def post(self, path: str, json_data: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -252,7 +252,7 @@ class TFCClient:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((TFCAPIError, TFCServerError)),
+        retry=retry_if_exception_type(TFCServerError),
         reraise=True,
     )
     def patch(self, path: str, json_data: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -274,7 +274,7 @@ class TFCClient:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((TFCAPIError, TFCServerError)),
+        retry=retry_if_exception_type(TFCServerError),
         reraise=True,
     )
     def delete(self, path: str, json_data: dict[str, Any] | None = None) -> None:
