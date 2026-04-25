@@ -1,7 +1,6 @@
 """Rich table formatters for TFC data."""
 
 from collections.abc import Sequence
-from datetime import UTC
 from datetime import datetime as dt_datetime
 
 from rich.console import Console
@@ -72,11 +71,11 @@ def render_workspace_dashboard(
     # Determine health from latest run
     health_status = "Unknown (no runs found)"
     if latest_run:
+        from terrapyne.utils.logging import format_relative_time
+
         status = latest_run.status
         time_ago = (
-            _format_relative_time(latest_run.created_at)
-            if latest_run.created_at
-            else "unknown time"
+            format_relative_time(latest_run.created_at) if latest_run.created_at else "unknown time"
         )
         if status.is_successful:
             health_status = f"🟢 Healthy (last run {status.value} {time_ago})"
@@ -220,40 +219,6 @@ def _format_datetime(dt: dt_datetime) -> str:
         Formatted string
     """
     return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
-
-
-def _format_relative_time(dt: dt_datetime) -> str:
-    """Format datetime as relative time (e.g., '2h ago').
-
-    Args:
-        dt: Datetime object
-
-    Returns:
-        Relative time string
-    """
-    now = dt_datetime.now(UTC)
-    # Ensure dt is timezone-aware
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=UTC)
-
-    delta = now - dt
-
-    if delta.days > 365:
-        years = delta.days // 365
-        return f"{years}y ago"
-    elif delta.days > 30:
-        months = delta.days // 30
-        return f"{months}mo ago"
-    elif delta.days > 0:
-        return f"{delta.days}d ago"
-    elif delta.seconds > 3600:
-        hours = delta.seconds // 3600
-        return f"{hours}h ago"
-    elif delta.seconds > 60:
-        minutes = delta.seconds // 60
-        return f"{minutes}m ago"
-    else:
-        return "just now"
 
 
 def render_vcs_detail(vcs: VCSConnection, workspace_name: str) -> None:
