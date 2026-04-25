@@ -3,8 +3,7 @@
 import typer
 from rich.table import Table
 
-from terrapyne.api.client import TFCClient
-from terrapyne.cli.utils import console, handle_cli_errors, validate_context
+from terrapyne.cli.utils import console, get_client, handle_cli_errors, validate_context
 
 app = typer.Typer(help="Team management commands")
 
@@ -18,6 +17,7 @@ def _show_help(ctx: typer.Context):
 @app.command("list")
 @handle_cli_errors
 def team_list(
+    ctx: typer.Context,
     organization: str | None = typer.Option(
         None,
         "--organization",
@@ -46,7 +46,7 @@ def team_list(
     """
     org, _ = validate_context(organization)
 
-    with TFCClient(organization=org) as client:
+    with get_client(ctx, organization=org) as client:
         teams_iter, total_count = client.teams.list_teams(organization=org, search=search)
         teams = [t for i, t in enumerate(teams_iter) if i < limit]
 
@@ -83,6 +83,7 @@ def team_list(
 @app.command("show")
 @handle_cli_errors
 def team_show(
+    ctx: typer.Context,
     team_id: str = typer.Argument(..., help="Team ID"),
     organization: str | None = typer.Option(
         None,
@@ -102,7 +103,7 @@ def team_show(
     """
     org, _ = validate_context(organization)
 
-    with TFCClient(organization=org) as client:
+    with get_client(ctx, organization=org) as client:
         team = client.teams.get(team_id)
 
         # Display team details
@@ -146,6 +147,7 @@ def team_show(
 @app.command("create")
 @handle_cli_errors
 def team_create(
+    ctx: typer.Context,
     name: str = typer.Option(..., "--name", "-n", help="Team name"),
     description: str | None = typer.Option(None, "--description", "-d", help="Team description"),
     organization: str | None = typer.Option(
@@ -169,7 +171,7 @@ def team_create(
     """
     org, _ = validate_context(organization)
 
-    with TFCClient(organization=org) as client:
+    with get_client(ctx, organization=org) as client:
         console.print(f"[dim]Creating team:[/dim] {name}")
 
         team = client.teams.create(
@@ -187,6 +189,7 @@ def team_create(
 @app.command("update")
 @handle_cli_errors
 def team_update(
+    ctx: typer.Context,
     team_id: str = typer.Argument(..., help="Team ID"),
     name: str | None = typer.Option(None, "--name", "-n", help="New team name"),
     description: str | None = typer.Option(None, "--description", "-d", help="New description"),
@@ -215,7 +218,7 @@ def team_update(
         console.print("[red]Error: Specify at least --name or --description[/red]")
         raise typer.Exit(1)
 
-    with TFCClient(organization=org) as client:
+    with get_client(ctx, organization=org) as client:
         console.print(f"[dim]Updating team:[/dim] {team_id}")
 
         team = client.teams.update(
@@ -233,6 +236,7 @@ def team_update(
 @app.command("delete")
 @handle_cli_errors
 def team_delete(
+    ctx: typer.Context,
     team_id: str = typer.Argument(..., help="Team ID"),
     organization: str | None = typer.Option(
         None,
@@ -253,7 +257,7 @@ def team_delete(
     """
     org, _ = validate_context(organization)
 
-    with TFCClient(organization=org) as client:
+    with get_client(ctx, organization=org) as client:
         # Get team info for confirmation
         team = client.teams.get(team_id)
 
@@ -272,6 +276,7 @@ def team_delete(
 @app.command("members")
 @handle_cli_errors
 def team_members(
+    ctx: typer.Context,
     team_id: str = typer.Argument(..., help="Team ID"),
     organization: str | None = typer.Option(
         None,
@@ -291,7 +296,7 @@ def team_members(
     """
     org, _ = validate_context(organization)
 
-    with TFCClient(organization=org) as client:
+    with get_client(ctx, organization=org) as client:
         team = client.teams.get(team_id)
 
         members, total_count = client.teams.list_members(team_id)
@@ -325,6 +330,7 @@ def team_members(
 @app.command("add-member")
 @handle_cli_errors
 def add_team_member(
+    ctx: typer.Context,
     team_id: str = typer.Argument(..., help="Team ID"),
     user_id: str = typer.Option(..., "--user", "-u", help="User ID to add"),
     organization: str | None = typer.Option(
@@ -345,7 +351,7 @@ def add_team_member(
     """
     org, _ = validate_context(organization)
 
-    with TFCClient(organization=org) as client:
+    with get_client(ctx, organization=org) as client:
         team = client.teams.get(team_id)
 
         console.print(f"[dim]Adding user to team:[/dim] {team.name}")
@@ -360,6 +366,7 @@ def add_team_member(
 @app.command("remove-member")
 @handle_cli_errors
 def remove_team_member(
+    ctx: typer.Context,
     team_id: str = typer.Argument(..., help="Team ID"),
     user_id: str = typer.Option(..., "--user", "-u", help="User ID to remove"),
     organization: str | None = typer.Option(
@@ -381,7 +388,7 @@ def remove_team_member(
     """
     org, _ = validate_context(organization)
 
-    with TFCClient(organization=org) as client:
+    with get_client(ctx, organization=org) as client:
         team = client.teams.get(team_id)
 
         # Confirmation prompt

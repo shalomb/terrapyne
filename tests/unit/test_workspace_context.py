@@ -29,8 +29,8 @@ class TestWorkspaceContextResolution:
         return ws
 
     @patch("terrapyne.cli.workspace_cmd.validate_context")
-    @patch("terrapyne.cli.workspace_cmd.TFCClient")
-    def test_workspace_show_uses_resolved_name(self, mock_client_cls, mock_validate):
+    @patch("terrapyne.api.client.TFCClient")
+    def test_workspace_show_uses_resolved_name(self, mock_get_client, mock_validate):
         """workspace show must pass the resolved workspace name to .get(), not raw arg."""
         from typer.testing import CliRunner
 
@@ -40,8 +40,7 @@ class TestWorkspaceContextResolution:
         mock_validate.return_value = ("MyOrg", resolved_ws_name)
 
         mock_client = MagicMock()
-        mock_client_cls.return_value.__enter__ = lambda s: mock_client
-        mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_get_client.return_value.__enter__.return_value = mock_client
         mock_client.workspaces.get.return_value = self._make_workspace(resolved_ws_name)
         mock_client.workspaces.get_variables.return_value = []
         mock_client.runs.list.return_value = ([], 0)
@@ -58,8 +57,8 @@ class TestWorkspaceContextResolution:
         assert result.exit_code == 0, f"exit={result.exit_code}\n{result.output}"
 
     @patch("terrapyne.cli.workspace_cmd.validate_context")
-    @patch("terrapyne.cli.workspace_cmd.TFCClient")
-    def test_workspace_variables_uses_resolved_name(self, mock_client_cls, mock_validate):
+    @patch("terrapyne.api.client.TFCClient")
+    def test_workspace_variables_uses_resolved_name(self, mock_get_client, mock_validate):
         """workspace variables must pass resolved name to .get(), not empty string."""
         from typer.testing import CliRunner
 
@@ -69,8 +68,7 @@ class TestWorkspaceContextResolution:
         mock_validate.return_value = ("MyOrg", resolved_ws_name)
 
         mock_client = MagicMock()
-        mock_client_cls.return_value.__enter__ = lambda s: mock_client
-        mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_get_client.return_value.__enter__.return_value = mock_client
         mock_client.workspaces.get.return_value = self._make_workspace(resolved_ws_name)
         mock_client.workspaces.get_variables.return_value = []
 
@@ -81,8 +79,8 @@ class TestWorkspaceContextResolution:
         assert result.exit_code == 0, f"exit={result.exit_code}\n{result.output}"
 
     @patch("terrapyne.cli.workspace_cmd.validate_context")
-    @patch("terrapyne.cli.workspace_cmd.TFCClient")
-    def test_workspace_vcs_uses_resolved_name(self, mock_client_cls, mock_validate):
+    @patch("terrapyne.api.client.TFCClient")
+    def test_workspace_vcs_uses_resolved_name(self, mock_get_client, mock_validate):
         """workspace vcs must pass resolved name to .get(), not empty string."""
         from typer.testing import CliRunner
 
@@ -92,8 +90,7 @@ class TestWorkspaceContextResolution:
         mock_validate.return_value = ("MyOrg", resolved_ws_name)
 
         mock_client = MagicMock()
-        mock_client_cls.return_value.__enter__ = lambda s: mock_client
-        mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_get_client.return_value.__enter__.return_value = mock_client
         mock_ws = self._make_workspace(resolved_ws_name)
         mock_client.workspaces.get.return_value = mock_ws
         mock_client.workspaces.get_variables.return_value = []

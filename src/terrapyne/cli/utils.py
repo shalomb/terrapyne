@@ -7,14 +7,33 @@ from typing import Any, TypeVar
 import typer
 from rich.console import Console
 
+from terrapyne.api.client import TFCClient
 from terrapyne.core.exceptions import TerrapyneError, TFCAPIError
 from terrapyne.utils.context import resolve_organization, resolve_workspace
 
 F = TypeVar("F", bound=Callable[..., Any])
 
+
+def get_client(ctx: typer.Context | None, organization: str | None = None) -> TFCClient:
+    """Get TFC client initialized with context options."""
+    from terrapyne.api.client import TFCClient
+
+    cache_ttl = 0
+    if ctx and hasattr(ctx, "obj") and isinstance(ctx.obj, dict):
+        cache_ttl = ctx.obj.get("cache_ttl", 0)
+
+    return TFCClient(organization=organization, cache_ttl=cache_ttl)
+
+
 # Consolidated console instances for CLI output
 # UI output goes to stdout (Typer default) to support test runners
 console = Console()
+
+
+def set_console(new_console: Console) -> None:
+    """Set the global console instance (useful for testing)."""
+    global console  # noqa: PLW0603
+    console = new_console
 
 
 def set_quiet_mode(quiet: bool) -> None:
@@ -107,12 +126,16 @@ def emit_json(data):
     """Print data as JSON to stdout."""
     import json
     from datetime import datetime
+    from unittest.mock import Mock
 
     def _default(obj):
+        # Immediate guard for mock objects to prevent infinite recursion
+        if isinstance(obj, Mock):
+            return f"<Mock id={id(obj)}>"
         if isinstance(obj, datetime):
             return obj.isoformat()
         if hasattr(obj, "model_dump"):
-            return obj.model_dump()
+            return obj.model_dump(mode="json")
         if hasattr(obj, "__dict__"):
             return {k: v for k, v in obj.__dict__.items() if not k.startswith("_")}
         return str(obj)

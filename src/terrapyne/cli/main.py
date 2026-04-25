@@ -75,11 +75,23 @@ def main(
         "--debug",
         help="Enable API call tracing and verbose logging",
     ),
+    cache_ttl: int = typer.Option(
+        0,
+        "--cache-ttl",
+        help="Cache API responses for N seconds (0 to disable)",
+    ),
 ) -> None:
     """Terraform Cloud CLI orchestrator for DevOps engineers."""
     from terrapyne.cli.utils import setup_logging
 
     set_quiet_mode(quiet)
     setup_logging(debug)
+
+    # Initialize ctx.obj if it's None or not a dict
+    if ctx.obj is None or not isinstance(ctx.obj, dict):
+        ctx.obj = {}
+
+    ctx.obj["cache_ttl"] = cache_ttl
+
     if ctx.invoked_subcommand is None and not quiet:
         console.print(ctx.get_help())

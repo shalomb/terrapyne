@@ -1,19 +1,10 @@
 """VCS CLI commands."""
 
-from __future__ import annotations
-
-import os
-import sys
-
 import typer
 
-from terrapyne.api.client import TFCClient
-from terrapyne.api.vcs import VCSAPI
-from terrapyne.api.workspaces import WorkspaceAPI
-from terrapyne.cli.utils import console, handle_cli_errors, validate_context
-from terrapyne.utils.rich_tables import render_vcs_detail, render_vcs_repos
+from terrapyne.cli.utils import console, get_client, handle_cli_errors, validate_context
 
-app = typer.Typer(help="VCS operations (repository, branch management)")
+app = typer.Typer(help="VCS configuration and repository discovery")
 
 
 @app.callback(invoke_without_command=True)
@@ -22,119 +13,95 @@ def _show_help(ctx: typer.Context):
         console.print(ctx.get_help())
 
 
-@app.command(name="show")
+@app.command("list")
 @handle_cli_errors
-def show_vcs(
-    workspace: str | None = typer.Argument(None, help="Workspace name"),
-    organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
-) -> None:
-    """Show VCS configuration for workspace."""
-    org, workspace_name = validate_context(organization, workspace, require_workspace=True)
-
-    client = TFCClient(organization=org)
-    vcs_api = VCSAPI(client)
-
-    # Get workspace ID
-    workspaces_api = WorkspaceAPI(client)
-    workspace_obj = workspaces_api.get(workspace_name or "", org)  # type: ignore[arg-type]
-
-    # Get VCS config
-    vcs = vcs_api.get_workspace_vcs(workspace_obj.id)
-
-    if not vcs:
-        console.print(f"[yellow]Workspace '{workspace_name}' has no VCS connection[/yellow]")
-        sys.exit(0)
-
-    # Render VCS details
-    render_vcs_detail(vcs, workspace_name or "")  # type: ignore[arg-type]
-
-
-@app.command(name="update-branch")
-@handle_cli_errors
-def update_branch(
-    branch: str = typer.Argument(..., help="New branch name"),
-    workspace: str | None = typer.Option(None, "-w", "--workspace", help="Workspace name"),
-    organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
-    auto_approve: bool = typer.Option(False, "--auto-approve", help="Skip confirmation"),
-) -> None:
-    """Update VCS branch for workspace."""
-    org, workspace_name = validate_context(organization, workspace, require_workspace=True)
-
-    client = TFCClient(organization=org)
-    vcs_api = VCSAPI(client)
-
-    # Get workspace
-    workspaces_api = WorkspaceAPI(client)
-    workspace_obj = workspaces_api.get(workspace_name or "", org)  # type: ignore[arg-type]
-
-    # Get current VCS config
-    current_vcs = vcs_api.get_workspace_vcs(workspace_obj.id)
-    if not current_vcs:
-        console.print(
-            f"[red]Error:[/red] Workspace '{workspace_name}' has no VCS connection.\n"
-            f"VCS is required for this operation (updating branches, VCS-triggered runs, etc).\n"
-            f"To add VCS:\n"
-            f"  1. Visit: https://app.terraform.io/app/{org}/workspaces/{workspace_name}/settings\n"
-            f"  2. Scroll to 'VCS Connection'\n"
-            f"  3. Choose a repository"
-        )
-        sys.exit(1)
-
-    # Get OAuth token from environment or use the one from workspace
-    oauth_token_id = os.getenv("TFC_VCS_OAUTH_TOKEN") or current_vcs.oauth_token_id
-    if not oauth_token_id:
-        console.print(
-            "[red]Error:[/red] Cannot determine OAuth token for VCS operations.\n"
-            "Set your VCS OAuth token ID:\n"
-            "  export TFC_VCS_OAUTH_TOKEN='ot-xxxxx'\n"
-            "Find your token ID in Terraform Cloud settings > VCS connections"
-        )
-        sys.exit(1)
-
-    # Confirmation prompt
-    if not auto_approve:
-        console.print(f"\n[bold]Update VCS branch for workspace:[/bold] {workspace_name}")
-        console.print(f"  Repository: {current_vcs.identifier}")
-        console.print(f"  Current branch: [yellow]{current_vcs.branch}[/yellow]")
-        console.print(f"  New branch: [green]{branch}[/green]")
-        confirm = typer.confirm("\nProceed with branch update?", default=False)
-        if not confirm:
-            console.print("Aborted.")
-            sys.exit(0)
-
-    # Update branch
-    console.print(f"\nUpdating branch to [green]{branch}[/green]...")
-    vcs_api.update_workspace_branch(workspace_obj.id, branch, oauth_token_id)
-
-    console.print("[green]✓[/green] Branch updated successfully")
-    console.print(
-        f"\nWorkspace URL: https://app.terraform.io/app/{org}/workspaces/{workspace_name}"
-    )
-
-
-@app.command(name="repos")
-@handle_cli_errors
-def list_repos(
-    organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
-    repo: str | None = typer.Option(None, "--repo", help="Filter by repository pattern"),
-    verbose: bool = typer.Option(False, "-v", "--verbose", help="Show workspace details"),
-) -> None:
-    """List GitHub repositories connected to TFC workspaces."""
+def vcs_list(
+    ctx: typer.Context,
+    organization: str | None = typer.Option(
+        None,
+        "--organization",
+        "-o",
+        help="TFC organization (auto-detected from context if available)",
+    ),
+):
+    """List VCS connections in an organization."""
     org, _ = validate_context(organization)
 
-    client = TFCClient(organization=org)
-    vcs_api = VCSAPI(client)
+    with get_client(ctx, organization=org) as client:
+        # VCSAPI has list_connections() method
+        connections = client.vcs.list_connections(org)
+        if not connections:
+            console.print(f"[yellow]No VCS connections found in {org}[/yellow]")
+            return
 
-    console.print(f"Discovering repositories in organization: [bold]{org}[/bold]")
-    repos = vcs_api.list_repositories(org)
+        from terrapyne.utils.rich_tables import render_vcs_connections
 
-    # Filter by pattern if specified
-    if repo:
-        repos = [r for r in repos if repo.lower() in r["identifier"].lower()]
+        render_vcs_connections(connections, f"VCS Connections in {org}")
 
-    if not repos:
-        console.print("[yellow]No GitHub repositories found[/yellow]")
-        sys.exit(0)
 
-    # Render repository table
-    render_vcs_repos(repos, verbose)
+@app.command("repos")
+@handle_cli_errors
+def vcs_repos(
+    ctx: typer.Context,
+    organization: str | None = typer.Option(
+        None,
+        "--organization",
+        "-o",
+        help="TFC organization (auto-detected from context if available)",
+    ),
+):
+    """List available repositories for all VCS connections."""
+    org, _ = validate_context(organization)
+
+    with get_client(ctx, organization=org) as client:
+        connections = client.vcs.list_connections(org)
+        if not connections:
+            console.print(f"[yellow]No VCS connections found in {org}[/yellow]")
+            return
+
+        for conn in connections:
+            console.print(
+                f"\n[bold cyan]Connection: {conn.identifier} ({conn.service_provider})[/bold cyan]"
+            )
+            try:
+                if not conn.id:
+                    continue
+                repos: list[dict] = client.vcs.list_repositories(conn.id)
+                if not repos:
+                    console.print("  [dim](No repositories found)[/dim]")
+                    continue
+
+                for repo in repos:
+                    console.print(f"  • {repo['identifier']}")
+            except Exception as e:
+                console.print(f"  [red]Error fetching repositories: {e}[/red]")
+
+
+@app.command("show")
+@handle_cli_errors
+def vcs_show(
+    ctx: typer.Context,
+    workspace: str | None = typer.Argument(None, help="Workspace name (auto-detected if omitted)"),
+    organization: str | None = typer.Option(
+        None,
+        "--organization",
+        "-o",
+        help="TFC organization (auto-detected from context if available)",
+    ),
+):
+    """Show VCS configuration for a workspace."""
+    org, ws_name = validate_context(organization, workspace, require_workspace=True)
+
+    with get_client(ctx, organization=org) as client:
+        # ws_name is checked by validate_context(require_workspace=True)
+        if not ws_name:
+            raise typer.Exit(1)
+
+        ws = client.workspaces.get(ws_name, org)
+        if not ws.vcs_repo:
+            console.print(f"[yellow]Workspace '{ws_name}' has no VCS configuration.[/yellow]")
+            return
+
+        from terrapyne.utils.rich_tables import render_workspace_vcs
+
+        render_workspace_vcs(ws)

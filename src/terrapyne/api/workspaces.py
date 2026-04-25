@@ -234,3 +234,16 @@ class WorkspaceAPI:
 
         response = self.client.patch(path, json_data=payload)
         return WorkspaceVariable.from_api_response(response["data"])
+
+    def delete_variable(self, workspace_id: str, variable_id: str) -> None:
+        """Delete a workspace variable.
+
+        Args:
+            workspace_id: Workspace ID (for logging/context)
+            variable_id: Variable ID to delete
+
+        Raises:
+            TFCAPIError: If deletion fails
+        """
+        path = f"/vars/{variable_id}"
+        self.client.delete(path)

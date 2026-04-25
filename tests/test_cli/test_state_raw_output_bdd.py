@@ -74,7 +74,7 @@ def workspace_without_output(name):
 @when(parsers.parse("I run tfc state outputs {name} --raw"), target_fixture="cli_result")
 def run_state_outputs_raw(name, mock_output):
     """Run the command with --raw flag."""
-    with patch("terrapyne.cli.state_cmd.TFCClient") as mock_client_class:
+    with patch("terrapyne.api.client.TFCClient") as mock_client_class:
         mock_client = MagicMock()
         mock_client_class.return_value.__enter__.return_value = mock_client
 

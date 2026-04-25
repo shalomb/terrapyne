@@ -45,7 +45,9 @@ def make_api_request(debug_context, mock_httpx, mock_creds):
 
     with patch("terrapyne.cli.utils.validate_context") as v:
         v.return_value = ("test-org", "my-ws")
+
         # Run the command. Typer will call main() which calls setup_logging()
+        # and correctly initializes ctx.obj
         return runner.invoke(
             app, debug_context["args"] + ["workspace", "show", "my-ws", "-o", "test-org"]
         )
@@ -56,6 +58,7 @@ def execute_command(debug_context, mock_httpx, mock_creds):
     # httpx mock should already be configured by 'given' step
     with patch("terrapyne.cli.utils.validate_context") as v:
         v.return_value = ("test-org", "my-ws")
+
         return runner.invoke(
             app, debug_context["args"] + ["workspace", "show", "my-ws", "-o", "test-org"]
         )
@@ -69,9 +72,9 @@ def mock_httpx():
 
 @pytest.fixture
 def mock_creds():
-    with patch("terrapyne.core.credentials.TerraformCredentials.load") as m:
-        m.return_value = MagicMock()
-        m.return_value.get_headers.return_value = {"Authorization": "Bearer XXX"}
+    m = MagicMock()
+    m.get_headers.return_value = {"Authorization": "Bearer XXX"}
+    with patch("terrapyne.core.credentials.TerraformCredentials.load", return_value=m):
         yield m
 
 

@@ -57,7 +57,7 @@ def request_project_details_no_name():
     with (
         patch("terrapyne.cli.project_cmd.validate_context") as mock_validate_cmd,
         patch("terrapyne.cli.utils.validate_context") as mock_validate_utils,
-        patch("terrapyne.cli.project_cmd.TFCClient") as mock_client,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance
@@ -86,7 +86,7 @@ def request_project_teams_no_name():
     with (
         patch("terrapyne.cli.project_cmd.validate_context") as mock_validate_cmd,
         patch("terrapyne.cli.utils.validate_context") as mock_validate_utils,
-        patch("terrapyne.cli.project_cmd.TFCClient") as mock_client,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance
@@ -111,7 +111,7 @@ def request_workspace_details():
     """Request workspace details via CLI."""
     with (
         patch("terrapyne.cli.workspace_cmd.validate_context") as mock_validate,
-        patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance

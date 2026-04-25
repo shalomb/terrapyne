@@ -10,8 +10,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from terrapyne.api.client import TFCClient
-from terrapyne.cli.utils import console, validate_context
+from terrapyne.cli.utils import console, get_client, validate_context
 from terrapyne.core.state_diff import (
     DEFAULT_FIELDS,
 )
@@ -47,7 +46,7 @@ def _parse_types(types: str | None) -> set[str] | None:
     return {t.strip() for t in types.split(",")} if types else None
 
 
-def _require_download_url(sv: Any) -> str:
+def _require_download_url(ctx: typer.Context, sv: Any) -> str:
     """Extract download URL from a state version, or exit with error."""
     if not sv.download_url:
         console.print(
@@ -60,6 +59,7 @@ def _require_download_url(sv: Any) -> str:
 
 @app.command("list")
 def state_list(
+    ctx: typer.Context,
     workspace: str | None = typer.Argument(None, help="Workspace name"),
     organization: str | None = typer.Option(None, "-o", "--organization"),
     limit: int = typer.Option(20, "-n", "--limit", help="Max versions to show"),
@@ -67,7 +67,7 @@ def state_list(
     """List state versions for a workspace."""
     org, ws_name = validate_context(organization, workspace, require_workspace=True)
 
-    with TFCClient(organization=org) as client:
+    with get_client(ctx, organization=org) as client:
         ws = client.workspaces.get(ws_name or "", org)
         versions, total = client.state_versions.list(ws.id, limit=limit)
 
@@ -99,6 +99,7 @@ def state_list(
 
 @app.command("show")
 def state_show(
+    ctx: typer.Context,
     target: str | None = typer.Argument(
         None, help="State version ID (sv-*), workspace name, or workspace ID (ws-*)"
     ),
@@ -108,7 +109,7 @@ def state_show(
     """Show state version metadata. Defaults to latest for the workspace."""
     org, ws_name = validate_context(organization, workspace)
 
-    with TFCClient(organization=org) as client:
+    with get_client(ctx, organization=org) as client:
         if target and target.startswith("sv-"):
             sv = client.state_versions.get(target)
         else:
@@ -137,6 +138,7 @@ def state_show(
 
 @app.command("pull")
 def state_pull(
+    ctx: typer.Context,
     state_version_id: str | None = typer.Argument(None, help="State version ID (default: latest)"),
     workspace: str | None = typer.Option(None, "-w", "--workspace"),
     organization: str | None = typer.Option(None, "-o", "--organization"),
@@ -144,7 +146,7 @@ def state_pull(
     """Download state JSON to stdout (like terraform state pull)."""
     org, ws_name = validate_context(organization, workspace)
 
-    with TFCClient(organization=org) as client:
+    with get_client(ctx, organization=org) as client:
         if state_version_id:
             state = client.state_versions.download(state_version_id)
         else:
@@ -155,7 +157,7 @@ def state_pull(
                 raise typer.Exit(1)
             ws = client.workspaces.get(ws_name, org)
             sv = client.state_versions.get_current(ws.id)
-            state = client.state_versions.download_from_url(_require_download_url(sv))
+            state = client.state_versions.download_from_url(_require_download_url(ctx, sv))
 
     # Raw JSON to stdout — not through rich, so it's pipeable
     print(json.dumps(state, indent=2))
@@ -163,6 +165,7 @@ def state_pull(
 
 @app.command("outputs")
 def state_outputs(
+    ctx: typer.Context,
     target: str | None = typer.Argument(
         None, help="Workspace name, workspace ID (ws-*), or state version ID (sv-*)"
     ),
@@ -187,7 +190,7 @@ def state_outputs(
         name = target
         target = None
 
-    with TFCClient(organization=org) as client:
+    with get_client(ctx, organization=org) as client:
         state_version_id = None
 
         if target and target.startswith("sv-"):

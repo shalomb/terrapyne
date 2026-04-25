@@ -89,18 +89,14 @@ def show_vcs_configuration(vcs_context):
     workspace_name = vcs_context.get("workspace", "my-app-dev")
     org = vcs_context.get("org", "test-org")
 
-    with (
-        patch("terrapyne.cli.vcs_cmd.TFCClient"),
-        patch("terrapyne.cli.vcs_cmd.WorkspaceAPI") as mock_ws_class,
-        patch("terrapyne.cli.vcs_cmd.VCSAPI") as mock_vcs_class,
-    ):
-        workspace = Workspace.from_api_response(workspace_data["data"])
-        mock_ws = MagicMock()
-        mock_ws_class.return_value = mock_ws
-        mock_ws.get.return_value = workspace
+    with patch("terrapyne.api.client.TFCClient") as mock_client_cls:
+        mock_instance = MagicMock()
+        mock_client_cls.return_value.__enter__.return_value = mock_instance
 
-        mock_vcs = MagicMock()
-        mock_vcs_class.return_value = mock_vcs
+        # Build a real Workspace model so Rich can render its properties
+        workspace = Workspace.from_api_response(workspace_data["data"])
+        mock_instance.workspaces.get.return_value = workspace
+        mock_instance.vcs.get_workspace_vcs.return_value = None
 
         if vcs_context.get("has_vcs"):
             # Build a real VCSConnection so Rich can render it
@@ -119,13 +115,14 @@ def show_vcs_configuration(vcs_context):
                     "ingress-submodules": False,
                 }
             )
-            mock_vcs.get_workspace_vcs.return_value = vcs_obj
-        else:
-            mock_vcs.get_workspace_vcs.return_value = None
+            # Ensure the workspace object HAS this vcs_repo
+            workspace.vcs_repo = vcs_obj  # type: ignore
+            mock_instance.vcs.get_workspace_vcs.return_value = vcs_obj
 
         result = runner.invoke(
             app,
             ["vcs", "show", workspace_name, "--organization", org],
+            catch_exceptions=False,
         )
 
     vcs_context["result"] = result
@@ -222,23 +219,29 @@ def list_available_repositories(vcs_context):
     """List available repositories via CLI."""
     org = vcs_context.get("org", "test-org")
 
-    with (
-        patch("terrapyne.cli.vcs_cmd.TFCClient"),
-        patch("terrapyne.cli.vcs_cmd.VCSAPI") as mock_vcs_class,
-    ):
-        mock_vcs = MagicMock()
-        mock_vcs_class.return_value = mock_vcs
-        mock_vcs.list_repositories.return_value = [
+    with patch("terrapyne.api.client.TFCClient") as mock_client_cls:
+        mock_instance = MagicMock()
+        mock_client_cls.return_value.__enter__.return_value = mock_instance
+
+        from terrapyne.models.vcs import VCSConnection
+
+        conn = VCSConnection.model_validate(
+            {
+                "id": "ot-123",
+                "name": "my-github",
+                "service-provider": "github",
+                "identifier": "myorg/repo-one",
+                "repository-http-url": "https://github.com/myorg/repo-one",
+            }
+        )
+        mock_instance.vcs.list_connections.return_value = [conn]
+
+        mock_instance.vcs.list_repositories.return_value = [
             {
                 "identifier": "myorg/repo-one",
                 "url": "https://github.com/myorg/repo-one",
                 "workspaces": ["ws-a"],
-            },
-            {
-                "identifier": "myorg/repo-two",
-                "url": "https://github.com/myorg/repo-two",
-                "workspaces": ["ws-b", "ws-c"],
-            },
+            }
         ]
 
         result = runner.invoke(

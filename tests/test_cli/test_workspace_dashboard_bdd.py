@@ -99,7 +99,7 @@ def workspace_with_activity():
 @when("I show the workspace details")
 def show_workspace_dashboard(workspace_detail_response, run_list_response):
     """Execute workspace show command and capture output."""
-    with patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client:
+    with patch("terrapyne.api.client.TFCClient") as mock_client:
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance
 
@@ -133,7 +133,7 @@ def show_workspace_dashboard(workspace_detail_response, run_list_response):
 @when("I show the workspace details")
 def show_workspace_no_runs(workspace_detail_response):
     """Execute workspace show command for workspace with no runs."""
-    with patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client:
+    with patch("terrapyne.api.client.TFCClient") as mock_client:
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance
 
@@ -165,7 +165,7 @@ def show_workspace_no_runs(workspace_detail_response):
 @when("I request workspace details in JSON format")
 def show_workspace_json(workspace_detail_response, run_list_response):
     """Execute workspace show with JSON output format."""
-    with patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client:
+    with patch("terrapyne.api.client.TFCClient") as mock_client:
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance
 

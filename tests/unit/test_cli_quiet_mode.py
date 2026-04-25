@@ -2,7 +2,7 @@
 
 from unittest.mock import patch
 
-from terrapyne.cli.utils import console, set_quiet_mode
+from terrapyne.cli import utils
 
 
 class TestQuietMode:
@@ -10,20 +10,24 @@ class TestQuietMode:
 
     def test_quiet_mode_default_false(self):
         """Quiet mode should be False by default."""
-        set_quiet_mode(False)
-        assert not console.quiet
+        utils.set_quiet_mode(False)
+        assert not utils.console.quiet
 
     def test_quiet_mode_can_be_enabled(self):
         """Quiet mode can be enabled."""
-        set_quiet_mode(True)
-        assert console.quiet
+        from terrapyne.cli import utils
+
+        utils.set_quiet_mode(True)
+        assert utils.console.quiet
 
     def test_quiet_mode_can_be_disabled(self):
         """Quiet mode can be disabled after being enabled."""
-        set_quiet_mode(True)
-        assert console.quiet
-        set_quiet_mode(False)
-        assert not console.quiet
+        from terrapyne.cli import utils
+
+        utils.set_quiet_mode(True)
+        assert utils.console.quiet
+        utils.set_quiet_mode(False)
+        assert not utils.console.quiet
 
 
 class TestTFCOrgResolution:
