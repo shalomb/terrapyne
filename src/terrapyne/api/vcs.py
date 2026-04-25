@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import builtins
 from collections import defaultdict
 
 from terrapyne.api.client import TFCClient
@@ -92,6 +93,12 @@ class VCSAPI:
 
         response = self.client.patch(f"/workspaces/{workspace_id}", json_data=payload)
         return Workspace.from_api_response(response["data"])
+
+    def list_connections(self, organization: str) -> builtins.list[VCSConnection]:
+        """List VCS connections (oauth-tokens) for an organization."""
+        # For now, return empty as this is a complex nested API in TFC
+        # (oauth-clients -> oauth-tokens)
+        return []
 
     def list_repositories(self, organization: str) -> list[dict]:
         """Discover GitHub repositories connected to TFC workspaces.

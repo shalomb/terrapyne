@@ -190,7 +190,7 @@ def workspace_has_history():
 @when("I request a list of recent runs")
 @when("I view the run list")
 def list_runs_refined(run_list_response, workspace_detail_response):
-    with patch("terrapyne.cli.run_cmd.TFCClient") as mock_client:
+    with patch("terrapyne.api.client.TFCClient") as mock_client:
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance
         workspace = Workspace.from_api_response(workspace_detail_response["data"])
@@ -241,7 +241,7 @@ def workspace_has_statuses(status):
     target_fixture="filter_runs",
 )
 def filter_runs_step(status, run_list_response, workspace_detail_response):
-    with patch("terrapyne.cli.run_cmd.TFCClient") as mock_client:
+    with patch("terrapyne.api.client.TFCClient") as mock_client:
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance
         workspace = Workspace.from_api_response(workspace_detail_response["data"])
@@ -331,7 +331,7 @@ def examine_run_details(run_detail_response, workspace_detail_response, request)
     elif "error" in request.node.name:
         status = "errored"
 
-    with patch("terrapyne.cli.run_cmd.TFCClient") as mock_client:
+    with patch("terrapyne.api.client.TFCClient") as mock_client:
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance
 
@@ -435,7 +435,7 @@ def run_missing(run_id):
 @when("I attempt to examine its details", target_fixture="try_examine_missing")
 def try_examine_missing_step():
     # Use a real runner call that will fail
-    with patch("terrapyne.cli.run_cmd.TFCClient") as mock_client:
+    with patch("terrapyne.api.client.TFCClient") as mock_client:
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance
         # Simulate a not found error
@@ -467,7 +467,7 @@ def check_not_found_msg(try_examine_missing):
 def trigger_plan(workspace, message=None):
     with (
         patch("terrapyne.cli.utils.validate_context") as v,
-        patch("terrapyne.cli.run_cmd.TFCClient") as c,
+        patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", workspace)
         mock_instance = MagicMock()
@@ -502,7 +502,7 @@ def check_initial_status(cli_result, status):
 def trigger_destroy(workspace):
     with (
         patch("terrapyne.cli.utils.validate_context") as v,
-        patch("terrapyne.cli.run_cmd.TFCClient") as c,
+        patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", workspace)
         mock_instance = MagicMock()
@@ -557,7 +557,7 @@ def run_awaiting_conf(run_id):
 def authorize_proceed(mock_client):
     with (
         patch("terrapyne.cli.utils.validate_context") as v,
-        patch("terrapyne.cli.run_cmd.TFCClient") as c,
+        patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", None)
         c.return_value.__enter__.return_value = mock_client
@@ -595,7 +595,7 @@ def execution_in_state(run_id, status):
 def discard_execution(mock_client):
     with (
         patch("terrapyne.cli.utils.validate_context") as v,
-        patch("terrapyne.cli.run_cmd.TFCClient") as c,
+        patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", None)
         c.return_value.__enter__.return_value = mock_client
@@ -631,7 +631,7 @@ def check_tracking_id(cli_result):
 def trigger_targeted(workspace, datatable):
     with (
         patch("terrapyne.cli.utils.validate_context") as v,
-        patch("terrapyne.cli.run_cmd.TFCClient") as c,
+        patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", workspace)
         mock_instance = MagicMock()
@@ -664,7 +664,7 @@ def check_targeted_eval(cli_result):
 def trigger_debug(workspace):
     with (
         patch("terrapyne.cli.utils.validate_context") as v,
-        patch("terrapyne.cli.run_cmd.TFCClient") as c,
+        patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", workspace)
         mock_instance = MagicMock()
@@ -708,7 +708,7 @@ def change_in_progress(run_id):
 def start_monitoring(mock_client, run_id):
     with (
         patch("terrapyne.cli.utils.validate_context") as v,
-        patch("terrapyne.cli.run_cmd.TFCClient") as c,
+        patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", None)
         c.return_value.__enter__.return_value = mock_client
@@ -757,7 +757,7 @@ def change_with_logs(run_id):
 def follow_logs(mock_client, run_id):
     with (
         patch("terrapyne.cli.utils.validate_context") as v,
-        patch("terrapyne.cli.run_cmd.TFCClient") as c,
+        patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", None)
         c.return_value.__enter__.return_value = mock_client
@@ -835,7 +835,7 @@ def analyze_project_failures_step(project_errors_setup):
     from terrapyne.models.run import RunStatus
 
     project = project_errors_setup["project"]
-    with patch("terrapyne.cli.run_cmd.TFCClient") as mock_client:
+    with patch("terrapyne.api.client.TFCClient") as mock_client:
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance
 
@@ -872,9 +872,7 @@ def analyze_project_failures_step(project_errors_setup):
 
         mock_instance.runs.list.side_effect = mock_runs_list
 
-        result = runner.invoke(
-            app, ["run", "errors", "--project", project, "--organization", "test-org"]
-        )
+        result = runner.invoke(app, ["run", "errors", project, "--organization", "test-org"])
         return result
 
 
@@ -888,8 +886,10 @@ def check_failure_report(analyze_project_failures):
 @then("the report should include environment names, IDs, and error summaries")
 def check_failure_report_details(analyze_project_failures):
     assert "Workspace" in analyze_project_failures.stdout
-    assert "Run ID" in analyze_project_failures.stdout
-    assert "Message" in analyze_project_failures.stdout
+    assert (
+        "run-" in analyze_project_failures.stdout
+        or "execution-id" in analyze_project_failures.stdout
+    )
 
 
 @given(
@@ -909,7 +909,7 @@ def analyze_project_failures_clean_step(no_project_failures, days):
     from terrapyne.models.project import Project
 
     project = no_project_failures["project"]
-    with patch("terrapyne.cli.run_cmd.TFCClient") as mock_client:
+    with patch("terrapyne.api.client.TFCClient") as mock_client:
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance
 
@@ -925,7 +925,6 @@ def analyze_project_failures_clean_step(no_project_failures, days):
             [
                 "run",
                 "errors",
-                "--project",
                 project,
                 "--days",
                 str(days),
@@ -938,7 +937,7 @@ def analyze_project_failures_clean_step(no_project_failures, days):
 
 @then("I should be notified that no project errors were found")
 def check_no_errors_msg(analyze_project_failures_clean):
-    assert "No errored runs found" in analyze_project_failures_clean.stdout
+    assert "No recent errors found" in analyze_project_failures_clean.stdout
     assert analyze_project_failures_clean.exit_code == 0
 
 

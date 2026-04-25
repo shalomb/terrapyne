@@ -182,7 +182,7 @@ def run_named(run_id):
 def req_ws_list(mock_client):
     with (
         patch("terrapyne.cli.utils.validate_context") as v,
-        patch("terrapyne.cli.workspace_cmd.TFCClient") as c,
+        patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", None)
         c.return_value.__enter__.return_value = mock_client
@@ -193,7 +193,7 @@ def req_ws_list(mock_client):
 def req_run_list(mock_client):
     with (
         patch("terrapyne.cli.utils.validate_context") as v,
-        patch("terrapyne.cli.run_cmd.TFCClient") as c,
+        patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", "my-app-dev")
         c.return_value.__enter__.return_value = mock_client
@@ -206,18 +206,20 @@ def req_run_list(mock_client):
 def req_prj_list(mock_client):
     with (
         patch("terrapyne.cli.utils.validate_context") as v,
-        patch("terrapyne.cli.project_cmd.TFCClient") as c,
+        patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", None)
         c.return_value.__enter__.return_value = mock_client
-        return runner.invoke(app, ["project", "list", "-o", "test-org", "--format", "json"])
+        return runner.invoke(
+            app, ["project", "list", "-o", "test-org", "--format", "json"], catch_exceptions=False
+        )
 
 
 @when("I request the team list as JSON", target_fixture="cli_result")
 def req_team_list(mock_client):
     with (
         patch("terrapyne.cli.utils.validate_context") as v,
-        patch("terrapyne.cli.team_cmd.TFCClient") as c,
+        patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", None)
         c.return_value.__enter__.return_value = mock_client
@@ -228,7 +230,7 @@ def req_team_list(mock_client):
 def req_ws_detail(mock_client):
     with (
         patch("terrapyne.cli.utils.validate_context") as v,
-        patch("terrapyne.cli.workspace_cmd.TFCClient") as c,
+        patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", "my-app-dev")
         c.return_value.__enter__.return_value = mock_client
@@ -241,7 +243,7 @@ def req_ws_detail(mock_client):
 def req_run_detail(mock_client):
     with (
         patch("terrapyne.cli.utils.validate_context") as v,
-        patch("terrapyne.cli.run_cmd.TFCClient") as c,
+        patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", None)
         c.return_value.__enter__.return_value = mock_client
@@ -255,7 +257,7 @@ def req_prj_detail(mock_client):
     with (
         patch("terrapyne.cli.utils.validate_context") as v,
         patch("terrapyne.cli.project_cmd.resolve_project_context") as r,
-        patch("terrapyne.cli.project_cmd.TFCClient") as c,
+        patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", None)
         r.return_value = ("test-org", mock_client._test_project)

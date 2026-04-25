@@ -70,10 +70,11 @@ def list_all_projects(org_context, project_list_response):
     """List projects via CLI."""
     projects = [Project.from_api_response(data) for data in project_list_response["data"]]
 
-    with patch("terrapyne.cli.project_cmd.TFCClient") as mock_client_class:
+    with patch("terrapyne.api.client.TFCClient") as mock_client_class:
         mock_client = MagicMock()
         mock_client_class.return_value.__enter__.return_value = mock_client
         mock_client.projects.list.return_value = (iter(projects), len(projects))
+        mock_client.workspaces.list.return_value = (iter([]), 0)
         mock_client.projects.get_workspace_counts.return_value = {}
 
         result = runner.invoke(app, ["project", "list", "--organization", "test-org"])
@@ -148,7 +149,7 @@ def show_project_details(project_context, project_detail_response):
     project = Project.from_api_response(project_detail_response["data"])
 
     with (
-        patch("terrapyne.cli.project_cmd.TFCClient") as mock_client_class,
+        patch("terrapyne.api.client.TFCClient") as mock_client_class,
         patch("terrapyne.cli.project_cmd.resolve_project_context") as mock_resolve,
     ):
         mock_client = MagicMock()
@@ -263,7 +264,7 @@ def project_snapshot_setup(datatable):
 @when("I show the project details", target_fixture="show_project_snapshot_result")
 def show_project_snapshot(project_snapshot_setup):
     with (
-        patch("terrapyne.cli.project_cmd.TFCClient") as mock_client_class,
+        patch("terrapyne.api.client.TFCClient") as mock_client_class,
         patch("terrapyne.cli.project_cmd.resolve_project_context") as mock_resolve,
     ):
         mock_instance = MagicMock()
@@ -336,7 +337,7 @@ def show_project_workspaces(project_with_workspaces):
     ]
 
     with (
-        patch("terrapyne.cli.project_cmd.TFCClient") as mock_client_class,
+        patch("terrapyne.api.client.TFCClient") as mock_client_class,
         patch("terrapyne.cli.project_cmd.resolve_project_context") as mock_resolve,
     ):
         mock_instance = MagicMock()
@@ -391,7 +392,7 @@ def list_team_access(project_context, project_detail_response, team_project_acce
     ]
 
     with (
-        patch("terrapyne.cli.project_cmd.TFCClient") as mock_client_class,
+        patch("terrapyne.api.client.TFCClient") as mock_client_class,
         patch("terrapyne.cli.project_cmd.resolve_project_context") as mock_resolve,
     ):
         mock_client = MagicMock()

@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class VCSConnection(BaseModel):
     """VCS connection configuration for a workspace."""
 
+    id: str | None = None
     identifier: str = Field(..., description="Repository identifier (owner/repo)")
     branch: str | None = Field(None, description="VCS branch")
     ingress_submodules: bool = Field(

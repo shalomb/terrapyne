@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import datetime
-import json
 import sys
 from contextlib import suppress
 from pathlib import Path
@@ -11,8 +10,14 @@ from typing import Annotated, Any
 
 import typer
 
-from terrapyne.api.client import TFCClient
-from terrapyne.cli.utils import console, emit_json, handle_cli_errors, validate_context
+from terrapyne.cli.utils import (
+    console,
+    emit_json,
+    get_client,
+    handle_cli_errors,
+    resolve_project_context,
+    validate_context,
+)
 from terrapyne.models.run import Run
 from terrapyne.utils.rich_tables import render_run_detail, render_runs
 
@@ -28,6 +33,7 @@ def _show_help(ctx: typer.Context):
 @app.command("list")
 @handle_cli_errors
 def run_list(
+    ctx: typer.Context,
     workspace: Annotated[
         str | None,
         typer.Option(
@@ -59,7 +65,7 @@ def run_list(
     # Resolve organization and workspace
     org, workspace_name = validate_context(organization, workspace, require_workspace=True)
 
-    with TFCClient(organization=org) as client:
+    with get_client(ctx, organization=org) as client:
         # Get workspace to retrieve workspace ID
         ws = client.workspaces.get(workspace_name or "", organization=org)  # type: ignore[arg-type]
 
@@ -69,29 +75,22 @@ def run_list(
         if not runs:
             status_msg = f" with status '{status}'" if status else ""
             console.print(
-                f"[yellow]No runs found for workspace '{workspace_name}'{status_msg}[/yellow]"
+                f"[yellow]No runs found for workspace '{workspace_name}'{status_msg}.[/yellow]"
             )
             return
 
         if output_format == "json":
-            emit_json(runs)
+            emit_json([run.model_dump() for run in runs])
             return
 
-        render_runs(runs, title=f"Runs for {workspace_name}", total_count=total)
+        render_runs(runs, f"Runs in {workspace_name}", total_count=total)
 
 
 @app.command("show")
 @handle_cli_errors
 def run_show(
-    run_id: Annotated[str, typer.Argument(help="Run ID (run-*)")],
-    workspace: Annotated[
-        str | None,
-        typer.Option(
-            "--workspace",
-            "-w",
-            help="Workspace name (optional, improves display)",
-        ),
-    ] = None,
+    ctx: typer.Context,
+    run_id: Annotated[str, typer.Argument(help="Run ID (e.g., run-xxx)")],
     organization: Annotated[
         str | None,
         typer.Option(
@@ -104,240 +103,39 @@ def run_show(
         str, typer.Option("--format", "-f", help="Output format (table, json)")
     ] = "table",
 ):
-    """Show detailed information for a specific run."""
-    # Resolve organization
+    """Show details for a specific run."""
     org, _ = validate_context(organization)
 
-    with TFCClient(organization=org) as client:
+    with get_client(ctx, organization=org) as client:
         # Fetch run details
         run = client.runs.get(run_id)
 
-        # If workspace not provided, try to resolve from run's workspace_id
-        if not workspace and run.workspace_id:
-            with suppress(Exception):
-                ws = client.workspaces.get_by_id(run.workspace_id)
-                workspace = ws.name
-
-        # Fetch plan details for accurate resource counts
+        # Try to fetch plan details if available
         plan = None
         if run.plan_id:
             with suppress(Exception):
                 plan = client.runs.get_plan(run.plan_id)
 
         if output_format == "json":
-            emit_json(
-                {
-                    "id": run.id,
-                    "status": run.status.value,
-                    "message": run.message,
-                    "created_at": run.created_at,
-                    "workspace_id": run.workspace_id,
-                    "plan_id": run.plan_id,
-                    "resource_additions": run.resource_additions,
-                    "resource_changes": run.resource_changes,
-                    "resource_destructions": run.resource_destructions,
-                    "is_destroy": run.is_destroy,
-                }
-            )
+            data = run.model_dump()
+            if plan:
+                data["plan"] = plan.model_dump()
+            emit_json(data)
             return
 
-        # Render run details with URL and plan
-        render_run_detail(run, workspace_name=workspace, organization=org, plan=plan)
+        render_run_detail(run, plan=plan)
 
 
 @app.command("plan")
 @handle_cli_errors
 def run_plan(
+    ctx: typer.Context,
     workspace: Annotated[
         str | None,
         typer.Option(
             "--workspace",
             "-w",
             help="Workspace name (auto-detected if omitted)",
-        ),
-    ] = None,
-    organization: Annotated[
-        str | None,
-        typer.Option(
-            "--organization",
-            "-o",
-            help="TFC organization (auto-detected from context if available)",
-        ),
-    ] = None,
-    message: Annotated[str | None, typer.Option("--message", "-m", help="Run description")] = None,
-    wait: Annotated[
-        bool, typer.Option("--wait/--no-wait", help="Block until plan completes")
-    ] = True,
-    wait_queue: Annotated[
-        bool,
-        typer.Option(
-            "--wait-queue",
-            help="Wait for any current run to finish before triggering (block until available)",
-        ),
-    ] = False,
-    discard_older: Annotated[
-        bool,
-        typer.Option("--discard-older", help="Discard all pending/queued runs before triggering"),
-    ] = False,
-    debug_run: Annotated[
-        bool, typer.Option("--debug-run", help="Enable TFC debugging-mode for this run")
-    ] = False,
-):
-    """Create a new plan (run) for a workspace."""
-    # Resolve context
-    org, workspace_name = validate_context(organization, workspace, require_workspace=True)
-
-    with TFCClient(organization=org) as client:
-        ws = client.workspaces.get(workspace_name or "", organization=org)  # type: ignore[arg-type]
-
-        # Queue management
-        if discard_older:
-            active_runs = client.runs.get_active_runs(ws.id)
-            for r in active_runs:
-                if not r.status.is_terminal and r.status.value not in ["applying", "applied"]:
-                    with suppress(Exception):
-                        client.runs.discard(r.id, comment="Discarded by terrapyne --discard-older")
-
-        if wait_queue:
-            active_runs = client.runs.get_active_runs(ws.id)
-            if active_runs:
-                current_run = active_runs[0]
-                console.print(
-                    f"[dim]Waiting for current run {current_run.id} "
-                    f"({current_run.status.value}) to finish...[/dim]"
-                )
-                try:
-                    client.runs.poll_until_complete(current_run.id)
-                except TimeoutError:
-                    console.print(
-                        "[red]Timeout:[/red] Current run did not finish within 30 minutes.\n"
-                        "Options:\n"
-                        "  1. Use --discard-older to cancel the blocking run and proceed\n"
-                        "  2. Check the run status manually in Terraform Cloud\n"
-                        "  3. Try again with --max-wait <seconds> to increase timeout"
-                    )
-                    raise typer.Exit(1) from None
-
-        console.print(f"[dim]Creating plan for workspace:[/dim] {workspace_name}")
-
-        # Create run
-        run = client.runs.create(
-            workspace_id=ws.id,
-            message=message,
-            auto_apply=False,
-            debug=debug_run,
-        )
-
-        console.print(f"[green]✓[/green] Created run: {run.id}")
-        console.print(f"[dim]Status:[/dim] {run.status.emoji} {run.status.value}")
-
-        if not wait:
-            console.print(
-                f"\n[dim]View run at:[/dim] https://app.terraform.io/app/{org}/workspaces/{workspace_name}/runs/{run.id}"
-            )
-            return
-
-        # Poll until complete
-        console.print("\n[dim]Watching run progress...[/dim]")
-
-        def print_status(r):
-            console.print(f"  {r.status.emoji} {r.status.value}", end="\r", style="dim")
-
-        try:
-            final_run = client.runs.poll_until_complete(run.id, callback=print_status)
-            console.print(" " * 80, end="\r")  # Clear line
-
-            # Show final summary
-            plan = None
-            if final_run.plan_id:
-                with suppress(Exception):
-                    plan = client.runs.get_plan(final_run.plan_id)
-
-            render_run_detail(final_run, workspace_name=workspace_name, organization=org, plan=plan)
-
-            if not final_run.status.is_successful:
-                if final_run.status.is_awaiting_approval:
-                    console.print("\n[yellow]⏸ Plan paused for manual approval.[/yellow]")
-                    raise typer.Exit(0)
-                raise typer.Exit(1)
-
-        except TimeoutError as e:
-            console.print(f"\n[yellow]Warning:[/yellow] {e}")
-            raise typer.Exit(1) from None
-
-
-@app.command("logs")
-@handle_cli_errors
-def run_logs(
-    run_id: Annotated[str, typer.Argument(help="Run ID (run-*)")],
-    organization: Annotated[
-        str | None,
-        typer.Option(
-            "--organization",
-            "-o",
-            help="TFC organization (auto-detected from context if available)",
-        ),
-    ] = None,
-    apply: Annotated[
-        bool, typer.Option("--apply", help="Show apply logs instead of plan logs")
-    ] = False,
-):
-    """Fetch and print the logs for a specific run."""
-    # Resolve organization
-    org, _ = validate_context(organization)
-
-    with TFCClient(organization=org) as client:
-        # Fetch run details
-        run = client.runs.get(run_id)
-
-        if apply:
-            if not run.apply_id:
-                console.print(
-                    "[red]Error: Run has no apply ID (apply may not have started yet).[/red]"
-                )
-                raise typer.Exit(1)
-            try:
-                logs = client.runs.get_apply_logs(run.apply_id)
-            except Exception:
-                console.print(
-                    "[yellow]Apply logs unavailable — apply may have errored early.[/yellow]"
-                )
-                raise typer.Exit(1) from None
-        else:
-            if not run.plan_id:
-                console.print(
-                    "[red]Error:[/red] Cannot show logs — this run did not reach the plan stage.\n"
-                    "This usually means the run failed during initialization or was discarded early."
-                )
-                raise typer.Exit(1)
-            try:
-                logs = client.runs.get_plan_logs(run.plan_id)
-            except Exception:
-                console.print(
-                    "[yellow]Plan logs unavailable — run may have errored before plan completed.[/yellow]"
-                )
-                raise typer.Exit(1) from None
-
-        if not logs.strip():
-            console.print("[yellow]Logs are empty (run may still be in progress).[/yellow]")
-            return
-
-        # Print raw logs to stdout so they're pipeable
-        print(logs)
-
-
-@app.command("apply")
-@handle_cli_errors
-def run_apply(
-    run_id: Annotated[
-        str | None, typer.Argument(help="Run ID to apply (creates new plan if omitted)")
-    ] = None,
-    workspace: Annotated[
-        str | None,
-        typer.Option(
-            "--workspace",
-            "-w",
-            help="Workspace name (used when creating new plan)",
         ),
     ] = None,
     organization: Annotated[
@@ -349,116 +147,64 @@ def run_apply(
         ),
     ] = None,
     message: Annotated[
-        str | None, typer.Option("--message", "-m", help="Apply comment/reason")
+        str | None,
+        typer.Option("--message", "-m", help="Reason for the plan"),
     ] = None,
-    auto_approve: Annotated[
-        bool, typer.Option("--auto-approve", help="Skip confirmation prompt (for CI/CD)")
-    ] = False,
     wait: Annotated[
-        bool, typer.Option("--wait/--no-wait", help="Block until apply completes")
-    ] = True,
-    wait_queue: Annotated[
         bool,
         typer.Option(
-            "--wait-queue",
-            help="Wait for any current run to finish before triggering",
+            "--wait/--no-wait",
+            help="Wait for the plan to complete",
         ),
-    ] = False,
-    discard_older: Annotated[
+    ] = True,
+    refresh_only: Annotated[
         bool,
-        typer.Option("--discard-older", help="Discard all pending/queued runs before triggering"),
-    ] = False,
-    debug_run: Annotated[
-        bool, typer.Option("--debug-run", help="Enable TFC debugging-mode for this run")
+        typer.Option("--refresh-only", help="Trigger a refresh-only plan"),
     ] = False,
 ):
-    """Apply infrastructure changes."""
-    org, ws_context_name = validate_context(organization, workspace)
+    """Trigger a new plan (speculative run)."""
+    # Resolve organization and workspace
+    org, workspace_name = validate_context(organization, workspace, require_workspace=True)
 
-    with TFCClient(organization=org) as client:
-        # If no run_id provided, create a new run with auto-apply
-        if not run_id:
-            # Need workspace for creating new run
-            if not ws_context_name:
-                raise ValueError(
-                    "No workspace specified and could not detect from context.\n"
-                    "Either:\n"
-                    "  1. Run this command from a directory with terraform configuration (terraform.tf or .terraform/terraform.tfstate), or\n"
-                    "  2. Specify workspace name: --workspace WORKSPACE_NAME"
-                )
-            workspace_name = ws_context_name
+    with get_client(ctx, organization=org) as client:
+        # Get workspace ID
+        ws = client.workspaces.get(workspace_name or "", organization=org)  # type: ignore[arg-type]
 
-            ws = client.workspaces.get(workspace_name or "", organization=org)  # type: ignore[arg-type]
+        console.print(f"[dim]Triggering plan for workspace:[/dim] {workspace_name}")
 
-            # Queue management
-            if discard_older:
-                active_runs = client.runs.get_active_runs(ws.id)
-                for r in active_runs:
-                    if not r.status.is_terminal and r.status.value not in ["applying", "applied"]:
-                        with suppress(Exception):
-                            client.runs.discard(
-                                r.id, comment="Discarded by terrapyne --discard-older"
-                            )
+        # Create run
+        run = client.runs.create(
+            workspace_id=ws.id,
+            message=message or f"Plan triggered via terrapyne at {datetime.datetime.now()}",
+            is_destroy=False,
+            auto_apply=False,
+            refresh_only=refresh_only,
+        )
 
-            if wait_queue:
-                active_runs = client.runs.get_active_runs(ws.id)
-                if active_runs:
-                    current_run = active_runs[0]
-                    console.print(
-                        f"[dim]Waiting for current run {current_run.id} "
-                        f"({current_run.status.value}) to finish...[/dim]"
-                    )
-                    try:
-                        client.runs.poll_until_complete(current_run.id)
-                    except TimeoutError:
-                        console.print(
-                            "[red]Timeout:[/red] Current run did not finish within 30 minutes.\n"
-                            "Options:\n"
-                            "  1. Use --discard-older to cancel the blocking run and proceed\n"
-                            "  2. Check the run status manually in Terraform Cloud\n"
-                            "  3. Try again with --max-wait <seconds> to increase timeout"
-                        )
-                        raise typer.Exit(1) from None
-
-            console.print(
-                f"[dim]Creating [bold cyan]APPLY[/bold cyan] run for workspace:[/dim] "
-                f"{workspace_name}"
-            )
-
-            # Create run with auto-apply
-            run = client.runs.create(
-                workspace_id=ws.id,
-                message=message,
-                auto_apply=True,
-                debug=debug_run,
-            )
-            run_id = run.id
-            console.print(f"[green]✓[/green] Created apply run: {run_id}")
-        else:
-            # Applying existing run
-            client.runs.apply(run_id, comment=message)
-            console.print(f"[green]✓[/green] Applied run: {run_id}")
+        console.print(f"[green]✓[/green] Created run: {run.id}")
+        console.print(f"[dim]Status:[/dim] {run.status.emoji} {run.status.value}")
 
         if not wait:
+            console.print(
+                f"\n[dim]View run at:[/dim] https://app.terraform.io/app/{org}/workspaces/{workspace_name}/runs/{run.id}"
+            )
             return
 
-        # Poll until complete
-        console.print("\n[dim]Watching apply progress...[/dim]")
-
-        def print_status(r):
-            console.print(f"  {r.status.emoji} {r.status.value}", end="\r", style="dim")
-
+        # Wait for completion
+        console.print("\nWatching run progress...")
         try:
-            final_run = client.runs.poll_until_complete(run_id, callback=print_status)
-            console.print(" " * 80, end="\r")  # Clear line
+            final_run = client.runs.poll_until_complete(run.id)
+            print()  # New line after progress
 
-            render_run_detail(final_run, organization=org)
+            # Fetch final plan details
+            plan = None
+            if final_run.plan_id:
+                with suppress(Exception):
+                    plan = client.runs.get_plan(final_run.plan_id)
 
-            if final_run.status.is_successful:
-                console.print("\n[green]✓ Run completed successfully[/green]")
-                raise typer.Exit(0)
-            else:
-                console.print(f"\n[red]✗ Run failed: {final_run.status.value}[/red]")
+            render_run_detail(final_run, plan=plan)
+
+            if not final_run.status.is_successful:
                 raise typer.Exit(1)
 
         except TimeoutError as e:
@@ -466,9 +212,11 @@ def run_apply(
             raise typer.Exit(1) from None
 
 
-@app.command("errors")
+@app.command("logs")
 @handle_cli_errors
-def run_errors(
+def run_logs(
+    ctx: typer.Context,
+    run_id: Annotated[str, typer.Argument(help="Run ID")],
     organization: Annotated[
         str | None,
         typer.Option(
@@ -477,88 +225,52 @@ def run_errors(
             help="TFC organization (auto-detected from context if available)",
         ),
     ] = None,
-    project: Annotated[
-        str | None, typer.Option("--project", "-p", help="Filter by project name")
-    ] = None,
-    days: Annotated[int, typer.Option("--days", "-d", help="Look back period in days")] = 1,
-    limit: Annotated[
-        int, typer.Option("--limit", "-n", help="Maximum number of runs to show")
-    ] = 50,
+    stage: Annotated[
+        str,
+        typer.Option("--stage", help="Logs to show: plan, apply"),
+    ] = "plan",
 ):
-    """Find errored runs across workspaces."""
-    # Resolve organization
+    """Show logs for a specific run stage."""
     org, _ = validate_context(organization)
 
-    with TFCClient(organization=org) as client:
-        project_id = None
-        if project:
-            projects, _ = client.projects.list(organization=org)
-            target_proj = next((p for p in projects if p.name == project), None)
-            if not target_proj:
-                console.print(f"[red]❌ Project not found:[/red] {project}")
-                raise typer.Exit(1)
-            project_id = target_proj.id
+    with get_client(ctx, organization=org) as client:
+        run = client.runs.get(run_id)
 
-        workspaces, _ = client.workspaces.list(organization=org, project_id=project_id)
+        if stage == "plan":
+            if not run.plan_id:
+                console.print("[yellow]No plan logs available for this run.[/yellow]")
+                return
+            logs = client.runs.get_plan_logs(run.plan_id)
+        elif stage == "apply":
+            if not run.apply_id:
+                console.print("[yellow]No apply logs available for this run.[/yellow]")
+                return
+            logs = client.runs.get_apply_logs(run.apply_id)
+        else:
+            console.print(f"[red]Error: Invalid stage '{stage}'. Use 'plan' or 'apply'.[/red]")
+            raise typer.Exit(1)
 
-        errored_runs: list[tuple[Run, str]] = []
-        cutoff_date = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=days)
-
-        with console.status("[bold green]Mining for errors...") as status:
-            for ws in workspaces:
-                status.update(f"[bold green]Checking workspace:[/bold green] {ws.name}")
-                runs, _ = client.runs.list(workspace_id=ws.id, limit=limit, status="errored")
-
-                for run in runs:
-                    if run.created_at and run.created_at >= cutoff_date:
-                        errored_runs.append((run, ws.name))
-
-        if not errored_runs:
-            proj_msg = f" in project '{project}'" if project else ""
-            console.print(
-                f"[green]✅ No errored runs found{proj_msg} in the last {days} day(s).[/green]"
-            )
+        if not logs:
+            console.print(f"[yellow]Logs for {stage} stage are empty or not yet ready.[/yellow]")
             return
 
-        errored_runs.sort(
-            key=lambda x: x[0].created_at or datetime.datetime.min.replace(tzinfo=datetime.UTC),
-            reverse=True,
-        )
-
-        from rich.table import Table
-
-        from terrapyne.utils.rich_tables import _format_relative_time
-
-        table = Table(
-            title=f"🚨 Errored Runs (Last {days} days)",
-            show_header=True,
-            header_style="bold red",
-        )
-        table.add_column("Workspace", style="cyan")
-        table.add_column("Run ID", style="dim")
-        table.add_column("Time", justify="right")
-        table.add_column("Message")
-
-        for run, ws_name in errored_runs[:limit]:
-            relative_time = _format_relative_time(run.created_at) if run.created_at else "N/A"
-            table.add_row(
-                ws_name,
-                run.id,
-                relative_time,
-                run.message or "[dim](No message)[/dim]",
-            )
-
-        console.print(table)
-        console.print(f"\n[dim]Showing {len(errored_runs[:limit])} errored runs.[/dim]")
+        console.print(logs)
 
 
-@app.command("trigger")
+@app.command("apply")
 @handle_cli_errors
-def run_trigger(
+def run_apply(
+    ctx: typer.Context,
+    run_id: Annotated[
+        str | None,
+        typer.Argument(help="Run ID (or omit to trigger new auto-apply run)"),
+    ] = None,
     workspace: Annotated[
         str | None,
-        typer.Argument(
-            help="Workspace name (auto-detected if omitted)",
+        typer.Option(
+            "--workspace",
+            "-w",
+            help="Workspace name (if triggering new run)",
         ),
     ] = None,
     organization: Annotated[
@@ -569,83 +281,223 @@ def run_trigger(
             help="TFC organization",
         ),
     ] = None,
-    message: Annotated[str | None, typer.Option("--message", "-m", help="Run description")] = None,
+    comment: Annotated[
+        str | None,
+        typer.Option("--comment", "-m", help="Apply comment"),
+    ] = None,
+    wait: Annotated[
+        bool,
+        typer.Option("--wait/--no-wait", help="Wait for completion"),
+    ] = True,
+):
+    """Apply a plan or trigger a new auto-apply run."""
+    org, ws_context_name = validate_context(organization, workspace)
+
+    with get_client(ctx, organization=org) as client:
+        # If no run_id provided, create a new run with auto-apply
+        if not run_id:
+            if not ws_context_name:
+                console.print("[red]Error: Provide a run ID or specify a workspace.[/red]")
+                raise typer.Exit(1)
+
+            ws = client.workspaces.get(ws_context_name, organization=org)
+            console.print(f"[dim]Triggering auto-apply run for:[/dim] {ws_context_name}")
+            run = client.runs.create(
+                workspace_id=ws.id,
+                message=comment or "Apply triggered via terrapyne",
+                auto_apply=True,
+            )
+            run_id = run.id
+        else:
+            # Apply existing run
+            console.print(f"[dim]Applying run:[/dim] {run_id}")
+            run = client.runs.apply(run_id, comment=comment)
+
+        console.print(f"[green]✓[/green] Applied run: {run.id}")
+
+        if not wait:
+            return
+
+        console.print("\nWatching apply progress...")
+        try:
+            final_run = client.runs.poll_until_complete(run_id)
+            print()
+
+            if final_run.status.is_successful:
+                console.print("[green]✓[/green] Run completed successfully")
+            else:
+                console.print(f"[red]✗[/red] Run failed with status: {final_run.status.value}")
+                raise typer.Exit(1)
+
+        except TimeoutError as e:
+            console.print(f"\n[yellow]Warning:[/yellow] {e}")
+            raise typer.Exit(1) from None
+
+
+@app.command("errors")
+@handle_cli_errors
+def run_errors(
+    ctx: typer.Context,
+    project_name: Annotated[
+        str | None,
+        typer.Argument(help="Project name (auto-detected from context if available)"),
+    ] = None,
+    organization: Annotated[
+        str | None,
+        typer.Option(
+            "--organization",
+            "-o",
+            help="TFC organization (auto-detected from context if available)",
+        ),
+    ] = None,
+    days: Annotated[
+        int,
+        typer.Option("--days", "-d", help="Look back N days"),
+    ] = 7,
+    limit: Annotated[
+        int,
+        typer.Option("--limit", "-n", help="Max errors to show per workspace"),
+    ] = 3,
+):
+    """Identify recent execution errors across a project."""
+    org, _ = validate_context(organization)
+
+    with get_client(ctx, organization=org) as client:
+        # Resolve project
+        org, project = resolve_project_context(client, org, project_name)
+
+        console.print(f"[dim]Searching for recent errors in project:[/dim] {project.name}")
+
+        # Get workspaces
+        workspaces_iter, _ = client.workspaces.list(org, project_id=project.id)
+        workspaces = list(workspaces_iter)
+
+        since = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=days)
+        error_found = False
+
+        for ws in workspaces:
+            # Fetch errored runs
+            runs, _ = client.runs.list(ws.id, status="errored", limit=limit)
+
+            # Filter by date
+            recent_errors = [r for r in runs if r.created_at and r.created_at > since]
+
+            if recent_errors:
+                error_found = True
+                console.print(f"\n[bold red]✗ Workspace: {ws.name}[/bold red]")
+                for run in recent_errors:
+                    date_str = (
+                        run.created_at.strftime("%Y-%m-%d %H:%M") if run.created_at else "Unknown"
+                    )
+                    console.print(
+                        f"  • [cyan]{run.id}[/cyan] ({date_str}): {run.message or 'No message'}"
+                    )
+
+        if not error_found:
+            console.print(
+                f"[green]✓ No recent errors found in project '{project.name}' over the last {days} days.[/green]"
+            )
+
+
+@app.command("trigger")
+@handle_cli_errors
+def run_trigger(
+    ctx: typer.Context,
+    workspace: Annotated[
+        str | None,
+        typer.Argument(help="Workspace name (auto-detected if omitted)"),
+    ] = None,
+    organization: Annotated[
+        str | None,
+        typer.Option(
+            "--organization",
+            "-o",
+            help="TFC organization",
+        ),
+    ] = None,
+    message: Annotated[
+        str | None,
+        typer.Option("--message", "-m", help="Reason for the run"),
+    ] = None,
+    auto_apply: Annotated[
+        bool,
+        typer.Option("--auto-apply", help="Automatically apply if plan succeeds"),
+    ] = False,
+    destroy: Annotated[
+        bool,
+        typer.Option("--destroy", help="Trigger a destruction run"),
+    ] = False,
+    refresh_only: Annotated[
+        bool,
+        typer.Option("--refresh-only", help="Trigger a refresh-only run"),
+    ] = False,
     target: Annotated[
-        list[str] | None, typer.Option("--target", "-t", help="Resource address to target")
+        list[str] | None,
+        typer.Option("--target", help="Resource address to target"),
     ] = None,
     replace: Annotated[
-        list[str] | None, typer.Option("--replace", "-r", help="Resource address to replace")
+        list[str] | None,
+        typer.Option("--replace", help="Resource address to replace"),
     ] = None,
-    destroy: Annotated[bool, typer.Option("--destroy", help="Create a destroy run")] = False,
-    refresh_only: Annotated[
-        bool, typer.Option("--refresh-only", help="Create a refresh-only run")
-    ] = False,
-    auto_approve: Annotated[
-        bool, typer.Option("--auto-approve", "-y", help="Skip confirmation")
-    ] = False,
     wait: Annotated[
-        bool, typer.Option("--wait/--no-wait", help="Block until run completes")
+        bool,
+        typer.Option("--wait/--no-wait", help="Wait for completion"),
     ] = True,
     wait_queue: Annotated[
         bool,
-        typer.Option(
-            "--wait-queue",
-            help="Wait for any current run to finish before triggering (block until available)",
-        ),
+        typer.Option("--wait-queue", help="If another run is active, wait for it to finish"),
     ] = False,
     discard_older: Annotated[
         bool,
-        typer.Option("--discard-older", help="Discard all pending/queued runs before triggering"),
+        typer.Option("--discard-older", help="Discard any active runs before triggering"),
     ] = False,
+    auto_approve: Annotated[
+        bool,
+        typer.Option("--auto-approve", help="Skip confirmation for destructive runs"),
+    ] = False,
+    max_wait: Annotated[
+        int,
+        typer.Option("--max-wait", help="Max seconds to wait for queue/completion"),
+    ] = 1800,
     debug_run: Annotated[
-        bool, typer.Option("--debug-run", help="Enable TFC debugging-mode for this run")
+        bool,
+        typer.Option("--debug-run", help="Enable TFC debugging mode for this run"),
     ] = False,
 ):
-    """Trigger a new run with optional targeting or replacement."""
-    # Resolve context
+    """Trigger a new run with advanced queue management."""
+    # Resolve organization and workspace
     org, workspace_name = validate_context(organization, workspace, require_workspace=True)
 
-    # Destroy confirmation
-    if (
-        destroy
-        and not auto_approve
-        and not typer.confirm(
-            f"[bold red]⚠️  WARNING:[/bold red] This will destroy all resources in '{workspace_name}'. Continue?"
-        )
-    ):
-        console.print("[yellow]Aborted.[/yellow]")
-        raise typer.Exit(0)
+    if destroy and not auto_approve:
+        if not typer.confirm(
+            f"[bold red]WARNING:[/bold red] You are triggering a DESTROY run for '{workspace_name}'. Proceed?",
+            default=False,
+        ):
+            console.print("[yellow]Aborted.[/yellow]")
+            raise typer.Exit(0)
 
-    with TFCClient(organization=org) as client:
+    with get_client(ctx, organization=org) as client:
         # Get workspace ID
         ws = client.workspaces.get(workspace_name or "", organization=org)  # type: ignore[arg-type]
 
-        # Queue management
-        if discard_older:
-            active_runs = client.runs.get_active_runs(ws.id)
-            for r in active_runs:
-                if not r.status.is_terminal and r.status.value not in ["applying", "applied"]:
+        # 1. Handle existing runs
+        active_runs = client.runs.get_active_runs(ws.id)
+        if active_runs:
+            if discard_older:
+                console.print(f"[dim]Discarding {len(active_runs)} active run(s)...[/dim]")
+                for r in active_runs:
                     with suppress(Exception):
                         client.runs.discard(r.id, comment="Discarded by terrapyne --discard-older")
-
-        if wait_queue:
-            active_runs = client.runs.get_active_runs(ws.id)
-            if active_runs:
+            elif wait_queue:
                 current_run = active_runs[0]
                 console.print(
                     f"[dim]Waiting for current run {current_run.id} "
                     f"({current_run.status.value}) to finish...[/dim]"
                 )
                 try:
-                    client.runs.poll_until_complete(current_run.id)
-                except TimeoutError:
-                    console.print(
-                        "[red]Timeout:[/red] Current run did not finish within 30 minutes.\n"
-                        "Options:\n"
-                        "  1. Use --discard-older to cancel the blocking run and proceed\n"
-                        "  2. Check the run status manually in Terraform Cloud\n"
-                        "  3. Try again with --max-wait <seconds> to increase timeout"
-                    )
+                    client.runs.poll_until_complete(current_run.id, max_wait=float(max_wait))
+                except TimeoutError as e:
+                    console.print(f"\n[red]Error:[/red] Timed out waiting for queue: {e}")
                     raise typer.Exit(1) from None
 
         # Identify run type
@@ -665,12 +517,12 @@ def run_trigger(
             f"{workspace_name}"
         )
 
-        # Create run
+        # 2. Create run
         run = client.runs.create(
             workspace_id=ws.id,
-            message=message,
-            auto_apply=auto_approve if destroy else False,
+            message=message or f"{run_type} triggered via terrapyne",
             is_destroy=destroy,
+            auto_apply=auto_apply,
             target_addrs=target,
             replace_addrs=replace,
             refresh_only=refresh_only,
@@ -688,17 +540,12 @@ def run_trigger(
             )
             return
 
-        # Poll until complete
-        console.print("\n[dim]Watching run progress...[/dim]")
-
-        def print_status(r):
-            console.print(f"  {r.status.emoji} {r.status.value}", end="\r", style="dim")
-
+        # 3. Wait for completion
+        console.print("\nWatching run progress...")
         try:
-            final_run = client.runs.poll_until_complete(run.id, callback=print_status)
-            console.print(" " * 80, end="\r")  # Clear line
+            final_run = client.runs.poll_until_complete(run.id, max_wait=float(max_wait))
+            print()
 
-            # Show final summary
             plan = None
             if final_run.plan_id:
                 with suppress(Exception):
@@ -721,50 +568,119 @@ def run_trigger(
 @app.command("watch")
 @handle_cli_errors
 def run_watch(
-    run_id: Annotated[str, typer.Argument(help="Run ID to watch")],
-    workspace: Annotated[
-        str | None,
-        typer.Option(
-            "--workspace",
-            "-w",
-            help="Workspace name (optional)",
-        ),
-    ] = None,
+    ctx: typer.Context,
+    run_id: Annotated[str, typer.Argument(help="Run ID")],
     organization: Annotated[
         str | None,
         typer.Option(
             "--organization",
             "-o",
-            help="TFC organization",
+            help="TFC organization (auto-detected from context if available)",
         ),
     ] = None,
+    max_wait: Annotated[
+        int,
+        typer.Option("--max-wait", help="Max seconds to wait"),
+    ] = 1800,
 ):
-    """Watch run progress until complete."""
+    """Watch progress of an existing run."""
     org, _ = validate_context(organization)
 
-    with TFCClient(organization=org) as client:
-        # Watch progress
-        console.print(f"\n[dim]Watching run progress for {run_id}...[/dim]")
-
-        def print_status(r):
-            console.print(f"  {r.status.emoji} {r.status.value}", end="\r", style="dim")
-
+    with get_client(ctx, organization=org) as client:
+        console.print(f"[dim]Watching run:[/dim] {run_id}")
         try:
-            final_run = client.runs.poll_until_complete(run_id, callback=print_status)
-            console.print(" " * 80, end="\r")  # Clear line
+            final_run = client.runs.poll_until_complete(run_id, max_wait=float(max_wait))
+            print()
 
-            # Show final summary
             plan = None
             if final_run.plan_id:
                 with suppress(Exception):
                     plan = client.runs.get_plan(final_run.plan_id)
 
-            render_run_detail(final_run, organization=org, plan=plan)
+            render_run_detail(final_run, plan=plan)
 
             if not final_run.status.is_successful:
-                if final_run.status.is_awaiting_approval:
-                    console.print("\n[yellow]⏸ Run paused for manual approval.[/yellow]")
-                    raise typer.Exit(0)
+                raise typer.Exit(1)
+
+        except TimeoutError as e:
+            console.print(f"\n[yellow]Warning:[/yellow] {e}")
+            raise typer.Exit(1) from None
+
+
+@app.command("follow")
+@handle_cli_errors
+def run_follow(
+    ctx: typer.Context,
+    run_id: Annotated[str, typer.Argument(help="Run ID")],
+    organization: Annotated[
+        str | None,
+        typer.Option(
+            "--organization",
+            "-o",
+            help="TFC organization (auto-detected from context if available)",
+        ),
+    ] = None,
+    max_wait: Annotated[
+        int,
+        typer.Option("--max-wait", help="Max seconds to wait"),
+    ] = 1800,
+):
+    """Stream logs of an existing run in real-time."""
+    org, _ = validate_context(organization)
+
+    with get_client(ctx, organization=org) as client:
+        console.print(f"\n[dim]Following run {run_id}...[/dim]\n")
+
+        last_plan_pos = 0
+        last_apply_pos = 0
+        current_stage = None
+
+        def stream_logs(run: Run) -> None:
+            nonlocal last_plan_pos, last_apply_pos, current_stage
+
+            # 1. Plan Stage
+            if run.plan_id:
+                if current_stage is None:
+                    current_stage = "plan"
+                    console.print("[dim]📋 Plan:[/dim]")
+                try:
+                    plan_log = client.runs.get_plan_logs(run.plan_id)
+                    last_plan_pos = _print_log_delta(plan_log, last_plan_pos)
+                except Exception:
+                    pass
+
+            # 2. Apply Stage
+            if run.apply_id and run.status.value in ["applying", "applied"]:
+                if current_stage != "apply":
+                    current_stage = "apply"
+                    console.print("\n[dim]⚙️  Apply:[/dim]")
+                try:
+                    apply_log = client.runs.get_apply_logs(run.apply_id)
+                    last_apply_pos = _print_log_delta(apply_log, last_apply_pos)
+                except Exception:
+                    pass
+
+            # Feedback if run fails before generating logs
+            if run.status.is_error and last_plan_pos == 0 and last_apply_pos == 0:
+                if current_stage != "error":
+                    current_stage = "error"
+                    console.print(
+                        f"\n[red]Run failed before generating logs: {run.status.value}[/red]"
+                    )
+
+        try:
+            final_run = client.runs.poll_until_complete(
+                run_id, callback=stream_logs, max_wait=float(max_wait)
+            )
+
+            # Print final newline and status
+            print()
+            if final_run.status.is_successful:
+                console.print(f"[green]✓[/green] Run {run_id} completed successfully")
+            else:
+                console.print(
+                    f"[red]✗[/red] Run {run_id} failed with status: {final_run.status.value}"
+                )
                 raise typer.Exit(1)
 
         except TimeoutError as e:
@@ -794,150 +710,31 @@ def _print_log_delta(full_log: str, last_pos: int) -> int:
     return len(full_log)
 
 
-@app.command("follow")
-@handle_cli_errors
-def run_follow(
-    run_id: Annotated[str, typer.Argument(help="Run ID to follow")],
-    organization: Annotated[
-        str | None,
-        typer.Option(
-            "--organization",
-            "-o",
-            help="TFC organization",
-        ),
-    ] = None,
-    max_wait: Annotated[
-        int,
-        typer.Option(
-            "--max-wait",
-            help="Maximum time to wait in seconds (default: 30 minutes)",
-        ),
-    ] = 1800,
-):
-    """Follow a run's logs in real-time.
-
-    Streams plan and apply logs as they happen, polling at exponential intervals.
-    Exits when the run reaches a terminal state.
-
-    Examples:
-        # Follow a specific run
-        terrapyne run follow run-abc123
-
-        # Follow with custom timeout (5 minutes)
-        terrapyne run follow run-abc123 --max-wait 300
-    """
-    org, _ = validate_context(organization)
-
-    with TFCClient(organization=org) as client:
-        console.print(f"\n[dim]Following run {run_id}...[/dim]\n")
-
-        last_plan_pos = 0
-        last_apply_pos = 0
-        current_stage = None  # Track which stage we're in
-
-        def stream_logs(run: Run) -> None:
-            nonlocal last_plan_pos, last_apply_pos, current_stage
-
-            # Determine which logs to fetch based on run status
-            if run.plan_id and run.status.value in [
-                "planning",
-                "planned",
-                "queued",
-                "applying",
-                "applied",
-            ]:
-                if current_stage != "plan":
-                    current_stage = "plan"
-                    console.print("[dim]📋 Plan:[/dim]")
-                try:
-                    plan_log = client.runs.get_plan_logs(run.plan_id)
-                    last_plan_pos = _print_log_delta(plan_log, last_plan_pos)
-                except Exception:
-                    pass  # Silently skip if logs not available yet
-
-            # Once in apply stage, show apply logs
-            if run.apply_id and run.status.value in ["applying", "applied"]:
-                if current_stage != "apply":
-                    current_stage = "apply"
-                    console.print("\n[dim]⚙️  Apply:[/dim]")
-                try:
-                    apply_log = client.runs.get_apply_logs(run.apply_id)
-                    last_apply_pos = _print_log_delta(apply_log, last_apply_pos)
-                except Exception:
-                    pass  # Silently skip if logs not available yet
-
-            # Feedback if run fails before generating logs
-            if run.status.is_error and last_plan_pos == 0 and last_apply_pos == 0:
-                if current_stage != "error":
-                    current_stage = "error"
-                    console.print(
-                        f"\n[red]Run failed before generating logs: {run.status.value}[/red]"
-                    )
-
-        try:
-            final_run = client.runs.poll_until_complete(
-                run_id, callback=stream_logs, max_wait=float(max_wait)
-            )
-
-            # Print final newline and status
-            print()
-            if final_run.status.is_successful:
-                console.print(f"\n[green]✓ Run {run_id} completed successfully[/green]")
-            elif final_run.status.is_awaiting_approval:
-                console.print(f"\n[yellow]⏸ Run {run_id} is awaiting approval[/yellow]")
-            else:
-                console.print(f"\n[red]✗ Run {run_id} failed: {final_run.status.value}[/red]")
-                raise typer.Exit(1)
-
-        except TimeoutError as e:
-            console.print(f"\n[yellow]Warning:[/yellow] {e}")
-            raise typer.Exit(1) from None
-
-
 @app.command("discard")
 @handle_cli_errors
 def run_discard(
-    run_id: Annotated[str, typer.Argument(help="Run ID to discard (run-*)")],
-    comment: Annotated[
-        str | None, typer.Option("--comment", "-m", help="Reason for discarding")
-    ] = None,
+    ctx: typer.Context,
+    run_id: Annotated[str, typer.Argument(help="Run ID")],
     organization: Annotated[
         str | None,
         typer.Option(
             "--organization",
             "-o",
-            help="TFC organization",
+            help="TFC organization (auto-detected from context if available)",
         ),
     ] = None,
-):
-    """Discard a run that is in a non-terminal state."""
-    org, _ = validate_context(organization)
-    with TFCClient(organization=org) as client:
-        client.runs.discard(run_id, comment=comment)
-        console.print(f"[green]✓[/green] Run {run_id} discarded.")
-
-
-@app.command("cancel")
-@handle_cli_errors
-def run_cancel(
-    run_id: Annotated[str, typer.Argument(help="Run ID to cancel (run-*)")],
     comment: Annotated[
-        str | None, typer.Option("--comment", "-m", help="Reason for canceling")
-    ] = None,
-    organization: Annotated[
         str | None,
-        typer.Option(
-            "--organization",
-            "-o",
-            help="TFC organization",
-        ),
+        typer.Option("--comment", "-m", help="Reason for discarding"),
     ] = None,
 ):
-    """Cancel a run that is currently planning or applying."""
+    """Discard a run that is not yet applied."""
     org, _ = validate_context(organization)
-    with TFCClient(organization=org) as client:
-        client.runs.cancel(run_id, comment=comment)
-        console.print(f"[green]✓[/green] Run {run_id} canceled.")
+
+    with get_client(ctx, organization=org) as client:
+        console.print(f"[dim]Discarding run:[/dim] {run_id}")
+        run = client.runs.discard(run_id, comment=comment)
+        console.print(f"[green]✓[/green] Run {run_id} discarded (Status: {run.status.value})")
 
 
 @app.command("parse-plan")
@@ -955,7 +752,25 @@ def run_parse_plan(
     ] = None,
     verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Show detailed output")] = False,
 ):
-    """Parse plain text terraform plan output."""
+    """Parse plain text terraform plan output.
+
+    Useful for parsing plans from Terraform Cloud remote backend
+    where terraform plan -json is not available.
+
+    Examples:
+        # Parse plan and show summary
+        terrapyne run parse-plan plan.txt
+
+        # Read from stdin (pipe-friendly)
+        terraform plan 2>&1 | terrapyne run parse-plan -
+
+        # Output as JSON
+        terrapyne run parse-plan plan.txt --format json
+
+        # Save to file
+        terrapyne run parse-plan plan.txt --output parsed.json
+    """
+    from terrapyne.core.local_binary import Terraform
 
     # Read plan from stdin or file
     if plan_file is None or str(plan_file) == "-":
@@ -968,15 +783,15 @@ def run_parse_plan(
             plan_text = f.read()
 
     # Parse it
-    from terrapyne.core.local_binary import Terraform
-
     tf = Terraform(".")
     result = tf.parse_plain_text_plan(plan_text)
 
     # Format output
     if output_format == "json":
+        import json
+
         output_text = json.dumps(result, indent=2)
-    else:
+    else:  # human
         output_text = _format_plan_output_human(result, verbose=verbose)
 
     # Display or save

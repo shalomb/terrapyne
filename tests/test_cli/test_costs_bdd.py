@@ -32,8 +32,8 @@ def mock_api_client():
         return "test-org", prj
 
     with (
-        patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_ws_client,
-        patch("terrapyne.cli.project_cmd.TFCClient") as mock_prj_client,
+        patch("terrapyne.api.client.TFCClient") as mock_ws_client,
+        patch("terrapyne.api.client.TFCClient") as mock_prj_client,
         patch("terrapyne.cli.workspace_cmd.validate_context") as mock_ws_ctx,
         patch("terrapyne.cli.project_cmd.validate_context") as mock_prj_ctx,
         patch("terrapyne.cli.project_cmd.resolve_project_context") as mock_resolve_ctx,

@@ -1,16 +1,17 @@
 """Workspace CLI commands."""
 
-import builtins
-from datetime import UTC
-from pathlib import Path
 from typing import Annotated, cast
 
 import typer
-from rich.table import Table
 
-from terrapyne.api.client import TFCClient
-from terrapyne.api.vcs import VCSAPI
-from terrapyne.cli.utils import console, emit_json, handle_cli_errors, validate_context
+from terrapyne.cli.utils import (
+    console,
+    emit_json,
+    get_client,
+    handle_cli_errors,
+    resolve_organization,
+    validate_context,
+)
 from terrapyne.core.exceptions import TFCAPIError
 from terrapyne.models.variable import WorkspaceVariable
 from terrapyne.utils.browser import get_workspace_url, open_url_in_browser
@@ -33,6 +34,7 @@ def _show_help(ctx: typer.Context):
 @app.command("list")
 @handle_cli_errors
 def workspace_list(
+    ctx: typer.Context,
     organization: str | None = typer.Option(
         None,
         "--organization",
@@ -42,62 +44,40 @@ def workspace_list(
     search: str | None = typer.Option(
         None, "--search", "-s", help="Search pattern for workspace names"
     ),
-    project: str | None = typer.Option(None, "--project", "-p", help="Filter by project name"),
-    limit: int = typer.Option(100, "--limit", "-n", help="Maximum number of workspaces to display"),
+    wildcard: bool = typer.Option(
+        False, "--wildcard", help="Treat search pattern as a wildcard pattern"
+    ),
     output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ):
-    """List workspaces in an organization.
+    """List workspaces in an organization."""
+    org = resolve_organization(organization)
+    if not org:
+        console.print("[red]Error: Organization not specified and not found in context.[/red]")
+        raise typer.Exit(1)
 
-    Auto-detects organization from .terraform/terraform.tfstate or terraform.tf if not specified.
+    with get_client(ctx, organization=org) as client:
+        # Use wildcard search if requested
+        search_pattern = f"*{search}*" if search and wildcard else search
 
-    Examples:
-        # List all workspaces (uses org from terraform.tf)
-        terrapyne workspace list
-
-        # List workspaces in specific organization
-        terrapyne workspace list --organization my-org
-
-        # Search for workspaces
-        terrapyne workspace list --search my-app
-
-        # Filter by project
-        terrapyne workspace list --project my-project
-    """
-    org, _ = validate_context(organization)
-
-    with TFCClient(organization=org) as client:
-        workspaces_iter, total_count = client.workspaces.list(search=search)
-        workspaces = list(workspaces_iter)[:limit]
-
-        if not workspaces:
-            console.print("[yellow]No workspaces found.[/yellow]")
-            return
+        workspaces_iter, total_count = client.workspaces.list(org, search=search_pattern)
+        workspaces = list(workspaces_iter)
 
         if output_format == "json":
-            emit_json(
-                [
-                    {
-                        "id": ws.id,
-                        "name": ws.name,
-                        "terraform_version": ws.terraform_version,
-                        "execution_mode": ws.execution_mode,
-                        "locked": ws.locked,
-                        "auto_apply": ws.auto_apply,
-                    }
-                    for ws in workspaces
-                ]
-            )
+            emit_json([ws.model_dump() for ws in workspaces])
             return
 
-        render_workspaces(workspaces, total_count=total_count)
+        render_workspaces(workspaces, f"Workspaces in {org}", total_count=total_count)
 
-        if not search:
-            console.print("[dim]Tip: Use --search to narrow results (e.g. --search 'prod-*')[/dim]")
+        if not search and total_count and total_count > 10:
+            console.print(
+                "\n[dim]Tip: Use --search to narrow results (e.g. --search 'prod-*')[/dim]"
+            )
 
 
 @app.command("show")
 @handle_cli_errors
 def workspace_show(
+    ctx: typer.Context,
     workspace: str | None = typer.Argument(
         None, help="Workspace name (auto-detected from terraform.tf if in terraform directory)"
     ),
@@ -131,7 +111,7 @@ def workspace_show(
     if json_output:
         output_format = "json"
 
-    with TFCClient(organization=org) as client:
+    with get_client(ctx, organization=org) as client:
         # Optimized: Fetch workspace, project, and latest run (with commit info) in ONE call (Task 21)
         ws = client.workspaces.get(
             cast(str, ws_name), org, include="project,latest-run,latest-run.configuration-version"
@@ -238,6 +218,7 @@ def workspace_show(
 @app.command("vcs")
 @handle_cli_errors
 def workspace_vcs(
+    ctx: typer.Context,
     workspace: str | None = typer.Argument(
         None, help="Workspace name (auto-detected from terraform.tf if in terraform directory)"
     ),
@@ -248,47 +229,18 @@ def workspace_vcs(
         help="TFC organization (auto-detected from context if available)",
     ),
 ):
-    """Show VCS configuration for a workspace.
-
-    Auto-detects workspace and organization from .terraform/terraform.tfstate or terraform.tf if not specified.
-
-    Examples:
-        # Show VCS config for current workspace
-        terrapyne workspace vcs
-
-        # Show VCS config for specific workspace
-        terrapyne workspace vcs my-app-dev
-    """
+    """Show VCS configuration for a workspace."""
     org, ws_name = validate_context(organization, workspace, require_workspace=True)
 
-    with TFCClient(organization=org) as client:
+    with get_client(ctx, organization=org) as client:
         ws = client.workspaces.get(cast(str, ws_name), org)
-        if not ws.vcs_repo:
-            console.print(f"[yellow]Workspace '{ws_name}' has no VCS connection.[/yellow]")
-            return
-
-        # Display VCS info in a focused way
-        table = Table(title=f"VCS Configuration: {workspace}", show_header=False, box=None)
-        table.add_column("Property", style="bold cyan", width=25)
-        table.add_column("Value")
-
-        table.add_row("Repository", ws.vcs_identifier or "N/A")
-        table.add_row("Branch", ws.vcs_branch or "N/A")
-
-        if ws.vcs_repo.working_directory:
-            table.add_row("Working Directory", ws.vcs_repo.working_directory)
-
-        if ws.vcs_url:
-            table.add_row("Repository URL", ws.vcs_url)
-
-        table.add_row("Auto Apply", "✅ Enabled" if ws.auto_apply else "❌ Disabled")
-
-        console.print(table)
+        render_workspace_vcs(ws)
 
 
 @app.command("variables")
 @handle_cli_errors
 def workspace_variables(
+    ctx: typer.Context,
     workspace: str | None = typer.Argument(
         None, help="Workspace name (auto-detected from terraform.tf if in terraform directory)"
     ),
@@ -299,22 +251,12 @@ def workspace_variables(
         help="TFC organization (auto-detected from context if available)",
     ),
 ):
-    """List variables in a workspace.
-
-    Examples:
-        # List variables in current workspace
-        terrapyne workspace variables
-
-        # List variables in specific workspace
-        terrapyne workspace variables my-app-dev
-
-        # List variables in specific organization
-        terrapyne workspace variables my-app-dev --organization my-org
-    """
+    """List variables for a workspace."""
     org, ws_name = validate_context(organization, workspace, require_workspace=True)
 
-    with TFCClient(organization=org) as client:
+    with get_client(ctx, organization=org) as client:
         ws = client.workspaces.get(cast(str, ws_name), org)
+
         variables = client.workspaces.get_variables(ws.id)
 
         if not variables:
@@ -327,17 +269,23 @@ def workspace_variables(
 @app.command("var-set")
 @handle_cli_errors
 def workspace_var_set(
+    ctx: typer.Context,
     workspace: Annotated[
         str | None,
         typer.Argument(
             help="Workspace name (auto-detected from terraform.tf if in terraform directory)"
         ),
     ] = None,
-    vars_list: Annotated[
-        list[str] | None, typer.Argument(help="KEY=VAL pairs for bulk setting")
-    ] = None,
-    key: Annotated[str | None, typer.Option("--key", "-k", help="Variable name/key")] = None,
+    key: Annotated[str | None, typer.Option("--key", "-k", help="Variable key")] = None,
     value: Annotated[str | None, typer.Option("--value", "-v", help="Variable value")] = None,
+    category: Annotated[
+        str, typer.Option("--category", "-c", help="Category: terraform, env")
+    ] = "terraform",
+    hcl: Annotated[bool, typer.Option("--hcl", help="Parse value as HCL")] = False,
+    sensitive: Annotated[bool, typer.Option("--sensitive", "-s", help="Mark as sensitive")] = False,
+    description: Annotated[
+        str | None, typer.Option("--description", "-d", help="Variable description")
+    ] = None,
     organization: Annotated[
         str | None,
         typer.Option(
@@ -346,471 +294,167 @@ def workspace_var_set(
             help="TFC organization (auto-detected from context if available)",
         ),
     ] = None,
-    category: Annotated[
-        str,
-        typer.Option(
-            "--category",
-            "-c",
-            help="Variable category: 'terraform' or 'env'",
-        ),
-    ] = "terraform",
-    sensitive: Annotated[
-        bool, typer.Option("--sensitive", "-s", help="Mark variable as sensitive (masked in UI)")
-    ] = False,
-    hcl: Annotated[bool, typer.Option("--hcl", "-h", help="Variable value is HCL encoded")] = False,
-    description: Annotated[
-        str | None, typer.Option("--description", "-d", help="Variable description")
-    ] = None,
-    from_env_file: Annotated[
-        Path | None, typer.Option("--from-env-file", "-f", help="Import variables from .env file")
-    ] = None,
 ):
-    """Create or update workspace variables (supports bulk setting).
-
-    Examples:
-        # Create a single terraform variable
-        terrapyne workspace var-set --key environment --value production
-
-        # Bulk set multiple variables
-        terrapyne workspace var-set my-ws KEY1=VAL1 KEY2=VAL2 --category env
-
-        # Import from .env file
-        terrapyne workspace var-set --from-env-file .env.prod --sensitive
-    """
-    org, ws_name = validate_context(organization, workspace, require_workspace=True)
-
-    # 1. Collect variables to set
-    to_set: dict[str, str] = {}
-    if key and value is not None:
-        to_set[key] = value
-
-    if vars_list:
-        for pair in vars_list:
-            if "=" not in pair:
-                console.print(f"[yellow]Warning:[/yellow] Skipping invalid pair: {pair}")
-                continue
-            k, v = pair.split("=", 1)
-            to_set[k.strip()] = v.strip()
-
-    if from_env_file:
-        if not from_env_file.exists():
-            console.print(f"[red]❌ File not found:[/red] {from_env_file}")
-            raise typer.Exit(1)
-
-        with open(from_env_file) as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith("#"):
-                    continue
-                if "=" in line:
-                    k, v = line.split("=", 1)
-                    # Strip quotes if present
-                    v = v.strip().strip("'").strip('"')
-                    to_set[k.strip()] = v
-
-    if not to_set:
-        console.print("[yellow]No variables provided to set.[/yellow]")
-        return
-
-    # Validate category
-    if category not in ("terraform", "env"):
-        console.print("[red]Error: category must be 'terraform' or 'env'[/red]")
+    """Set a workspace variable (create or update)."""
+    if key is None or value is None:
+        console.print("[red]Error: Both --key and --value are required.[/red]")
         raise typer.Exit(1)
 
-    with TFCClient(organization=org) as client:
+    org, ws_name = validate_context(organization, workspace, require_workspace=True)
+
+    with get_client(ctx, organization=org) as client:
         ws = client.workspaces.get(cast(str, ws_name), org)
-        existing_variables: list[WorkspaceVariable] = client.workspaces.get_variables(ws.id)
 
-        results = []
-        for k, v in to_set.items():
-            existing_var = next((var for var in existing_variables if var.key == k), None)
+        # Check if variable already exists
+        variables: list[WorkspaceVariable] = client.workspaces.get_variables(ws.id)
+        if variables is None:
+            variables = []
 
-            if existing_var:
-                # Update
-                console.print(f"[dim]Updating variable:[/dim] {k}")
-                res = client.workspaces.update_variable(
-                    variable_id=existing_var.id,
-                    value=v,
-                    hcl=hcl if hcl != existing_var.hcl else None,
-                    sensitive=sensitive if sensitive != existing_var.sensitive else None,
-                    description=description,
-                )
-                results.append(res)
-            else:
-                # Create
-                console.print(f"[dim]Creating variable:[/dim] {k}")
-                res = client.workspaces.create_variable(
-                    workspace_id=ws.id,
-                    key=k,
-                    value=v,
-                    category=category,
-                    hcl=hcl,
-                    sensitive=sensitive,
-                    description=description,
-                )
-                results.append(res)
+        existing_var = next((v for v in variables if v.key == key), None)
 
-        console.print(f"[green]✓ Set {len(results)} variable(s).[/green]")
-        render_workspace_variables(results)
+        if existing_var:
+            console.print(f"[dim]Updating existing variable:[/dim] {key}")
+            client.workspaces.update_variable(
+                variable_id=existing_var.id,
+                value=value,
+                hcl=hcl,
+                sensitive=sensitive,
+                description=description,
+            )
+            console.print(f"[green]✓[/green] Updated variable: {key}")
+        else:
+            console.print(f"[dim]Creating new variable:[/dim] {key}")
+            client.workspaces.create_variable(
+                workspace_id=ws.id,
+                key=key,
+                value=value,
+                category=category,
+                hcl=hcl,
+                sensitive=sensitive,
+                description=description,
+            )
+            console.print(f"[green]✓[/green] Created variable: {key}")
+
+
+@app.command("var-rm")
+@handle_cli_errors
+def workspace_var_rm(
+    ctx: typer.Context,
+    workspace: Annotated[
+        str | None,
+        typer.Argument(
+            help="Workspace name (auto-detected from terraform.tf if in terraform directory)"
+        ),
+    ] = None,
+    key: Annotated[str | None, typer.Argument(help="Variable key to remove")] = None,
+    organization: Annotated[
+        str | None,
+        typer.Option(
+            "--organization",
+            "-o",
+            help="TFC organization (auto-detected from context if available)",
+        ),
+    ] = None,
+    force: Annotated[bool, typer.Option("--force", "-f", help="Skip confirmation")] = False,
+):
+    """Remove a workspace variable."""
+    if key is None:
+        console.print("[red]Error: Variable key is required.[/red]")
+        raise typer.Exit(1)
+
+    org, ws_name = validate_context(organization, workspace, require_workspace=True)
+
+    with get_client(ctx, organization=org) as client:
+        ws = client.workspaces.get(cast(str, ws_name), org)
+
+        # Find variable by key
+        variables: list[WorkspaceVariable] = client.workspaces.get_variables(ws.id)
+        if variables is None:
+            variables = []
+
+        existing_var = next((v for v in variables if v.key == key), None)
+
+        if not existing_var:
+            console.print(f"[yellow]Variable '{key}' not found in workspace '{ws_name}'[/yellow]")
+            raise typer.Exit(1)
+
+        if not force and not typer.confirm(f"Remove variable '{key}' from workspace '{ws_name}'?"):
+            console.print("[yellow]Aborted.[/yellow]")
+            raise typer.Exit(0)
+
+        client.workspaces.delete_variable(workspace_id=ws.id, variable_id=existing_var.id)
+        console.print(f"[green]✓[/green] Removed variable: {key}")
 
 
 @app.command("var-copy")
 @handle_cli_errors
 def workspace_var_copy(
-    source: Annotated[str, typer.Argument(help="Source workspace name")],
-    target: Annotated[str, typer.Argument(help="Target workspace name")],
-    organization: Annotated[
-        str | None,
-        typer.Option(
-            "--organization",
-            "-o",
-            help="TFC organization (auto-detected from context if available)",
-        ),
-    ] = None,
-    overwrite: Annotated[
-        bool, typer.Option("--overwrite", help="Overwrite existing variables in target")
-    ] = False,
-    sensitive_only: Annotated[
-        bool, typer.Option("--sensitive-only", help="Copy only sensitive variables")
-    ] = False,
+    ctx: typer.Context,
+    source: str = typer.Argument(..., help="Source workspace name"),
+    target: str = typer.Argument(..., help="Target workspace name"),
+    organization: str | None = typer.Option(None, "--organization", "-o", help="TFC organization"),
+    overwrite: bool = typer.Option(False, "--overwrite", help="Overwrite existing variables"),
 ):
-    """Copy all variables from one workspace to another.
-
-    Examples:
-        # Copy all variables from dev to staging
-        terrapyne workspace var-copy my-app-dev my-app-staging
-
-        # Copy only and overwrite existing
-        terrapyne workspace var-copy dev staging --overwrite
-    """
+    """Copy all variables from one workspace to another."""
     org, _ = validate_context(organization)
 
-    with TFCClient(organization=org) as client:
-        # Get source and target workspaces
-        src_ws = client.workspaces.get(source)
-        tgt_ws = client.workspaces.get(target)
+    with get_client(ctx, organization=org) as client:
+        ws_source = client.workspaces.get(source, org)
+        ws_target = client.workspaces.get(target, org)
 
-        # Get source variables
-        src_vars: builtins.list[WorkspaceVariable] = client.workspaces.get_variables(src_ws.id)
-        if sensitive_only:
-            src_vars = [v for v in src_vars if v.sensitive]
+        source_variables: list[WorkspaceVariable] = client.workspaces.get_variables(ws_source.id)
+        target_variables: list[WorkspaceVariable] = client.workspaces.get_variables(ws_target.id)
 
-        if not src_vars:
-            console.print(f"[yellow]No variables found in source workspace '{source}'.[/yellow]")
-            return
+        if source_variables is None:
+            source_variables = []
+        if target_variables is None:
+            target_variables = []
 
-        # Get target variables to check for existence
-        tgt_vars: builtins.list[WorkspaceVariable] = client.workspaces.get_variables(tgt_ws.id)
-        tgt_var_keys = {v.key for v in tgt_vars}
+        target_keys = {v.key for v in target_variables}
 
-        console.print(
-            f"[dim]Copying {len(src_vars)} variables from '{source}' to '{target}'...[/dim]"
-        )
+        console.print(f"[dim]Copying {len(source_variables)} variables: {source} → {target}[/dim]")
 
-        copied_count = 0
-        updated_count = 0
-        skipped_count = 0
+        copied = 0
+        skipped = 0
+        updated = 0
 
-        for v in src_vars:
-            if v.key in tgt_var_keys:
+        for var in source_variables:
+            if var.key in target_keys:
                 if overwrite:
-                    # Update existing
-                    existing_id = next(tv.id for tv in tgt_vars if tv.key == v.key)
+                    # Find target var ID
+                    t_v = next(v for v in target_variables if v.key == var.key)
                     client.workspaces.update_variable(
-                        variable_id=existing_id,
-                        value=v.value,
-                        hcl=v.hcl,
-                        sensitive=v.sensitive,
-                        description=v.description,
+                        variable_id=t_v.id,
+                        value=var.value,
+                        hcl=var.hcl,
+                        sensitive=var.sensitive,
+                        description=var.description,
                     )
-                    updated_count += 1
+                    updated += 1
                 else:
-                    skipped_count += 1
+                    skipped += 1
                     continue
             else:
-                # Create new
                 client.workspaces.create_variable(
-                    workspace_id=tgt_ws.id,
-                    key=v.key,
-                    value=v.value or "",
-                    category=v.category,
-                    hcl=v.hcl,
-                    sensitive=v.sensitive,
-                    description=v.description,
+                    workspace_id=ws_target.id,
+                    key=var.key,
+                    value=var.value or "",
+                    category=var.category,
+                    hcl=var.hcl,
+                    sensitive=var.sensitive,
+                    description=var.description,
                 )
-                copied_count += 1
+                copied += 1
 
         console.print(
-            f"[green]✓ Done![/green] Copied: {copied_count}, Updated: {updated_count}, Skipped: {skipped_count}"
+            f"[green]✓[/green] Done! {copied} created, {updated} updated, {skipped} skipped."
         )
-
-
-@app.command("health")
-@handle_cli_errors
-def workspace_health(
-    workspace: Annotated[
-        str | None,
-        typer.Argument(help="Workspace name (auto-detected from context)"),
-    ] = None,
-    organization: Annotated[
-        str | None,
-        typer.Option("--organization", "-o", help="TFC organization"),
-    ] = None,
-):
-    """Show workspace health: lock state, latest run, VCS, variables.
-
-    Examples:
-        terrapyne workspace health my-app-dev
-        terrapyne workspace health  # auto-detect from context
-    """
-
-    org, ws_name = validate_context(organization, workspace, require_workspace=True)
-
-    with TFCClient(organization=org) as client:
-        ws = client.workspaces.get(ws_name or "", org)
-        variables: builtins.list[WorkspaceVariable] = client.workspaces.get_variables(ws.id)
-        runs, _ = client.runs.list(ws.id, limit=1)
-        latest_run = runs[0] if runs else None
-
-        # VCS
-        vcs_api = VCSAPI(client)
-        vcs = vcs_api.get_workspace_vcs(ws.id)
-
-    # Render health dashboard
-    console.print(f"\n[bold]{ws.name}[/bold]  [dim]({ws.id})[/dim]\n")
-
-    # Lock state
-    lock_icon = "[red]🔒 Locked[/red]" if ws.locked else "[green]🔓 Unlocked[/green]"
-    console.print(f"  Lock:       {lock_icon}")
-
-    # Terraform version
-    console.print(f"  TF Version: {ws.terraform_version or 'not set'}")
-    console.print(f"  Exec Mode:  {ws.execution_mode or 'remote'}")
-    console.print(f"  Auto-Apply: {'yes' if ws.auto_apply else 'no'}")
-
-    # Latest run
-    if latest_run:
-        age = ""
-        if latest_run.created_at:
-            from datetime import datetime
-
-            delta = (
-                datetime.now(UTC) - latest_run.created_at.replace(tzinfo=UTC)
-                if latest_run.created_at.tzinfo is None
-                else datetime.now(UTC) - latest_run.created_at
-            )
-            if delta.days > 0:
-                age = f" ({delta.days}d ago)"
-            else:
-                hours = delta.seconds // 3600
-                age = f" ({hours}h ago)" if hours > 0 else " (recent)"
-        console.print(
-            f"  Last Run:   {latest_run.status.emoji} {latest_run.status.value}{age}  [{latest_run.id}]"
-        )
-        console.print(f"  Changes:    {latest_run.change_summary}")
-    else:
-        console.print("  Last Run:   [dim]no runs[/dim]")
-
-    # VCS
-    if vcs:
-        console.print(f"  VCS Repo:   {vcs.identifier}")
-        console.print(f"  Branch:     {vcs.branch or 'default'}")
-        if vcs.working_directory:
-            console.print(f"  Work Dir:   {vcs.working_directory}")
-    else:
-        console.print("  VCS:        [dim]not connected[/dim]")
-
-    # Variables
-    tf_vars = [v for v in variables if v.is_terraform_var]
-    env_vars = [v for v in variables if v.is_env_var]
-    sensitive_count = sum(1 for v in variables if v.sensitive)
-    console.print(
-        f"  Variables:  {len(tf_vars)} terraform, {len(env_vars)} env"
-        + (f" ({sensitive_count} sensitive)" if sensitive_count else "")
-    )
-
-    # Tags
-    if ws.tag_names:
-        console.print(f"  Tags:       {', '.join(ws.tag_names)}")
-
-    console.print()
 
 
 @app.command("open")
 @handle_cli_errors
 def workspace_open(
-    workspace: str | None = typer.Argument(
-        None, help="Workspace name (auto-detected from context if in terraform directory)"
-    ),
-    organization: str | None = typer.Option(
-        None,
-        "--organization",
-        "-o",
-        help="TFC organization (auto-detected from context if available)",
-    ),
-    host: str = typer.Option(
-        "app.terraform.io",
-        "--host",
-        help="TFC hostname (default: app.terraform.io)",
-    ),
-    page: str | None = typer.Option(
-        None,
-        "--page",
-        help="Specific page to open (runs, states, variables, settings)",
-    ),
-):
-    """Open workspace in browser.
-
-    Auto-detects workspace and organization from .terraform/terraform.tfstate or terraform.tf.
-
-    Examples:
-        # Open current workspace (auto-detected from context)
-        terrapyne workspace open
-
-        # Open specific workspace
-        terrapyne workspace open my-app-dev --organization my-org
-
-        # Open workspace runs page
-        terrapyne workspace open --page runs
-
-        # Open workspace on custom TFC host
-        terrapyne workspace open my-ws -o MyOrg --host terraform.example.com
-    """
-    org, ws = validate_context(organization, workspace, require_workspace=True)
-
-    # Construct URL
-    url = get_workspace_url(
-        organization=org,
-        workspace=ws or workspace or "",
-        host=host,
-        page=page,  # type: ignore
-    )
-
-    console.print(f"[dim]Opening:[/dim] {url}")
-
-    # Attempt to open in browser
-    if not open_url_in_browser(url):
-        console.print("[yellow]Could not open browser. Please visit:[/yellow]")
-        console.print(f"  {url}")
-        raise typer.Exit(1) from None
-
-
-@app.command("clone")
-@handle_cli_errors
-def workspace_clone(
-    source: str = typer.Argument(..., help="Source workspace name to clone from"),
-    target: str = typer.Argument(..., help="Target workspace name to create"),
-    organization: str | None = typer.Option(
-        None,
-        "--organization",
-        "-o",
-        help="TFC organization (auto-detected from context if available)",
-    ),
-    with_variables: bool = typer.Option(
-        False,
-        "--with-variables",
-        help="Clone terraform and environment variables",
-    ),
-    with_vcs: bool = typer.Option(
-        False,
-        "--with-vcs",
-        help="Clone VCS repository connection and configuration",
-    ),
-    vcs_oauth_token_id: str | None = typer.Option(
-        None,
-        "--vcs-oauth-token-id",
-        help="OAuth token ID for VCS (required for cross-organization cloning)",
-    ),
-    force: bool = typer.Option(
-        False,
-        "--force",
-        help="Overwrite existing target workspace if it exists",
-    ),
-):
-    """Clone a workspace with optional variables and VCS configuration.
-
-    Creates a new workspace based on an existing workspace's configuration.
-    Optionally includes variables, VCS settings, and other components.
-
-    Always clones workspace settings (terraform version, execution mode, auto_apply, tags).
-
-    Examples:
-        # Basic clone (settings and tags only)
-        terrapyne workspace clone prod-app staging-app
-
-        # Clone with variables
-        terrapyne workspace clone prod-app staging-app --with-variables
-
-        # Clone with VCS configuration
-        terrapyne workspace clone prod-app staging-app --with-vcs
-
-        # Full clone with all options
-        terrapyne workspace clone prod-app staging-app --with-variables --with-vcs
-
-        # Clone to specific organization
-        terrapyne workspace clone prod-app test-app -o test-org --with-variables
-
-        # Force overwrite existing workspace
-        terrapyne workspace clone prod-app staging-app --force
-    """
-    org, _ = validate_context(organization)
-
-    console.print(f"\n[dim]Cloning workspace:[/dim] {source} → {target}")
-
-    with TFCClient(organization=org) as client:
-        from terrapyne.api.workspace_clone import CloneWorkspaceAPI
-
-        clone_api = CloneWorkspaceAPI(client)
-
-        result = clone_api.clone(
-            source_workspace_name=source,
-            target_workspace_name=target,
-            organization=org,
-            with_variables=with_variables,
-            with_vcs=with_vcs,
-            vcs_oauth_token_id=vcs_oauth_token_id,
-            force=force,
-        )
-
-        # Display results
-        if result["status"] == "success":
-            console.print(f"\n[green]✓[/green] {result['message']}\n")
-
-            # Show target workspace ID
-            console.print(f"[dim]Target workspace ID:[/dim] {result['target_workspace_id']}")
-
-            # Show variable results if included
-            if with_variables and result["results"]["variables"]:
-                var_result = result["results"]["variables"]
-                if var_result["status"] == "success":
-                    console.print(
-                        f"[dim]Variables cloned:[/dim] {var_result['variables_cloned']} "
-                        f"({var_result['terraform_variables']} terraform, "
-                        f"{var_result['env_variables']} env)"
-                    )
-
-            # Show VCS results if included
-            if with_vcs and result["results"]["vcs"]:
-                vcs_result = result["results"]["vcs"]
-                if vcs_result.get("vcs_cloned"):
-                    console.print(
-                        f"[dim]VCS configured:[/dim] {vcs_result['identifier']} "
-                        f"(branch: {vcs_result.get('branch', 'default')})"
-                    )
-                elif vcs_result.get("status") == "success":
-                    console.print(
-                        f"[yellow]Note:[/yellow] {vcs_result.get('reason', 'No VCS to clone')}"
-                    )
-
-            console.print()  # Blank line at end
-        else:
-            console.print(f"\n[red]Error:[/red] {result.get('error', 'Unknown error')}\n")
-            raise typer.Exit(1)
-
-
-@app.command("costs")
-@handle_cli_errors
-def workspace_costs(
+    ctx: typer.Context,
     workspace: str | None = typer.Argument(
         None, help="Workspace name (auto-detected from terraform.tf if in terraform directory)"
     ),
@@ -820,81 +464,150 @@ def workspace_costs(
         "-o",
         help="TFC organization (auto-detected from context if available)",
     ),
-    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ):
-    """Show workspace TCO — total monthly cost from the latest cost estimate."""
+    """Open workspace in the default web browser."""
     org, ws_name = validate_context(organization, workspace, require_workspace=True)
 
-    with TFCClient(organization=org) as client:
-        ws = client.workspaces.get(cast(str, ws_name), org)
-        ce = client.runs.get_latest_cost_estimate(ws.id)
-        if not ce:
-            console.print("[yellow]No finished cost estimates found in recent runs.[/yellow]")
-            return
+    url = get_workspace_url(org, cast(str, ws_name))
+    console.print(f"[dim]Opening:[/dim] {url}")
+    open_url_in_browser(url)
 
-        monthly = 0.0
-        prior = 0.0
-        delta = 0.0
+
+@app.command("clone")
+@handle_cli_errors
+def workspace_clone(
+    ctx: typer.Context,
+    source: str = typer.Argument(..., help="Source workspace name"),
+    target: str = typer.Argument(..., help="Target workspace name"),
+    organization: str | None = typer.Option(None, "--organization", "-o", help="TFC organization"),
+    with_variables: bool = typer.Option(True, help="Copy variables to the new workspace"),
+    with_vcs: bool = typer.Option(True, help="Copy VCS configuration to the new workspace"),
+    vcs_token: str | None = typer.Option(
+        None, "--vcs-token", help="VCS OAuth token ID (required for cross-org clone)"
+    ),
+    force: bool = typer.Option(
+        False, "--force", "-f", help="Force clone even if target workspace exists"
+    ),
+):
+    """Clone a workspace (configuration and variables).
+
+    Examples:
+        # Clone workspace in same organization
+        terrapyne workspace clone my-app-prod my-app-staging
+
+        # Clone and overwrite existing target
+        terrapyne workspace clone source target --force
+
+        # Clone without variables
+        terrapyne workspace clone source target --no-variables
+    """
+    org, _ = validate_context(organization)
+
+    console.print(f"\n[dim]Cloning workspace:[/dim] {source} → {target}")
+
+    with get_client(ctx, organization=org) as client:
+        from terrapyne.api.workspace_clone import (
+            CloneWorkspaceAPI,
+            WorkspaceAlreadyExistsError,
+            WorkspaceNotFoundError,
+        )
+
+        clone_api = CloneWorkspaceAPI(client)
         try:
-            monthly = float(ce.get("proposed-monthly-cost") or 0)
-            prior = float(ce.get("prior-monthly-cost") or 0)
-            delta = float(ce.get("delta-monthly-cost") or 0)
-        except (ValueError, TypeError):
-            pass
-        matched = ce.get("matched-resources-count", 0)
-        unmatched = ce.get("unmatched-resources-count", 0)
+            result = clone_api.clone(
+                source_workspace_name=source,
+                target_workspace_name=target,
+                organization=org,
+                with_variables=with_variables,
+                with_vcs=with_vcs,
+                vcs_oauth_token_id=vcs_token,
+                force=force,
+            )
 
-        # Resource breakdown by type
-        resources = ce.get("resources", {})
-        by_type: dict[str, float] = {}
-        for r in resources.get("matched", []):
-            rtype = r["type"]
-            cost = float(r.get("proposed-monthly-cost", 0))
-            by_type[rtype] = by_type.get(rtype, 0) + cost
+            console.print(f"\n[green]✓[/green] {result.get('message', 'Successfully cloned')}")
 
-        unpriced_types: dict[str, int] = {}
-        for r in resources.get("unmatched", []):
-            rtype = r["type"]
-            unpriced_types[rtype] = unpriced_types.get(rtype, 0) + 1
+            if result.get("status") == "error":
+                console.print(f"[red]Error:[/red] {result.get('error', 'Unknown error')}")
+                raise typer.Exit(1)
 
-        if output_format == "json":
-            from terrapyne.cli.utils import emit_json
+            # Show details of what was cloned
+            res = result.get("results", {})
+            if res.get("variables"):
+                vars_info = res["variables"]
+                count = vars_info.get("variables_cloned", 0)
+                breakdown = []
+                if vars_info.get("terraform_variables"):
+                    breakdown.append(f"{vars_info['terraform_variables']} terraform")
+                if vars_info.get("env_variables"):
+                    breakdown.append(f"{vars_info['env_variables']} env")
 
-            emit_json(
-                {
-                    "workspace": ws.name,
-                    "monthly_cost": monthly,
-                    "prior_monthly_cost": prior,
-                    "delta_monthly_cost": delta,
-                    "matched_resources": matched,
-                    "unmatched_resources": unmatched,
-                    "by_resource_type": by_type,
-                    "unpriced_resource_types": unpriced_types,
-                }
+                breakdown_str = f" ({', '.join(breakdown)})" if breakdown else ""
+                console.print(f"[dim]Variables cloned:[/dim] {count}{breakdown_str}")
+
+            if res.get("vcs"):
+                vcs_info = res["vcs"]
+                console.print(
+                    f"[dim]VCS configuration:[/dim] {vcs_info.get('identifier')} (branch: {vcs_info.get('branch')})"
+                )
+
+            # Open in browser if successful
+            url = get_workspace_url(org, target)
+            console.print(f"[dim]View new workspace:[/dim] {url}")
+        except WorkspaceAlreadyExistsError as e:
+            console.print(f"[red]Error:[/red] {e}")
+            raise typer.Exit(1) from None
+        except WorkspaceNotFoundError as e:
+            console.print(f"[red]Error:[/red] {e}")
+            raise typer.Exit(1) from None
+
+
+@app.command("costs")
+@handle_cli_errors
+def workspace_costs(
+    ctx: typer.Context,
+    workspace: str | None = typer.Argument(
+        None, help="Workspace name (auto-detected from terraform.tf if in terraform directory)"
+    ),
+    organization: str | None = typer.Option(
+        None,
+        "--organization",
+        "-o",
+        help="TFC organization (auto-detected from context if available)",
+    ),
+):
+    """Show cost estimates for the latest plan."""
+    org, ws_name = validate_context(organization, workspace, require_workspace=True)
+
+    with get_client(ctx, organization=org) as client:
+        ws = client.workspaces.get(cast(str, ws_name), org)
+        cost_estimate = client.runs.get_latest_cost_estimate(ws.id)
+        if not cost_estimate:
+            console.print(
+                "[yellow]No finished cost estimates available for the latest run.[/yellow]"
             )
             return
 
-        console.print(f"\n[bold]{ws.name}[/bold] — Cost Estimate\n")
-        console.print(f"  Monthly TCO:  [bold]${monthly:,.2f}[/bold]")
-        if delta > 0:
-            console.print(f"  Delta:        [red]+${delta:,.2f}[/red]")
-        elif delta < 0:
-            console.print(f"  Delta:        [green]-${abs(delta):,.2f}[/green]")
+        # Handle different key names from API vs what might be expected
+        proposed = cost_estimate.get("proposed-monthly-cost") or cost_estimate.get("monthly", "0.0")
+        delta = cost_estimate.get("delta-monthly-cost") or cost_estimate.get("delta", "0.0")
+
+        try:
+            monthly_val = float(proposed)
+            delta_raw = float(delta)
+        except ValueError:
+            monthly_val = 0.0
+            delta_raw = 0.0
+
+        # Add + sign if positive
+        if delta_raw > 0:
+            delta_prefix = "+$"
+            delta_val = delta_raw
+        elif delta_raw < 0:
+            delta_prefix = "-$"
+            delta_val = abs(delta_raw)
         else:
-            console.print("  Delta:        $0.00")
-        console.print(f"  Prior:        ${prior:,.2f}")
-        console.print(f"  Resources:    {matched} priced, {unmatched} unpriced")
+            delta_prefix = "$"
+            delta_val = 0.0
 
-        if by_type:
-            console.print("\n  [dim]Priced by resource type:[/dim]")
-            for rtype, cost in sorted(by_type.items(), key=lambda x: -x[1]):
-                console.print(f"    {rtype:40s}  ${cost:>10,.2f}/mo")
-
-        if unpriced_types:
-            console.print(
-                f"\n  [yellow]⚠ {unmatched} resources not priced by TFC cost estimation:[/yellow]"
-            )
-            for rtype, count in sorted(unpriced_types.items()):
-                console.print(f"    {rtype:40s}  x{count}")
-
-        console.print()
+        console.print(f"Estimated monthly cost: ${monthly_val:,.2f}")
+        console.print(f"Cost delta: {delta_prefix}{delta_val:,.2f}")

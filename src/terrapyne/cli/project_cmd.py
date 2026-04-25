@@ -7,10 +7,9 @@ import sys
 
 import typer
 
-from terrapyne.api.client import TFCClient
-from terrapyne.api.projects import ProjectAPI
 from terrapyne.cli.utils import (
     console,
+    get_client,
     handle_cli_errors,
     resolve_project_context,
     validate_context,
@@ -30,44 +29,47 @@ def _show_help(ctx: typer.Context):
         console.print(ctx.get_help())
 
 
-@app.command(name="list")
+@app.command("list")
 @handle_cli_errors
-def list_projects(
-    organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
-    search: str | None = typer.Option(None, "--search", "-s", help="Search projects by name"),
-    limit: int = typer.Option(100, "--limit", "-n", help="Maximum number of projects to display"),
+def project_list(
+    ctx: typer.Context,
+    organization: str | None = typer.Option(
+        None,
+        "--organization",
+        "-o",
+        help="TFC organization (auto-detected from context if available)",
+    ),
+    limit: int = typer.Option(100, "--limit", "-n", help="Maximum number of projects to show"),
     output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ) -> None:
-    """List all projects in organization."""
+    """List all projects in the organization."""
     org, _ = validate_context(organization)
 
-    with TFCClient(organization=org) as client:
-        projects_iter, total_count = client.projects.list(org, search=search)
+    with get_client(ctx, organization=org) as client:
+        projects_iter, total_count = client.projects.list(org)
         projects = list(projects_iter)[:limit]
 
         if not projects:
-            console.print("[yellow]No projects found[/yellow]")
-            sys.exit(0)
+            if output_format == "json":
+                from terrapyne.cli.utils import emit_json
 
-        # Get actual workspace counts
-        workspace_counts = {} if search else client.projects.get_workspace_counts(org)
+                emit_json([])
+                return
+            console.print(f"[yellow]No projects found in {org}[/yellow]")
+            return
 
         if output_format == "json":
             from terrapyne.cli.utils import emit_json
 
-            emit_json(
-                [
-                    {
-                        "id": p.id,
-                        "name": p.name,
-                        "description": p.description,
-                        "created_at": p.created_at,
-                        "resource_count": p.resource_count,
-                    }
-                    for p in projects
-                ]
-            )
+            emit_json([p.model_dump() for p in projects])
             return
+
+        # Fetch workspace counts for each project
+        # In a real scenario with many projects, we might want to optimize this
+        workspace_counts: dict[str, int] = {}
+        for project in projects:
+            _, count = client.workspaces.list(org, project_id=project.id)
+            workspace_counts[project.id] = count or 0
 
         render_projects(
             projects,
@@ -80,27 +82,17 @@ def list_projects(
 @app.command(name="find")
 @handle_cli_errors
 def find_projects(
+    ctx: typer.Context,
     pattern: str = typer.Argument(
         ..., help="Search pattern (supports wildcards: *-MAN, 10234-*, *235*)"
     ),
     organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
     limit: int = typer.Option(100, "--limit", "-n", help="Maximum number of projects to display"),
 ) -> None:
-    """Find projects matching a pattern.
-
-    Supports wildcard patterns:
-        *-MAN      - Projects ending with -MAN
-        10234-*    - Projects starting with 10234-
-        *235*      - Projects containing 235
-
-    Examples:
-        terrapyne project find "*-PROD"
-        terrapyne project find "myapp-*"
-        terrapyne project find "*test*"
-    """
+    """Find projects matching a pattern."""
     org, _ = validate_context(organization)
 
-    with TFCClient(organization=org) as client:
+    with get_client(ctx, organization=org) as client:
         projects_iter, total_count = client.projects.list(org, search=pattern)
         projects = list(projects_iter)[:limit]
 
@@ -122,6 +114,7 @@ def find_projects(
 @app.command(name="show")
 @handle_cli_errors
 def show_project(
+    ctx: typer.Context,
     project_name: str | None = typer.Argument(
         None, help="Project name (auto-detected from context if available)"
     ),
@@ -131,7 +124,7 @@ def show_project(
     """Show project details and workspaces."""
     org, _ = validate_context(organization)
 
-    with TFCClient(organization=org) as client:
+    with get_client(ctx, organization=org) as client:
         # Resolve project from name or context
         org, project = resolve_project_context(client, org, project_name)
 
@@ -150,15 +143,14 @@ def show_project(
         active_statuses.extend(
             [
                 RunStatus.PLANNED,
+                RunStatus.COST_ESTIMATED,
                 RunStatus.POLICY_CHECKED,
                 RunStatus.POLICY_SOFT_FAILED,
-                RunStatus.COST_ESTIMATED,
             ]
         )
 
         active_runs_count = 0
         for ws in workspaces:
-            # Note: client.workspaces.list with include="latest_run" populates latest_run if available
             if ws.latest_run and ws.latest_run.status in active_statuses:
                 active_runs_count += 1
 
@@ -169,20 +161,15 @@ def show_project(
                 {
                     "id": project.id,
                     "name": project.name,
-                    "description": project.description,
-                    "created_at": project.created_at,
-                    "resource_count": project.resource_count,
+                    "organization": org,
                     "workspace_count": len(workspaces),
                     "active_runs_count": active_runs_count,
                     "workspaces": [
                         {
                             "id": ws.id,
                             "name": ws.name,
-                            "latest_run": (
-                                {"id": ws.latest_run.id, "status": ws.latest_run.status}
-                                if ws.latest_run
-                                else None
-                            ),
+                            "latest_run": ws.latest_run.id if ws.latest_run else None,
+                            "status": ws.latest_run.status if ws.latest_run else None,
                         }
                         for ws in workspaces
                     ],
@@ -196,88 +183,51 @@ def show_project(
 @app.command(name="teams")
 @handle_cli_errors
 def list_project_teams(
+    ctx: typer.Context,
     project_name: str | None = typer.Argument(
         None, help="Project name (auto-detected from context if available)"
     ),
     organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
 ) -> None:
-    """List team access for a project.
-
-    Shows which teams have access to the project and their permission levels.
-
-    Examples:
-        terrapyne project teams 92813-MAN
-        terrapyne project teams myproject -o my-org
-        # Show teams for current workspace's project
-        terrapyne project teams
-    """
+    """List teams with access to a project."""
     org, _ = validate_context(organization)
 
-    with TFCClient(organization=org) as client:
-        # Resolve project from name or context
+    with get_client(ctx, organization=org) as client:
         org, project = resolve_project_context(client, org, project_name)
 
-        project_api = ProjectAPI(client)
-
-        # List team access
-        team_access_list = project_api.list_team_access(project.id)
-
-        render_project_team_access(team_access_list, project.name)
+        team_access = client.projects.list_team_access(project.id)
+        render_project_team_access(team_access, project.name)
 
 
-@app.command("costs")
+@app.command(name="costs")
 @handle_cli_errors
 def project_costs(
-    project_name: str | None = typer.Argument(
-        None, help="Project name (auto-detected from context if available)"
-    ),
+    ctx: typer.Context,
+    project_name: str = typer.Argument(..., help="Project name"),
     organization: str | None = typer.Option(
         None,
         "--organization",
         "-o",
         help="TFC organization (auto-detected from context if available)",
     ),
-    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ):
-    """Aggregate cost estimates across all workspaces in a project."""
+    """Aggregate cost estimates across a project."""
     org, _ = validate_context(organization)
 
-    with TFCClient(organization=org) as client:
-        org, project = resolve_project_context(client, org, project_name)
-
+    with get_client(ctx, organization=org) as client:
+        project = client.projects.get_by_name(project_name, org)
         workspaces_iter, _ = client.workspaces.list(org, project_id=project.id)
+        workspaces = list(workspaces_iter)
 
         total_monthly = 0.0
-        ws_costs = []
 
-        for ws in workspaces_iter:
-            ce = client.runs.get_latest_cost_estimate(ws.id)
-            monthly = 0.0
-            if ce and ce.get("proposed-monthly-cost"):
+        for ws in workspaces:
+            cost_estimate = client.runs.get_latest_cost_estimate(ws.id)
+            if cost_estimate:
+                proposed = cost_estimate.get("proposed-monthly-cost") or cost_estimate.get(
+                    "monthly", "0.0"
+                )
                 with contextlib.suppress(ValueError):
-                    monthly = float(ce["proposed-monthly-cost"])
-            total_monthly += monthly
-            ws_costs.append({"workspace": ws.name, "monthly_cost": monthly})
+                    total_monthly += float(proposed)
 
-        if output_format == "json":
-            from terrapyne.cli.utils import emit_json
-
-            emit_json(
-                {
-                    "project": project.name,
-                    "total_monthly_cost": total_monthly,
-                    "workspaces": ws_costs,
-                }
-            )
-            return
-
-        console.print(f"\n[bold]{project.name}[/bold] — Project Cost Estimate\n")
-        console.print(f"  Total monthly: [bold]${total_monthly:,.2f}[/bold]")
-        console.print(f"  Workspaces:    {len(ws_costs)}\n")
-
-        if ws_costs:
-            for wc in sorted(ws_costs, key=lambda x: -float(str(x["monthly_cost"]))):
-                cost = float(str(wc["monthly_cost"]))
-                cost_str = f"${cost:,.2f}" if cost > 0 else "[dim]$0.00[/dim]"
-                console.print(f"    {wc['workspace']:50s}  {cost_str}")
-        console.print()
+        console.print(f"Total project estimated monthly cost: ${total_monthly:,.2f}")

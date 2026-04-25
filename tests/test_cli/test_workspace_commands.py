@@ -73,7 +73,7 @@ def list_all_workspaces(org_setup, workspace_list_response):
     """List workspaces via CLI."""
     with (
         patch("terrapyne.cli.utils.resolve_organization") as mock_org,
-        patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
         mock_instance = MagicMock()
@@ -131,7 +131,7 @@ def show_workspace_details(workspace_context, workspace_detail_response):
     with (
         patch("terrapyne.cli.utils.resolve_organization") as mock_org,
         patch("terrapyne.cli.utils.resolve_workspace") as mock_ws,
-        patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
         mock_ws.return_value = "my-app-dev"
@@ -143,6 +143,7 @@ def show_workspace_details(workspace_context, workspace_detail_response):
         mock_instance.workspaces.get.return_value = workspace
         mock_instance.runs.list.return_value = ([], 0)
         mock_instance.workspaces.get_variables.return_value = []
+        mock_instance.vcs.get_workspace_vcs.return_value = None
 
         result = runner.invoke(
             app,
@@ -225,7 +226,7 @@ def check_error_message(try_list_without_org):
 def check_error_hint(try_list_without_org):
     """Verify error mentions how to fix it."""
     result = try_list_without_org["result"]
-    assert "--organization" in result.stdout or "ORGANIZATION" in result.stdout
+    assert "Organization not specified" in result.stdout
 
 
 @then("exit code should be 1")
@@ -258,7 +259,7 @@ def show_vcs_config(workspace_with_vcs, workspace_detail_response):
     with (
         patch("terrapyne.cli.utils.resolve_organization") as mock_org,
         patch("terrapyne.cli.utils.resolve_workspace") as mock_ws,
-        patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
         mock_ws.return_value = "my-app-dev"
@@ -316,7 +317,7 @@ def show_vcs_no_connection(workspace_without_vcs):
     with (
         patch("terrapyne.cli.utils.resolve_organization") as mock_org,
         patch("terrapyne.cli.utils.resolve_workspace") as mock_ws,
-        patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
         mock_ws.return_value = "unconnected-ws"
@@ -395,7 +396,7 @@ def clone_basic_settings(clone_setup, workspace_cloned_response):
     """Clone workspace with basic settings."""
     with (
         patch("terrapyne.cli.utils.resolve_organization") as mock_org,
-        patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
         mock_instance = MagicMock()
@@ -526,7 +527,7 @@ def clone_with_variables(
     """Clone workspace with variables."""
     with (
         patch("terrapyne.cli.utils.resolve_organization") as mock_org,
-        patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
         mock_instance = MagicMock()
@@ -662,7 +663,7 @@ def clone_with_vcs(workspace_prod_response, workspace_cloned_response):
     """Clone workspace with VCS."""
     with (
         patch("terrapyne.cli.utils.resolve_organization") as mock_org,
-        patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
         mock_instance = MagicMock()
@@ -769,7 +770,7 @@ def clone_source_not_found():
     """Try to clone from non-existent workspace."""
     with (
         patch("terrapyne.cli.utils.resolve_organization") as mock_org,
-        patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
         mock_instance = MagicMock()
@@ -849,7 +850,7 @@ def clone_target_exists(workspace_prod_response):
     """Try to clone to existing target."""
     with (
         patch("terrapyne.cli.utils.resolve_organization") as mock_org,
-        patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
         mock_instance = MagicMock()
@@ -929,7 +930,7 @@ def clone_with_force(workspace_prod_response, workspace_cloned_response):
     """Clone with force flag."""
     with (
         patch("terrapyne.cli.utils.resolve_organization") as mock_org,
-        patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
         mock_instance = MagicMock()
@@ -1015,7 +1016,7 @@ def clone_detailed_output(workspace_prod_response, workspace_cloned_response):
     """Clone with all options."""
     with (
         patch("terrapyne.cli.utils.resolve_organization") as mock_org,
-        patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
         mock_instance = MagicMock()
@@ -1133,7 +1134,7 @@ def clone_settings_only(workspace_prod_response, workspace_cloned_response):
     """Clone without optional flags."""
     with (
         patch("terrapyne.cli.utils.resolve_organization") as mock_org,
-        patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
         mock_instance = MagicMock()

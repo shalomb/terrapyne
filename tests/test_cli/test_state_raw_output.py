@@ -25,7 +25,7 @@ class TestStateOutputsRaw:
             )
         ]
 
-        with patch("terrapyne.cli.state_cmd.TFCClient") as c:
+        with patch("terrapyne.api.client.TFCClient") as c:
             c.return_value.__enter__.return_value = m
             # Correct order: state outputs <workspace> <name> --raw
             result = runner.invoke(
@@ -47,7 +47,7 @@ class TestStateOutputsRaw:
             StateVersionOutput(name="config", value=test_dict, type="object", sensitive=False)
         ]
 
-        with patch("terrapyne.cli.state_cmd.TFCClient") as c:
+        with patch("terrapyne.api.client.TFCClient") as c:
             c.return_value.__enter__.return_value = m
             result = runner.invoke(
                 app,
@@ -69,7 +69,7 @@ class TestStateOutputsRaw:
             StateVersionOutput(name="items", value=test_list, type="list", sensitive=False)
         ]
 
-        with patch("terrapyne.cli.state_cmd.TFCClient") as c:
+        with patch("terrapyne.api.client.TFCClient") as c:
             c.return_value.__enter__.return_value = m
             result = runner.invoke(
                 app, ["state", "outputs", "test-ws", "items", "--raw", "--organization", "test-org"]
@@ -89,7 +89,7 @@ class TestStateOutputsRaw:
             StateVersionOutput(name="port", value=5432, type="number", sensitive=False)
         ]
 
-        with patch("terrapyne.cli.state_cmd.TFCClient") as c:
+        with patch("terrapyne.api.client.TFCClient") as c:
             c.return_value.__enter__.return_value = m
             result = runner.invoke(
                 app, ["state", "outputs", "test-ws", "port", "--raw", "--organization", "test-org"]
@@ -105,7 +105,7 @@ class TestStateOutputsRaw:
         m.state_versions.get_current.return_value = MagicMock(id="sv-xyz")
         m.state_versions.list_outputs.return_value = []
 
-        with patch("terrapyne.cli.state_cmd.TFCClient") as c:
+        with patch("terrapyne.api.client.TFCClient") as c:
             c.return_value.__enter__.return_value = m
             result = runner.invoke(
                 app,
@@ -119,7 +119,7 @@ class TestStateOutputsRaw:
         """--raw with --format json raises error."""
         m = MagicMock()
 
-        with patch("terrapyne.cli.state_cmd.TFCClient") as c:
+        with patch("terrapyne.api.client.TFCClient") as c:
             c.return_value.__enter__.return_value = m
             result = runner.invoke(
                 app,
@@ -143,7 +143,7 @@ class TestStateOutputsRaw:
         """--raw requires a specific output name as argument."""
         m = MagicMock()
 
-        with patch("terrapyne.cli.state_cmd.TFCClient") as c:
+        with patch("terrapyne.api.client.TFCClient") as c:
             c.return_value.__enter__.return_value = m
             # If only workspace is provided, name is missing
             result = runner.invoke(
@@ -172,7 +172,7 @@ class TestStateOutputsRaw:
             StateVersionOutput(name="app_name", value="myapp", type="string", sensitive=False),
         ]
 
-        with patch("terrapyne.cli.state_cmd.TFCClient") as c:
+        with patch("terrapyne.api.client.TFCClient") as c:
             c.return_value.__enter__.return_value = m
             result = runner.invoke(
                 app, ["state", "outputs", "test-ws", "--organization", "test-org"]
@@ -193,7 +193,7 @@ class TestStateOutputsRaw:
             )
         ]
 
-        with patch("terrapyne.cli.state_cmd.TFCClient") as c:
+        with patch("terrapyne.api.client.TFCClient") as c:
             c.return_value.__enter__.return_value = m
             result = runner.invoke(
                 app,

@@ -111,7 +111,7 @@ def trigger_with_wait(mock_client, workspace_name):
 
     with (
         patch("terrapyne.cli.utils.validate_context") as v,
-        patch("terrapyne.cli.run_cmd.TFCClient") as c,
+        patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", workspace_name)
         c.return_value.__enter__.return_value = mock_client
@@ -125,7 +125,7 @@ def trigger_with_wait(mock_client, workspace_name):
 def trigger_wait_queue(mock_client, workspace_name):
     with (
         patch("terrapyne.cli.utils.validate_context") as v,
-        patch("terrapyne.cli.run_cmd.TFCClient") as c,
+        patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", workspace_name)
         c.return_value.__enter__.return_value = mock_client
@@ -141,7 +141,7 @@ def trigger_wait_queue(mock_client, workspace_name):
 def trigger_discard_older(mock_client, workspace_name):
     with (
         patch("terrapyne.cli.utils.validate_context") as v,
-        patch("terrapyne.cli.run_cmd.TFCClient") as c,
+        patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", workspace_name)
         c.return_value.__enter__.return_value = mock_client
@@ -166,7 +166,10 @@ def exit_zero(cli_result):
 @then(parsers.parse('it should first wait for "{run_id}" to complete'))
 def check_waited_for_run(mock_client, run_id, cli_result):
     # Check that poll_until_complete was called with the busy run ID
-    mock_client.runs.poll_until_complete.assert_any_call(run_id)
+    # Use ANY for max_wait to be flexible
+    from unittest.mock import ANY
+
+    mock_client.runs.poll_until_complete.assert_any_call(run_id, max_wait=ANY)
     assert f"Waiting for current run {run_id}" in cli_result.stdout
 
 

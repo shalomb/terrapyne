@@ -177,3 +177,16 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "integration: Integration tests")
     config.addinivalue_line("markers", "cli: CLI command tests")
     config.addinivalue_line("markers", "api: API layer tests")
+
+
+@pytest.fixture(autouse=True)
+def setup_console():
+    """Ensure Rich console uses a clean instance for every test."""
+    from rich.console import Console
+
+    from terrapyne.cli.utils import set_console
+
+    # Create a fresh console for each test
+    new_console = Console(force_terminal=True, width=100)
+    set_console(new_console)
+    return new_console

@@ -49,7 +49,7 @@ def org_with_teams():
 
 @when(parsers.parse('I list workspaces with search "{pattern}"'), target_fixture="cli_result")
 def list_workspaces_with_search(pattern):
-    with patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client:
+    with patch("terrapyne.api.client.TFCClient") as mock_client:
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance
 
@@ -89,7 +89,7 @@ def check_results_filtered(cli_result):
 
 @when("I list workspaces without a search term", target_fixture="cli_result")
 def list_workspaces_no_search():
-    with patch("terrapyne.cli.workspace_cmd.TFCClient") as mock_client:
+    with patch("terrapyne.api.client.TFCClient") as mock_client:
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance
 
@@ -104,7 +104,7 @@ def list_workspaces_no_search():
             locked=False,
             tag_names=[],
         )
-        mock_instance.workspaces.list.return_value = (iter([ws]), 1)
+        mock_instance.workspaces.list.return_value = (iter([ws]), 50)
 
         result = runner.invoke(app, ["workspace", "list", "-o", "test-org"])
         return {"result": result, "mock": mock_instance}
@@ -121,7 +121,7 @@ def check_search_hint(cli_result):
 
 @when(parsers.parse('I list teams with search "{term}"'), target_fixture="cli_result")
 def list_teams_with_search(term):
-    with patch("terrapyne.cli.team_cmd.TFCClient") as mock_client:
+    with patch("terrapyne.api.client.TFCClient") as mock_client:
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance
         mock_instance.teams.list_teams.return_value = (iter([]), 0)

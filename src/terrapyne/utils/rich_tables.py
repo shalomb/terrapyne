@@ -442,3 +442,30 @@ def render_project_team_access(
         )
 
     console.print(table)
+
+
+def render_vcs_connections(
+    connections: Sequence[VCSConnection], title: str = "VCS Connections"
+) -> None:
+    """Render list of VCS connections as a Rich table.
+
+    Args:
+        connections: List of VCSConnection instances
+        title: Table title
+    """
+
+    table = Table(title=title, box=None)
+    table.add_column("ID", style="dim", no_wrap=True)
+    table.add_column("Name", style="bold cyan")
+    table.add_column("Provider", justify="center")
+    table.add_column("Identifier", style="green")
+
+    for conn in connections:
+        table.add_row(
+            conn.id if hasattr(conn, "id") else "N/A",
+            conn.display_identifier or "N/A",
+            conn.service_provider or "N/A",
+            conn.identifier,
+        )
+
+    console.print(table)
