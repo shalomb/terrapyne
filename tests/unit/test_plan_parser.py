@@ -4,8 +4,38 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from typer.testing import CliRunner
 
+from terrapyne.cli.main import app
 from terrapyne.core.plan_parser import TerraformPlainTextPlanParser
+
+runner = CliRunner()
+
+
+class TestParsePlanCLIDoesNotRequireTerraformBinary:
+    """parse-plan CLI command must not instantiate Terraform (no binary required)."""
+
+    SIMPLE_PLAN = """\
+Terraform will perform the following actions:
+
+  # aws_instance.web will be created
+  + resource "aws_instance" "web" {
+      + ami = "ami-12345678"
+    }
+
+Plan: 1 to add, 0 to change, 0 to destroy.
+"""
+
+    def test_parse_plan_does_not_instantiate_terraform(self, tmp_path):
+        """parse-plan must not construct Terraform() — no binary needed."""
+        plan_file = tmp_path / "plan.txt"
+        plan_file.write_text(self.SIMPLE_PLAN)
+
+        with patch("terrapyne.core.local_binary.Terraform") as mock_tf_class:
+            result = runner.invoke(app, ["run", "parse-plan", str(plan_file)])
+
+        assert result.exit_code == 0, f"exit={result.exit_code}\n{result.output}"
+        mock_tf_class.assert_not_called()
 
 
 @pytest.fixture
