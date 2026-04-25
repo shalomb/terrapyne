@@ -22,6 +22,33 @@ def set_quiet_mode(quiet: bool) -> None:
     console.quiet = quiet
 
 
+def setup_logging(debug: bool = False) -> None:
+    """Configure logging for the CLI.
+
+    If debug is True, enables verbose logging to stderr.
+    """
+    if debug:
+        # Use our existing logging utility to configure the terrapyne logger
+        # Verbosity 3 = DEBUG
+        import logging
+        import os
+
+        os.environ["TERRAPYNE_DEBUG"] = "1"
+
+        # We don't want to use the context manager here because we want it to stay
+        # active for the duration of the command.
+        # So we manually configure it.
+        from terrapyne.utils.logging import MultiFormatter
+
+        logger = logging.getLogger("terrapyne")
+        logger.setLevel(logging.DEBUG)
+
+        handler = logging.StreamHandler()
+        handler.setFormatter(MultiFormatter())
+        handler.setLevel(logging.DEBUG)
+        logger.addHandler(handler)
+
+
 def handle_cli_errors(func: F) -> F:
     """Decorator to handle common CLI errors."""
 
