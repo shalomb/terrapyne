@@ -1,11 +1,16 @@
 """Workspace models."""
 
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from terrapyne.models.utils import parse_iso_datetime
+
+if TYPE_CHECKING:
+    from terrapyne.models.run import Run
 
 
 class WorkspaceVCS(BaseModel):
@@ -44,7 +49,7 @@ class Workspace(BaseModel):
     tag_names: list[str] = Field(default_factory=list, alias="tag-names")
 
     # Related models (included)
-    latest_run: Any | None = None
+    latest_run: Run | None = None
 
     # Environment detection (derived from name)
     environment: str | None = None
@@ -157,3 +162,9 @@ class Workspace(BaseModel):
     def vcs_url(self) -> str | None:
         """Get VCS repository URL."""
         return self.vcs_repo.repository_http_url if self.vcs_repo else None
+
+
+# Resolve forward reference so Pydantic can validate Run | None at runtime.
+from terrapyne.models.run import Run  # noqa: E402
+
+Workspace.model_rebuild()
