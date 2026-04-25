@@ -1,15 +1,20 @@
 """CLI utilities for shared error handling and context resolution."""
 
+from __future__ import annotations
+
 from collections.abc import Callable
 from functools import wraps
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import typer
-from rich.console import Console
 
 from terrapyne.api.client import TFCClient
 from terrapyne.core.context import resolve_organization, resolve_workspace
 from terrapyne.core.exceptions import TerrapyneError, TFCAPIError
+from terrapyne.rendering.logging import console
+
+if TYPE_CHECKING:
+    from rich.console import Console
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -27,7 +32,6 @@ def get_client(ctx: typer.Context | None, organization: str | None = None) -> TF
 
 # Consolidated console instances for CLI output
 # UI output goes to stdout (Typer default) to support test runners
-console = Console()
 
 
 def set_console(new_console: Console) -> None:
@@ -57,7 +61,7 @@ def setup_logging(debug: bool = False) -> None:
         # We don't want to use the context manager here because we want it to stay
         # active for the duration of the command.
         # So we manually configure it.
-        from terrapyne.utils.logging import MultiFormatter
+        from terrapyne.rendering.logging import MultiFormatter
 
         logger = logging.getLogger("terrapyne")
         logger.setLevel(logging.DEBUG)

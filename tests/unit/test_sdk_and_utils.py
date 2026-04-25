@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from terrapyne.utils import change_directory
+from terrapyne.core.utils import change_directory
 
 
 class TestChangeDirectory:

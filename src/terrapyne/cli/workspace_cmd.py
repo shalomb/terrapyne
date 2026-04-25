@@ -12,7 +12,9 @@ from terrapyne.cli.utils import (
     resolve_organization,
     validate_context,
 )
+from terrapyne.core.browser import get_workspace_url, open_url_in_browser
 from terrapyne.core.exceptions import TFCAPIError
+from terrapyne.models.run import RunStatus
 from terrapyne.models.variable import WorkspaceVariable
 from terrapyne.rendering.rich_tables import (
     render_workspace_dashboard,
@@ -20,7 +22,6 @@ from terrapyne.rendering.rich_tables import (
     render_workspace_vcs,
     render_workspaces,
 )
-from terrapyne.utils.browser import get_workspace_url, open_url_in_browser
 
 app = typer.Typer(help="Workspace management commands")
 
@@ -121,8 +122,6 @@ def workspace_show(
         latest_run = ws.latest_run
         active_runs_count = 0
         try:
-            from terrapyne.models.run import RunStatus
-
             active_list = RunStatus.get_active_statuses()
             active_statuses = ",".join(active_list)
 

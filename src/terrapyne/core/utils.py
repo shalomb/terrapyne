@@ -1,4 +1,4 @@
-"""Utility modules."""
+"""Core utility functions."""
 
 import contextlib
 import os

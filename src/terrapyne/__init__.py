@@ -30,6 +30,9 @@ from .core.exceptions import (
     TFCNotFoundError,
     TFCRateLimitError,
     TFCServerError,
+    VCSTokenRequiredError,
+    WorkspaceAlreadyExistsError,
+    WorkspaceNotFoundError,
 )
 from .core.local_binary import Terraform
 from .core.plan_parser import TerraformPlainTextPlanParser as PlanParser
@@ -69,8 +72,11 @@ __all__ = [
     "TerraformVersionError",
     "TerrapyneError",
     "VCSConnection",
+    "VCSTokenRequiredError",
     "Workspace",
     "WorkspaceAPI",
+    "WorkspaceAlreadyExistsError",
+    "WorkspaceNotFoundError",
     "WorkspaceVCS",
     "WorkspaceVariable",
     "resolve_organization",

@@ -11,18 +11,19 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Generic, TypeVar
 
-from rich.console import Console
 from rich.table import Table
 
+from terrapyne.rendering.logging import console
+
 if TYPE_CHECKING:
+    from rich.console import Console
+
     from terrapyne.models.plan import Plan
     from terrapyne.models.project import Project
     from terrapyne.models.run import Run
     from terrapyne.models.workspace import Workspace
 
 T = TypeVar("T")  # Generic entity type
-
-console = Console()
 
 
 class TableRenderer(ABC, Generic[T]):
@@ -355,7 +356,7 @@ class RunDetailRenderer(DetailRenderer["Run"]):  # type: ignore
 
         # Add URL at the end if we have organization and workspace
         if self.organization and self.workspace_name:
-            from terrapyne.utils.browser import get_run_url
+            from terrapyne.core.browser import get_run_url
 
             url = get_run_url(self.organization, self.workspace_name, entity.id)
             fields.append(("", ""))  # Separator

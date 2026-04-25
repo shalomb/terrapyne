@@ -2,7 +2,9 @@
 
 # -*- coding: utf-8 -*-
 
-""" """
+"""Logging utilities and shared console instance."""
+
+from __future__ import annotations
 
 import logging
 import typing as t
@@ -10,6 +12,7 @@ from datetime import datetime
 from textwrap import indent
 
 from pretty_traceback.formatting import exc_to_traceback_str
+from rich.console import Console
 
 _ansi_colors = {
     "black": 30,
@@ -33,6 +36,9 @@ _ansi_colors = {
 _ansi_reset_all = "\033[0m"
 
 Color = int | tuple[int, int, int] | str
+
+# Consolidated console instances for CLI output
+console = Console()
 
 
 def _interpret_color(color: Color, offset: int = 0) -> str:
@@ -221,65 +227,6 @@ def cli_log_config(
     """
     Use a logging configuration for a CLI application.
     This will prettify log messages for the console, and show more info in a log file.
-
-    Parameters
-    ----------
-    logger : logging.Logger, default None
-        The logger to configure. If None, configures the root logger
-    verbose : int from 0 to 3, default 2
-        Sets the output verbosity.
-        Verbosity 0 shows critical errors
-        Verbosity 1 shows warnings and above
-        Verbosity 2 shows info and above
-        Verbosity 3 and above shows debug and above
-    filename : str, default None
-        The file name of the log file to log to. If None, no log file is generated.
-    file_verbose : int from 0 to 3, default None
-        Set a different verbosity for the log file. If None, is set to `verbose`.
-        This has no effect if `filename` is None.
-
-    Returns
-    -------
-    A context manager that will configure the logger, and reset to the previous configuration afterwards.
-
-    Example
-    -------
-    ```py
-    with cli_log_config(verbose=3, filename="test.log"):
-        try:
-            logging.debug("A debug message")
-            logging.info("An info message")
-            logging.warning("A warning message")
-            logging.error("An error message")
-            raise ValueError("A critical message from an exception")
-        except Exception as exc:
-            logging.critical(str(exc), exc_info=True)
-    ```
-
-    will print (with color):
-    ```txt
-    DEBUG | A debug message
-    An info message
-    WARN  | A warning message
-    ERROR | An error message
-    FATAL | A critical message from an exception
-        Traceback (most recent call last):
-            /home/eb/projects/py-scratch/color-log.py  <module>  288: raise ValueError("A critical message from an exception")
-        ValueError: A critical message from an exception
-    ```
-
-    and log:
-    ```txt
-    DEBUG:2022-04-03 15:22:23,528:root:A debug message
-    INFO:2022-04-03 15:22:23,528:root:An info message
-    WARNING:2022-04-03 15:22:23,528:root:A warning message
-    ERROR:2022-04-03 15:22:23,528:root:An error message
-    CRITICAL:2022-04-03 15:22:23,528:root:A critical message from an exception
-        Traceback (most recent call last):
-            /home/eb/projects/py-scratch/color-log.py  <module>  317: raise ValueError("A critical message from an exception")
-        ValueError: A critical message from an exception
-    ```
-
     """
 
     if file_verbose is None:
@@ -294,9 +241,6 @@ def cli_log_config(
 
     console_level = verbosities.get(verbose, logging.DEBUG)
     file_level = verbosities.get(file_verbose, logging.DEBUG)
-
-    # This configuration will print pretty tracebacks with color to the console,
-    # and log pretty tracebacks without color to the log file.
 
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(MultiFormatter())
@@ -317,17 +261,6 @@ def cli_log_config(
 
     return MultiContext(*contexts)
 
-
-if __name__ == "__main__":
-    with cli_log_config(verbose=3, filename="test.log"):
-        try:
-            logging.debug("A debug message")
-            logging.info("An info message")
-            logging.warning("A warning message")
-            logging.error("An error message")
-            raise ValueError("A critical message from an exception")
-        except Exception as exc:
-            logging.critical(str(exc), exc_info=True)
 
 # https://gist.github.com/eblocha/fba1c0e2b49333607c4a2d7492f7491c
 

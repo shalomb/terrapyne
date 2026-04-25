@@ -80,7 +80,7 @@ def state_list(
     table.add_column("Resources", justify="right")
     table.add_column("Run ID", style="dim")
 
-    from terrapyne.utils.logging import format_relative_time
+    from terrapyne.rendering.logging import format_relative_time
 
     for i, sv in enumerate(versions, 1):
         created = format_relative_time(sv.created_at) if sv.created_at else ""

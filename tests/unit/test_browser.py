@@ -2,7 +2,7 @@
 
 from unittest.mock import patch
 
-from terrapyne.utils.browser import (
+from terrapyne.core.browser import (
     get_run_url,
     get_workspace_url,
     open_url_in_browser,
@@ -12,16 +12,16 @@ from terrapyne.utils.browser import (
 class TestOpenURLInBrowser:
     """Test open_url_in_browser function."""
 
-    @patch("terrapyne.utils.browser._get_browser_commands", return_value=["xdg-open"])
-    @patch("terrapyne.utils.browser._try_open_with_command", return_value=True)
+    @patch("terrapyne.core.browser._get_browser_commands", return_value=["xdg-open"])
+    @patch("terrapyne.core.browser._try_open_with_command", return_value=True)
     def test_open_url_success_with_first_command(self, mock_try_command, mock_get_commands):
         """Test successful browser open with first available command."""
         result = open_url_in_browser("https://example.com")
         assert result is True
 
-    @patch("terrapyne.utils.browser._get_browser_commands", return_value=["xdg-open"])
-    @patch("terrapyne.utils.browser._try_open_with_command", return_value=False)
-    @patch("terrapyne.utils.browser._try_open_with_webbrowser", return_value=True)
+    @patch("terrapyne.core.browser._get_browser_commands", return_value=["xdg-open"])
+    @patch("terrapyne.core.browser._try_open_with_command", return_value=False)
+    @patch("terrapyne.core.browser._try_open_with_webbrowser", return_value=True)
     def test_open_url_fallback_to_webbrowser(
         self, mock_webbrowser, mock_try_command, mock_get_commands
     ):
@@ -29,18 +29,18 @@ class TestOpenURLInBrowser:
         result = open_url_in_browser("https://example.com")
         assert result is True
 
-    @patch("terrapyne.utils.browser._get_browser_commands", return_value=["xdg-open"])
-    @patch("terrapyne.utils.browser._try_open_with_command", return_value=False)
-    @patch("terrapyne.utils.browser._try_open_with_webbrowser", return_value=False)
+    @patch("terrapyne.core.browser._get_browser_commands", return_value=["xdg-open"])
+    @patch("terrapyne.core.browser._try_open_with_command", return_value=False)
+    @patch("terrapyne.core.browser._try_open_with_webbrowser", return_value=False)
     def test_open_url_all_methods_fail(self, mock_webbrowser, mock_try_command, mock_get_commands):
         """Test when all open methods fail."""
         result = open_url_in_browser("https://example.com")
         assert result is False
 
     @patch(
-        "terrapyne.utils.browser._get_browser_commands", return_value=["xdg-open", "x-www-browser"]
+        "terrapyne.core.browser._get_browser_commands", return_value=["xdg-open", "x-www-browser"]
     )
-    @patch("terrapyne.utils.browser._try_open_with_command", side_effect=[False, True])
+    @patch("terrapyne.core.browser._try_open_with_command", side_effect=[False, True])
     def test_open_url_tries_multiple_commands(self, mock_try_command, mock_get_commands):
         """Test that multiple commands are tried."""
         result = open_url_in_browser("https://example.com")
@@ -52,7 +52,7 @@ class TestGetBrowserCommands:
 
     def test_linux_commands(self):
         """Test Linux browser commands."""
-        from terrapyne.utils.browser import _get_browser_commands
+        from terrapyne.core.browser import _get_browser_commands
 
         with patch("sys.platform", "linux"):
             commands = _get_browser_commands()
@@ -60,7 +60,7 @@ class TestGetBrowserCommands:
 
     def test_macos_commands(self):
         """Test macOS browser commands."""
-        from terrapyne.utils.browser import _get_browser_commands
+        from terrapyne.core.browser import _get_browser_commands
 
         with patch("sys.platform", "darwin"):
             commands = _get_browser_commands()
@@ -68,7 +68,7 @@ class TestGetBrowserCommands:
 
     def test_windows_commands(self):
         """Test Windows browser commands."""
-        from terrapyne.utils.browser import _get_browser_commands
+        from terrapyne.core.browser import _get_browser_commands
 
         with patch("sys.platform", "win32"):
             commands = _get_browser_commands()
@@ -76,7 +76,7 @@ class TestGetBrowserCommands:
 
     def test_unknown_platform(self):
         """Test unknown platform returns empty list."""
-        from terrapyne.utils.browser import _get_browser_commands
+        from terrapyne.core.browser import _get_browser_commands
 
         with patch("sys.platform", "unknown_os"):
             commands = _get_browser_commands()
@@ -88,7 +88,7 @@ class TestTryOpenWithCommand:
 
     def test_unix_command_success(self):
         """Test successful Unix command execution."""
-        from terrapyne.utils.browser import _try_open_with_command
+        from terrapyne.core.browser import _try_open_with_command
 
         with patch("subprocess.run") as mock_run:
             result = _try_open_with_command("xdg-open", "https://example.com")
@@ -103,7 +103,7 @@ class TestTryOpenWithCommand:
 
     def test_windows_command_success(self):
         """Test successful Windows command execution."""
-        from terrapyne.utils.browser import _try_open_with_command
+        from terrapyne.core.browser import _try_open_with_command
 
         with patch("subprocess.run") as mock_run:
             result = _try_open_with_command("cmd", "https://example.com")
@@ -118,7 +118,7 @@ class TestTryOpenWithCommand:
 
     def test_command_not_found(self):
         """Test command not found error."""
-        from terrapyne.utils.browser import _try_open_with_command
+        from terrapyne.core.browser import _try_open_with_command
 
         with patch("subprocess.run", side_effect=FileNotFoundError):
             result = _try_open_with_command("nonexistent", "https://example.com")
@@ -126,7 +126,7 @@ class TestTryOpenWithCommand:
 
     def test_command_permission_denied(self):
         """Test permission denied error."""
-        from terrapyne.utils.browser import _try_open_with_command
+        from terrapyne.core.browser import _try_open_with_command
 
         with patch("subprocess.run", side_effect=PermissionError):
             result = _try_open_with_command("xdg-open", "https://example.com")
@@ -136,7 +136,7 @@ class TestTryOpenWithCommand:
         """Test non-zero exit code."""
         import subprocess
 
-        from terrapyne.utils.browser import _try_open_with_command
+        from terrapyne.core.browser import _try_open_with_command
 
         with patch("subprocess.run", side_effect=subprocess.CalledProcessError(1, "xdg-open")):
             result = _try_open_with_command("xdg-open", "https://example.com")
@@ -148,7 +148,7 @@ class TestTryOpenWithWebbrowser:
 
     def test_webbrowser_success(self):
         """Test successful webbrowser module open."""
-        from terrapyne.utils.browser import _try_open_with_webbrowser
+        from terrapyne.core.browser import _try_open_with_webbrowser
 
         with patch("webbrowser.open") as mock_open:
             result = _try_open_with_webbrowser("https://example.com")
@@ -158,7 +158,7 @@ class TestTryOpenWithWebbrowser:
 
     def test_webbrowser_failure(self):
         """Test webbrowser module failure."""
-        from terrapyne.utils.browser import _try_open_with_webbrowser
+        from terrapyne.core.browser import _try_open_with_webbrowser
 
         with patch("webbrowser.open", side_effect=Exception("Browser error")):
             result = _try_open_with_webbrowser("https://example.com")

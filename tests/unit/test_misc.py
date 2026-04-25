@@ -1,7 +1,7 @@
 import logging
 import sys
 
-from terrapyne.utils.logging import (
+from terrapyne.rendering.logging import (
     PrettyExceptionFormatter,
     _interpret_color,
     cli_log_config,

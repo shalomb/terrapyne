@@ -3,7 +3,6 @@
 from collections.abc import Sequence
 from datetime import datetime as dt_datetime
 
-from rich.console import Console
 from rich.table import Table
 
 from terrapyne.models.plan import Plan
@@ -13,6 +12,7 @@ from terrapyne.models.team_access import TeamProjectAccess
 from terrapyne.models.variable import WorkspaceVariable
 from terrapyne.models.vcs import VCSConnection
 from terrapyne.models.workspace import Workspace
+from terrapyne.rendering.logging import console
 from terrapyne.rendering.table_renderer import (
     ProjectDetailRenderer,
     ProjectTableRenderer,
@@ -21,8 +21,6 @@ from terrapyne.rendering.table_renderer import (
     WorkspaceDetailRenderer,
     WorkspaceTableRenderer,
 )
-
-console = Console()
 
 
 def render_workspaces(
@@ -71,7 +69,7 @@ def render_workspace_dashboard(
     # Determine health from latest run
     health_status = "Unknown (no runs found)"
     if latest_run:
-        from terrapyne.utils.logging import format_relative_time
+        from terrapyne.rendering.logging import format_relative_time
 
         status = latest_run.status
         time_ago = (
