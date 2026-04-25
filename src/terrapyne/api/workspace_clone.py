@@ -10,28 +10,15 @@ import logging
 from collections.abc import Iterator
 
 from terrapyne.api.client import TFCClient
+from terrapyne.core.exceptions import (
+    VCSTokenRequiredError,
+    WorkspaceAlreadyExistsError,
+    WorkspaceNotFoundError,
+)
 from terrapyne.models.variable import WorkspaceVariable
 from terrapyne.models.workspace import Workspace, WorkspaceVCS
 
 logger = logging.getLogger(__name__)
-
-
-class WorkspaceAlreadyExistsError(Exception):
-    """Raised when target workspace already exists and force=False."""
-
-    pass
-
-
-class WorkspaceNotFoundError(Exception):
-    """Raised when source workspace does not exist."""
-
-    pass
-
-
-class VCSTokenRequiredError(Exception):
-    """Raised when VCS token is required but not provided."""
-
-    pass
 
 
 class CloneWorkspaceAPI:

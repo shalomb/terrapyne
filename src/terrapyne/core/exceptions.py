@@ -91,3 +91,24 @@ class TFCServerError(TFCAPIError):
     """Raised on 5xx Server Errors."""
 
     pass
+
+
+# --- Workspace Specific Errors ---
+
+
+class WorkspaceNotFoundError(TFCNotFoundError):
+    """Raised when a workspace is not found."""
+
+    pass
+
+
+class WorkspaceAlreadyExistsError(TFCConflictError):
+    """Raised when a workspace already exists."""
+
+    pass
+
+
+class VCSTokenRequiredError(TFCAPIError):
+    """Raised when a VCS token ID is required for a cross-org clone."""
+
+    pass

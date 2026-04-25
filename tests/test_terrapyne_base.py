@@ -16,7 +16,7 @@ import pytest
 from decouple import config
 
 import terrapyne
-import terrapyne.utils.logging as logging_utils
+import terrapyne.rendering.logging as logging_utils
 
 sys.path.append(str(Path(f"{__file__}/../src").resolve()))
 

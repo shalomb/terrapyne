@@ -15,7 +15,7 @@ from typing import Any
 # Use `type` aliases for readability
 from benedict import benedict
 
-from terrapyne.utils import change_directory
+from terrapyne.core.utils import change_directory
 
 from .exceptions import TerraformApplyError, TerraformError, TerraformVersionError
 
