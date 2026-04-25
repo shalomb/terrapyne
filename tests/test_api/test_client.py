@@ -130,6 +130,44 @@ class TestPaginationDefensiveCopy:
         assert params == {"status": "applied"}, "Original params dict was mutated!"
 
 
+class TestPaginateWithMetaIncludedAccumulation:
+    """Test that paginate_with_meta accumulates included across all pages.
+
+    Regression for B3: ResponseIterator.included was overwritten per page,
+    losing relationship data (project names etc.) for workspaces on page 2+.
+    """
+
+    @patch("terrapyne.api.client.TFCClient.get")
+    def test_included_accumulates_across_all_pages(self, mock_get):
+        """included must contain relationship data from every page, not just the last."""
+        creds = TerraformCredentials(host="app.terraform.io", token="test-token")
+        client = TFCClient(credentials=creds)
+
+        page1 = {
+            "data": [{"id": "ws-1"}],
+            "included": [{"id": "proj-1", "type": "projects"}],
+            "links": {"next": "/workspaces?page=2"},
+            "meta": {"pagination": {"total-count": 2}},
+        }
+        page2 = {
+            "data": [{"id": "ws-2"}],
+            "included": [{"id": "proj-2", "type": "projects"}],
+            "links": {},
+            "meta": {"pagination": {"total-count": 2}},
+        }
+        mock_get.side_effect = [page1, page2]
+
+        results, total = client.paginate_with_meta("/workspaces", params={"include": "project"})
+        items = list(results)
+
+        assert total == 2
+        assert len(items) == 2
+        included_ids = {item["id"] for item in results.included}
+        assert included_ids == {"proj-1", "proj-2"}, (
+            f"Expected both pages' included; got {included_ids}"
+        )
+
+
 class TestAPIResponseHandling:
     """Test API response parsing and error handling."""
 

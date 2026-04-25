@@ -334,55 +334,42 @@ class TFCClient:
             page_size: Items per page (max 100)
 
         Returns:
-            Tuple of (iterator-like object with .included property, total count)
+            Tuple of (object with .included property and __iter__, total count)
         """
-        params = (params or {}).copy()
-        params.update({"page[number]": 1, "page[size]": min(page_size, 100)})
+        base_params = (params or {}).copy()
+        base_params.update({"page[number]": 1, "page[size]": min(page_size, 100)})
 
-        # Get first page to extract total count
-        first_response = self.get(path, params=params)
+        # Fetch all pages eagerly so that .included is fully accumulated before
+        # callers inspect it — eliminates the mutable side-channel race.
+        all_data: list[dict[str, Any]] = []
+        all_included: list[dict[str, Any]] = []
+        total_count: int | None = None
 
-        # Extract total count from meta
-        total_count = None
-        meta = first_response.get("meta", {})
-        pagination = meta.get("pagination", {})
-        total_count = pagination.get("total-count")
+        page_params = base_params.copy()
+        page = 1
+        while True:
+            page_params["page[number]"] = page
+            response_data = self.get(path, params=page_params)
 
-        # Generator to yield items from all pages
-        class ResponseIterator:
-            def __init__(self, first_resp: dict[str, Any], client: TFCClient, base_params: dict):
-                self.first_resp = first_resp
-                self.client = client
-                self.params = base_params
-                self.included = first_resp.get("included", [])
+            if total_count is None:
+                total_count = response_data.get("meta", {}).get("pagination", {}).get("total-count")
+
+            all_data.extend(response_data.get("data", []))
+            all_included.extend(response_data.get("included", []))
+
+            if not response_data.get("data") or not response_data.get("links", {}).get("next"):
+                break
+            page += 1
+
+        class _PagedResult:
+            def __init__(self, data: list, included: list):
+                self._data = data
+                self.included = included
 
             def __iter__(self) -> Iterator[dict[str, Any]]:
-                # Yield items from first page
-                data = self.first_resp.get("data", [])
-                yield from data
+                return iter(self._data)
 
-                # Continue with remaining pages if there are any
-                links = self.first_resp.get("links", {})
-                if links.get("next"):
-                    page = 2
-                    while True:
-                        self.params["page[number]"] = page
-                        response_data = self.client.get(path, params=self.params)
-                        self.included = response_data.get("included", [])
-
-                        data = response_data.get("data", [])
-                        if not data:
-                            break
-
-                        yield from data
-
-                        links = response_data.get("links", {})
-                        if not links.get("next"):
-                            break
-
-                        page += 1
-
-        return ResponseIterator(first_response, self, params), total_count
+        return _PagedResult(all_data, all_included), total_count
 
     def get_organization(self, org: str | None = None) -> str:
         """Get organization name (from param, instance, or raise error).
