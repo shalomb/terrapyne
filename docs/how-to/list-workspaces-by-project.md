@@ -39,8 +39,13 @@ with TFCClient(organization="my-org") as client:
     # List workspaces and filter by project_id
     # Note: TFC allows filtering workspaces by project ID in the list API
     workspaces, total = client.workspaces.list(project_id=target_project.id)
-    
-    print(f"Project: {target_project.name}")
+
+    # workspaces is a lazy iterator — call list() before indexing or len()
+    workspaces = list(workspaces)
+    # total may be None if the API does not return a count
+    count = total if total is not None else len(workspaces)
+
+    print(f"Project: {target_project.name} ({count} workspaces)")
     for ws in workspaces:
         print(f" - {ws.name}")
 ```
