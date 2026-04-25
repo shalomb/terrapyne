@@ -1142,6 +1142,7 @@ dev = [
 dev = [
     { name = "import-linter" },
     { name = "pytest" },
+    { name = "pytest-bdd" },
 ]
 
 [package.metadata]
@@ -1176,6 +1177,7 @@ provides-extras = ["dev"]
 dev = [
     { name = "import-linter", specifier = ">=2.11" },
     { name = "pytest", specifier = ">=9.0.3" },
+    { name = "pytest-bdd", specifier = ">=7.1.0" },
 ]
 
 [[package]]
