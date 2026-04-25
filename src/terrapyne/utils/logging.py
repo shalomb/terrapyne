@@ -6,6 +6,7 @@
 
 import logging
 import typing as t
+from datetime import datetime
 from textwrap import indent
 
 from pretty_traceback.formatting import exc_to_traceback_str
@@ -329,3 +330,29 @@ if __name__ == "__main__":
             logging.critical(str(exc), exc_info=True)
 
 # https://gist.github.com/eblocha/fba1c0e2b49333607c4a2d7492f7491c
+
+
+def format_relative_time(dt: datetime) -> str:
+    """Format a datetime as a relative time string (e.g., '2h ago')."""
+    from datetime import UTC, datetime
+
+    now = datetime.now(UTC)
+
+    # Ensure dt is timezone-aware
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+
+    delta = now - dt
+
+    if delta.days > 365:
+        return f"{delta.days // 365}y ago"
+    elif delta.days > 30:
+        return f"{delta.days // 30}mo ago"
+    elif delta.days > 0:
+        return f"{delta.days}d ago"
+    elif delta.seconds > 3600:
+        return f"{delta.seconds // 3600}h ago"
+    elif delta.seconds > 60:
+        return f"{delta.seconds // 60}m ago"
+    else:
+        return "just now"

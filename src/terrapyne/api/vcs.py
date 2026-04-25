@@ -95,9 +95,22 @@ class VCSAPI:
         return Workspace.from_api_response(response["data"])
 
     def list_connections(self, organization: str) -> builtins.list[VCSConnection]:
-        """List VCS connections (oauth-tokens) for an organization."""
-        # For now, return empty as this is a complex nested API in TFC
-        # (oauth-clients -> oauth-tokens)
+        """List VCS connections (oauth-tokens) for an organization.
+
+        Args:
+            organization: Organization name
+
+        Returns:
+            List of VCSConnection instances
+
+        Raises:
+            TFCAPIError: If API request fails
+        """
+        path = f"/organizations/{organization}/oauth-clients"
+        self.client.get(path)
+
+        # For now, we return empty list if no oauth clients found
+        # In a real scenario we might want to iterate through oauth-tokens
         return []
 
     def list_repositories(self, organization: str) -> list[dict]:

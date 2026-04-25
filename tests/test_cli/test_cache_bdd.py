@@ -1,5 +1,6 @@
 """BDD tests for response caching."""
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -22,7 +23,7 @@ def cache_command_context():
 
 
 @when("I request workspace details twice", target_fixture="cache_result")
-def request_twice(cache_context, mock_httpx, mock_creds):
+def request_twice(cache_context, mock_httpx, mock_creds, tmp_path):
     # Setup mock response
     mock_httpx.return_value = MagicMock(
         status_code=200, text='{"data": {"id": "ws-123", "attributes": {"name": "my-ws"}}}'
@@ -31,8 +32,19 @@ def request_twice(cache_context, mock_httpx, mock_creds):
         "data": {"id": "ws-123", "attributes": {"name": "my-ws"}}
     }
 
-    with patch("terrapyne.cli.utils.validate_context") as v:
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+
+    with (
+        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.api.client.Path") as mock_path,
+    ):
         v.return_value = ("test-org", "my-ws")
+
+        # Ensure TFCClient uses our temp cache dir
+        mock_expandable = MagicMock()
+        mock_expandable.expanduser.return_value = cache_dir
+        mock_path.side_effect = lambda p: mock_expandable if p == "~/.terrapyne/cache" else Path(p)
 
         # First call
         runner.invoke(app, cache_context["args"] + ["workspace", "show", "my-ws", "-o", "test-org"])
