@@ -20,7 +20,6 @@ Workspace management and inspection.
 - `variables`: List variables in a workspace.
 - `var-set`: Create or update workspace variables (supports bulk setting).
 - `var-copy`: Copy all variables from one workspace to another.
-- `health`: Show workspace health: lock state, latest run, VCS, variables.
 - `open`: Open workspace in browser.
 - `clone`: Clone a workspace with optional variables and VCS configuration.
 - `costs`: Show workspace TCO — total monthly cost from the latest cost estimate.
