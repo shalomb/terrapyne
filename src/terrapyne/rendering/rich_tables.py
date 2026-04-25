@@ -13,7 +13,7 @@ from terrapyne.models.team_access import TeamProjectAccess
 from terrapyne.models.variable import WorkspaceVariable
 from terrapyne.models.vcs import VCSConnection
 from terrapyne.models.workspace import Workspace
-from terrapyne.utils.table_renderer import (
+from terrapyne.rendering.table_renderer import (
     ProjectDetailRenderer,
     ProjectTableRenderer,
     RunDetailRenderer,

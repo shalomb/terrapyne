@@ -20,7 +20,7 @@ class TestTableRendererBase:
         """Test that TableRenderer base class can be imported."""
         # This will fail until TableRenderer is created
         try:
-            from terrapyne.utils.table_renderer import TableRenderer
+            from terrapyne.rendering.table_renderer import TableRenderer
 
             assert TableRenderer is not None
             assert hasattr(TableRenderer, "render")
@@ -30,7 +30,7 @@ class TestTableRendererBase:
     def test_table_renderer_is_abstract(self):
         """Test that TableRenderer is abstract."""
         try:
-            from terrapyne.utils.table_renderer import TableRenderer
+            from terrapyne.rendering.table_renderer import TableRenderer
 
             # Should not be able to instantiate directly
             with pytest.raises(TypeError):
@@ -41,7 +41,7 @@ class TestTableRendererBase:
     def test_workspace_table_renderer_renders_list(self):
         """Test WorkspaceTableRenderer renders workspace list."""
         try:
-            from terrapyne.utils.table_renderer import WorkspaceTableRenderer
+            from terrapyne.rendering.table_renderer import WorkspaceTableRenderer
 
             workspace = Workspace(
                 id="ws-abc123",
@@ -51,7 +51,7 @@ class TestTableRendererBase:
 
             renderer = WorkspaceTableRenderer()
 
-            with patch("terrapyne.utils.table_renderer.console") as mock_console:
+            with patch("terrapyne.rendering.table_renderer.console") as mock_console:
                 renderer.render([workspace])
                 mock_console.print.assert_called()
         except ImportError:
@@ -60,7 +60,7 @@ class TestTableRendererBase:
     def test_run_table_renderer_renders_list(self):
         """Test RunTableRenderer renders run list."""
         try:
-            from terrapyne.utils.table_renderer import RunTableRenderer
+            from terrapyne.rendering.table_renderer import RunTableRenderer
 
             run = Run(
                 id="run-abc123",
@@ -69,7 +69,7 @@ class TestTableRendererBase:
 
             renderer = RunTableRenderer()
 
-            with patch("terrapyne.utils.table_renderer.console") as mock_console:
+            with patch("terrapyne.rendering.table_renderer.console") as mock_console:
                 renderer.render([run])
                 mock_console.print.assert_called()
         except ImportError:
@@ -78,7 +78,7 @@ class TestTableRendererBase:
     def test_project_table_renderer_renders_list(self):
         """Test ProjectTableRenderer renders project list."""
         try:
-            from terrapyne.utils.table_renderer import ProjectTableRenderer
+            from terrapyne.rendering.table_renderer import ProjectTableRenderer
 
             project = Project(
                 id="prj-abc123",
@@ -87,7 +87,7 @@ class TestTableRendererBase:
 
             renderer = ProjectTableRenderer()
 
-            with patch("terrapyne.utils.table_renderer.console") as mock_console:
+            with patch("terrapyne.rendering.table_renderer.console") as mock_console:
                 renderer.render([project])
                 mock_console.print.assert_called()
         except ImportError:
@@ -100,7 +100,7 @@ class TestTableRendererColumns:
     def test_workspace_renderer_has_columns(self):
         """Test WorkspaceTableRenderer defines columns."""
         try:
-            from terrapyne.utils.table_renderer import WorkspaceTableRenderer
+            from terrapyne.rendering.table_renderer import WorkspaceTableRenderer
 
             renderer = WorkspaceTableRenderer()
             assert hasattr(renderer, "get_columns")
@@ -116,7 +116,7 @@ class TestTableRendererColumns:
     def test_run_renderer_has_columns(self):
         """Test RunTableRenderer defines columns."""
         try:
-            from terrapyne.utils.table_renderer import RunTableRenderer
+            from terrapyne.rendering.table_renderer import RunTableRenderer
 
             renderer = RunTableRenderer()
             assert hasattr(renderer, "get_columns")
@@ -136,7 +136,7 @@ class TestTableRendererFormatting:
     def test_workspace_renderer_formats_rows(self):
         """Test WorkspaceTableRenderer formats rows correctly."""
         try:
-            from terrapyne.utils.table_renderer import WorkspaceTableRenderer
+            from terrapyne.rendering.table_renderer import WorkspaceTableRenderer
 
             workspace = Workspace(
                 id="ws-abc123",
@@ -158,7 +158,7 @@ class TestTableRendererFormatting:
     def test_run_renderer_formats_rows(self):
         """Test RunTableRenderer formats rows correctly."""
         try:
-            from terrapyne.utils.table_renderer import RunTableRenderer
+            from terrapyne.rendering.table_renderer import RunTableRenderer
 
             run = Run(
                 id="run-abc123",
@@ -181,12 +181,12 @@ class TestTableRendererPagination:
     def test_renderer_renders_with_total_count(self):
         """Test that renderers handle total_count parameter."""
         try:
-            from terrapyne.utils.table_renderer import WorkspaceTableRenderer
+            from terrapyne.rendering.table_renderer import WorkspaceTableRenderer
 
             workspace = Workspace(id="ws-1", name="test")
             renderer = WorkspaceTableRenderer()
 
-            with patch("terrapyne.utils.table_renderer.console") as mock_console:
+            with patch("terrapyne.rendering.table_renderer.console") as mock_console:
                 # Should accept total_count parameter
                 renderer.render([workspace], total_count=100)
 
@@ -198,12 +198,12 @@ class TestTableRendererPagination:
     def test_renderer_renders_without_total_count(self):
         """Test that renderers work without total_count."""
         try:
-            from terrapyne.utils.table_renderer import WorkspaceTableRenderer
+            from terrapyne.rendering.table_renderer import WorkspaceTableRenderer
 
             workspace = Workspace(id="ws-1", name="test")
             renderer = WorkspaceTableRenderer()
 
-            with patch("terrapyne.utils.table_renderer.console") as mock_console:
+            with patch("terrapyne.rendering.table_renderer.console") as mock_console:
                 # Should work without total_count
                 renderer.render([workspace])
                 mock_console.print.assert_called()
@@ -217,12 +217,12 @@ class TestTableRendererTitle:
     def test_renderer_accepts_custom_title(self):
         """Test that renderers accept custom title parameter."""
         try:
-            from terrapyne.utils.table_renderer import WorkspaceTableRenderer
+            from terrapyne.rendering.table_renderer import WorkspaceTableRenderer
 
             workspace = Workspace(id="ws-1", name="test")
             renderer = WorkspaceTableRenderer()
 
-            with patch("terrapyne.utils.table_renderer.console") as mock_console:
+            with patch("terrapyne.rendering.table_renderer.console") as mock_console:
                 custom_title = "My Custom Workspaces"
                 renderer.render([workspace], title=custom_title)
 
@@ -238,7 +238,7 @@ class TestTableRendererDetailRenderers:
     def test_workspace_detail_renderer_renders_detail(self):
         """Test WorkspaceDetailRenderer renders workspace details."""
         try:
-            from terrapyne.utils.table_renderer import WorkspaceDetailRenderer
+            from terrapyne.rendering.table_renderer import WorkspaceDetailRenderer
 
             workspace = Workspace(
                 id="ws-abc123",
@@ -249,7 +249,7 @@ class TestTableRendererDetailRenderers:
 
             renderer = WorkspaceDetailRenderer()
 
-            with patch("terrapyne.utils.table_renderer.console") as mock_console:
+            with patch("terrapyne.rendering.table_renderer.console") as mock_console:
                 renderer.render(workspace)
                 mock_console.print.assert_called()
         except ImportError:
@@ -258,12 +258,12 @@ class TestTableRendererDetailRenderers:
     def test_run_detail_renderer_renders_detail(self):
         """Test RunDetailRenderer renders run details."""
         try:
-            from terrapyne.utils.table_renderer import RunDetailRenderer
+            from terrapyne.rendering.table_renderer import RunDetailRenderer
 
             run = Run(id="run-abc123", status="applied")
             renderer = RunDetailRenderer()
 
-            with patch("terrapyne.utils.table_renderer.console") as mock_console:
+            with patch("terrapyne.rendering.table_renderer.console") as mock_console:
                 renderer.render(run)
                 mock_console.print.assert_called()
         except ImportError:

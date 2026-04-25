@@ -14,13 +14,13 @@ from terrapyne.cli.utils import (
 )
 from terrapyne.core.exceptions import TFCAPIError
 from terrapyne.models.variable import WorkspaceVariable
-from terrapyne.utils.browser import get_workspace_url, open_url_in_browser
-from terrapyne.utils.rich_tables import (
+from terrapyne.rendering.rich_tables import (
     render_workspace_dashboard,
     render_workspace_variables,
     render_workspace_vcs,
     render_workspaces,
 )
+from terrapyne.utils.browser import get_workspace_url, open_url_in_browser
 
 app = typer.Typer(help="Workspace management commands")
 

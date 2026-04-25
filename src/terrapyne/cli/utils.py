@@ -8,8 +8,8 @@ import typer
 from rich.console import Console
 
 from terrapyne.api.client import TFCClient
+from terrapyne.core.context import resolve_organization, resolve_workspace
 from terrapyne.core.exceptions import TerrapyneError, TFCAPIError
-from terrapyne.utils.context import resolve_organization, resolve_workspace
 
 F = TypeVar("F", bound=Callable[..., Any])
 

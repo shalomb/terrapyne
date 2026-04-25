@@ -34,7 +34,7 @@ def vcs_list(
             console.print(f"[yellow]No VCS connections found in {org}[/yellow]")
             return
 
-        from terrapyne.utils.rich_tables import render_vcs_connections
+        from terrapyne.rendering.rich_tables import render_vcs_connections
 
         render_vcs_connections(connections, f"VCS Connections in {org}")
 
@@ -102,6 +102,6 @@ def vcs_show(
             console.print(f"[yellow]Workspace '{ws_name}' has no VCS configuration.[/yellow]")
             return
 
-        from terrapyne.utils.rich_tables import render_workspace_vcs
+        from terrapyne.rendering.rich_tables import render_workspace_vcs
 
         render_workspace_vcs(ws)

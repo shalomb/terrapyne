@@ -17,6 +17,7 @@ from .api.vcs import VCSAPI
 from .api.workspace_clone import CloneWorkspaceAPI
 from .api.workspaces import WorkspaceAPI
 from .core.backend import RemoteBackend
+from .core.context import resolve_organization, resolve_workspace
 from .core.credentials import TerraformCredentials
 from .core.exceptions import (
     TerraformApplyError,
@@ -40,7 +41,6 @@ from .models.team_access import TeamProjectAccess
 from .models.variable import WorkspaceVariable
 from .models.vcs import VCSConnection
 from .models.workspace import Workspace, WorkspaceVCS
-from .utils.context import resolve_organization, resolve_workspace
 
 __all__ = [
     "VCSAPI",
