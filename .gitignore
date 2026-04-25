@@ -270,3 +270,4 @@ terraform.rc
 
 # Git worktrees
 .worktrees/
+terrapyne.auto.tfvars.json
