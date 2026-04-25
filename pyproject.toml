@@ -104,4 +104,5 @@ exclude = ["src/terrapyne/logging.py", "src/terrapyne/terrapyne.py"]
 dev = [
     "import-linter>=2.11",
     "pytest>=9.0.3",
+    "pytest-bdd>=7.1.0",
 ]
