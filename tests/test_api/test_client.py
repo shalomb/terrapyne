@@ -13,6 +13,7 @@ from terrapyne.core.credentials import TerraformCredentials
 from terrapyne.core.exceptions import (
     TFCAPIError,
     TFCAuthenticationError,
+    TFCConflictError,
     TFCNotFoundError,
     TFCRateLimitError,
     TFCServerError,
@@ -252,3 +253,47 @@ class TestRetryLogic:
 
         # Verify it has the retry decorator applied (wrapped function signature)
         assert hasattr(client.get, "__wrapped__") or "retry" in str(type(client.get))
+
+    def test_post_409_does_not_retry(self):
+        """POST on 409 Conflict must raise immediately — no retry.
+
+        A duplicate resource creation that returns 409 is not transient;
+        retrying it would create another duplicate or corrupt state.
+        """
+        creds = TerraformCredentials(host="app.terraform.io", token="test-token")
+        client = TFCClient(credentials=creds)
+
+        call_count = 0
+
+        def mock_request(method, path, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            request = httpx.Request(method, f"https://app.terraform.io/api/v2{path}")
+            return httpx.Response(409, request=request)
+
+        with patch.object(client.client, "request", side_effect=mock_request):
+            with pytest.raises(TFCConflictError):
+                client.post("/workspaces", json_data={"data": {}})
+
+        assert call_count == 1, (
+            f"POST was retried {call_count} times on 409; expected exactly 1 call"
+        )
+
+    def test_post_500_retries(self):
+        """POST on 500 Server Error should retry — transient failure is safe assumption."""
+        creds = TerraformCredentials(host="app.terraform.io", token="test-token")
+        client = TFCClient(credentials=creds)
+
+        call_count = 0
+
+        def mock_request(method, path, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            request = httpx.Request(method, f"https://app.terraform.io/api/v2{path}")
+            return httpx.Response(500, request=request)
+
+        with patch.object(client.client, "request", side_effect=mock_request):
+            with pytest.raises(TFCServerError):
+                client.post("/runs", json_data={"data": {}})
+
+        assert call_count == 3, f"POST on 500 should retry 3 times, got {call_count}"
