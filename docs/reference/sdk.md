@@ -52,7 +52,12 @@ All API operations are accessed through `TFCClient` properties:
 All API responses are parsed into Pydantic models:
 
 ```python
-from terrapyne.models import Workspace, Run, RunStatus, Plan, Team, WorkspaceVariable
+from terrapyne.models import (
+    Apply, Plan, Project, Run, RunStatus,
+    StateVersion, StateVersionOutput,
+    Team, TeamProjectAccess,
+    VCSConnection, Workspace, WorkspaceVCS, WorkspaceVariable,
+)
 ```
 
 Each model has a `from_api_response(data)` class method for parsing raw API dicts.
