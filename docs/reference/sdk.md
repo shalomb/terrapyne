@@ -44,13 +44,20 @@ All API operations are accessed through `TFCClient` properties:
 | `client.runs` | `RunsAPI` | list, get, create, apply, get_plan, get_plan_logs, get_apply_logs, poll_until_complete |
 | `client.projects` | `ProjectAPI` | list, get_by_name, get_by_id, list_team_access |
 | `client.teams` | `TeamsAPI` | list_teams, get, create, update, delete, add/remove_member, get/set_project_access |
+| `client.state_versions` | `StateVersionsAPI` | list, get, get_current, download, list_outputs, find_version_before |
+| `client.vcs` | `VCSAPI` | get_workspace_vcs, update_workspace_branch, list_connections, list_repositories |
 
 ## Models
 
 All API responses are parsed into Pydantic models:
 
 ```python
-from terrapyne.models import Workspace, Run, RunStatus, Plan, Team, WorkspaceVariable
+from terrapyne.models import (
+    Apply, Plan, Project, Run, RunStatus,
+    StateVersion, StateVersionOutput,
+    Team, TeamProjectAccess,
+    VCSConnection, Workspace, WorkspaceVCS, WorkspaceVariable,
+)
 ```
 
 Each model has a `from_api_response(data)` class method for parsing raw API dicts.

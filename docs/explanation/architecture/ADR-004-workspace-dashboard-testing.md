@@ -20,14 +20,14 @@ Feature: Workspace Activity Snapshot
   I want a health and activity summary when I inspect a workspace
   So that I can assess its state without opening the GUI
 
-  Scenario: Workspace with recent successful run shows healthy
+  Scenario: Workspace with recent successful run shows healthy status
     Given a workspace with a recently applied run linked to a VCS repository
     When I show the workspace
     Then I should see the workspace health status
     And I should see the count of queued runs
     And I should see the latest commit information
 
-  Scenario: Workspace with no recent runs shows unknown health
+  Scenario: Workspace with no run history shows unknown health
     Given a workspace with no run history
     When I show the workspace
     Then I should see that health status is unknown
