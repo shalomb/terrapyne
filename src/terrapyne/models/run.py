@@ -60,7 +60,7 @@ class RunStatus(StrEnum):
     DISCARDED = "discarded"  # Terminal state
 
     @staticmethod
-    def get_active_statuses() -> builtins.list[str]:
+    def get_active_statuses() -> builtins.list["RunStatus"]:
         """Get list of active (non-terminal) statuses."""
         return [
             RunStatus.PENDING,
