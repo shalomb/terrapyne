@@ -247,3 +247,65 @@ class WorkspaceAPI:
         """
         path = f"/vars/{variable_id}"
         self.client.delete(path)
+
+    def create(
+        self,
+        name: str,
+        organization: str | None = None,
+        project_id: str | None = None,
+        terraform_version: str | None = None,
+        execution_mode: str | None = None,
+        working_directory: str | None = None,
+        vcs_repo: dict[str, str] | None = None,
+    ) -> Workspace:
+        """Create a new workspace.
+
+        Args:
+            name: Workspace name
+            organization: Organization name (uses client default if not specified)
+            project_id: Project ID to associate workspace with
+            terraform_version: Terraform version to use
+            execution_mode: Execution mode (remote, local, agent)
+            working_directory: Working directory within VCS repo
+            vcs_repo: VCS repository config dict with keys: identifier, oauth-token-id, branch
+
+        Returns:
+            Created Workspace instance
+
+        Raises:
+            TFCAPIError: If creation fails (e.g., 409 if workspace already exists)
+        """
+        org = self.client.get_organization(organization)
+        path = f"/organizations/{org}/workspaces"
+
+        attributes: dict[str, Any] = {"name": name}
+        if terraform_version:
+            attributes["terraform-version"] = terraform_version
+        if execution_mode:
+            attributes["execution-mode"] = execution_mode
+        if working_directory:
+            attributes["working-directory"] = working_directory
+        if vcs_repo:
+            attributes["vcs-repo"] = vcs_repo
+
+        payload: dict[str, Any] = {"data": {"type": "workspaces", "attributes": attributes}}
+
+        if project_id:
+            payload["data"]["relationships"] = {
+                "project": {"data": {"type": "projects", "id": project_id}}
+            }
+
+        response = self.client.post(path, json_data=payload)
+        return Workspace.from_api_response(response["data"])
+
+    def delete(self, workspace_id: str) -> None:
+        """Delete a workspace by ID.
+
+        Args:
+            workspace_id: Workspace ID to delete
+
+        Raises:
+            TFCAPIError: If deletion fails
+        """
+        path = f"/workspaces/{workspace_id}"
+        self.client.delete(path)
