@@ -37,11 +37,12 @@ def find_terraform_tf(start_dir: Path) -> Path | None:
         tf_file = current / "terraform.tf"
         if tf_file.exists():
             return tf_file
-        # Look for any .tf file that contains a remote backend
+        # Look for any .tf file that contains a remote backend or cloud block
         candidates = list(current.glob("*.tf"))
         for candidate in candidates:
             try:
-                if 'backend "remote"' in candidate.read_text():
+                text = candidate.read_text()
+                if 'backend "remote"' in text or "cloud {" in text:
                     return candidate
             except Exception:
                 continue
@@ -52,8 +53,38 @@ def find_terraform_tf(start_dir: Path) -> Path | None:
     return None
 
 
+def _extract_from_block(block: dict) -> RemoteBackend | None:
+    """Extract RemoteBackend fields from a parsed remote/cloud block dict."""
+    if isinstance(block, list):
+        block = block[0]
+    if not isinstance(block, dict):
+        return None
+
+    hostname = block.get("hostname", "app.terraform.io")
+    organization = block.get("organization")
+    if not organization:
+        return None
+
+    workspaces = block.get("workspaces", {})
+    if isinstance(workspaces, list):
+        workspaces = workspaces[0] if workspaces else {}
+    if isinstance(workspaces, dict):
+        workspace_name = workspaces.get("name")
+        workspace_prefix = workspaces.get("prefix")
+    else:
+        workspace_name = None
+        workspace_prefix = None
+
+    return RemoteBackend(
+        hostname=hostname,
+        organization=organization,
+        workspace_name=workspace_name,
+        workspace_prefix=workspace_prefix,
+    )
+
+
 def parse_backend_hcl(tf_file: Path) -> RemoteBackend | None:
-    """Parse backend config from HCL."""
+    """Parse backend config from HCL (cloud block or backend "remote")."""
     if not HAS_HCL2:
         return None
 
@@ -66,53 +97,29 @@ def parse_backend_hcl(tf_file: Path) -> RemoteBackend | None:
     except Exception:
         return None
 
-    # Navigate parsed HCL for terraform -> backend "remote"
     terraform = parsed.get("terraform")
     if not terraform:
         return None
-
-    # terraform can be a list or dict depending on hcl2 parsing
     if isinstance(terraform, list):
         terraform = terraform[0]
-
     if not isinstance(terraform, dict):
         return None
 
+    # Try cloud block first (Terraform >= 1.1)
+    cloud = terraform.get("cloud")
+    if cloud:
+        result = _extract_from_block(cloud)
+        if result:
+            return result
+
+    # Fall back to backend "remote"
     backend = terraform.get("backend")
     if not backend or not isinstance(backend, dict):
         return None
-
     remote_block = backend.get("remote")
     if not remote_block:
         return None
-
-    # remote_block may be list or dict
-    if isinstance(remote_block, list):
-        remote_block = remote_block[0]
-
-    if not isinstance(remote_block, dict):
-        return None
-
-    hostname = remote_block.get("hostname", "app.terraform.io")
-    organization = remote_block.get("organization")
-
-    workspaces = remote_block.get("workspaces", {})
-    if isinstance(workspaces, dict):
-        workspace_name = workspaces.get("name")
-        workspace_prefix = workspaces.get("prefix")
-    else:
-        workspace_name = None
-        workspace_prefix = None
-
-    if not organization:
-        return None
-
-    return RemoteBackend(
-        hostname=hostname,
-        organization=organization,
-        workspace_name=workspace_name,
-        workspace_prefix=workspace_prefix,
-    )
+    return _extract_from_block(remote_block)
 
 
 def parse_backend_regex(content: str) -> RemoteBackend | None:
