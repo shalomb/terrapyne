@@ -16,6 +16,7 @@ Workspace management and inspection.
 
 - `list`: List workspaces in an organization.
 - `show`: Show detailed workspace information.
+- `health`: Show workspace health snapshot (status, active runs, latest commit).
 - `vcs`: Show VCS configuration for a workspace.
 - `variables`: List variables in a workspace.
 - `var-set`: Create or update workspace variables (supports bulk setting).

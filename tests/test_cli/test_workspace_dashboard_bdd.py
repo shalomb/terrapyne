@@ -55,6 +55,14 @@ def test_dashboard_json_output():
     """Scenario: JSON output includes workspace snapshot data."""
 
 
+@scenario(
+    "../features/workspace_dashboard.feature",
+    "health subcommand renders snapshot-only view",
+)
+def test_health_subcommand_snapshot_only():
+    """Scenario: health subcommand renders snapshot-only view."""
+
+
 # ============================================================================
 # Background / Given Steps
 # ============================================================================
@@ -202,10 +210,21 @@ def show_workspace_json(workspace_detail_response, run_list_response):
 # ============================================================================
 
 
+def _get_command_result(request):
+    """Return command result dict from whichever 'when' fixture is active."""
+    for fixture_name in ("show_workspace_dashboard", "run_health_subcommand"):
+        try:
+            return request.getfixturevalue(fixture_name)
+        except pytest.FixtureLookupError:
+            pass
+    raise pytest.FixtureLookupError("", request, "No command result fixture found")
+
+
 @then("I should see the workspace health snapshot")
-def check_health_snapshot(show_workspace_dashboard):
+def check_health_snapshot(request):
     """Verify health snapshot section is rendered."""
-    result = show_workspace_dashboard["result"]
+    ctx = _get_command_result(request)
+    result = ctx["result"]
     assert result.exit_code == 0, f"Command failed: {result.stdout}"
     # Outcome: health status is visible (not checking for specific emoji)
     output_lower = result.stdout.lower()
@@ -230,9 +249,10 @@ def check_latest_run_info(show_workspace_dashboard):
 
 
 @then("I should see the active run count")
-def check_active_run_count(show_workspace_dashboard):
+def check_active_run_count(request):
     """Verify active run count is displayed."""
-    result = show_workspace_dashboard["result"]
+    ctx = _get_command_result(request)
+    result = ctx["result"]
     assert result.exit_code == 0
     # Outcome: run count information is present
     output_lower = result.stdout.lower()
@@ -372,3 +392,51 @@ def check_json_active_count(show_workspace_json):
     assert any(keyword in str(data).lower() for keyword in ["active", "count", "runs"]), (
         "Active runs count not in JSON"
     )
+
+
+@pytest.fixture
+@when("I run the health subcommand")
+def run_health_subcommand(workspace_detail_response, run_list_response):
+    """Execute workspace health command and capture output."""
+    with patch("terrapyne.api.client.TFCClient") as mock_client:
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+
+        workspace = Workspace.from_api_response(workspace_detail_response["data"])
+        runs = [Run.from_api_response(data) for data in run_list_response["data"]]
+
+        mock_instance.workspaces.get.return_value = workspace
+        mock_instance.runs.list.return_value = (runs, len(runs))
+
+        result = runner.invoke(
+            app,
+            [
+                "workspace",
+                "health",
+                "my-app-dev",
+                "--organization",
+                "test-org",
+            ],
+        )
+
+        return {
+            "result": result,
+            "workspace": workspace,
+            "runs": runs,
+        }
+
+
+@then("I should not see workspace variables section")
+def check_no_variables_section(run_health_subcommand):
+    """Verify variables section is absent from health output."""
+    result = run_health_subcommand["result"]
+    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+    assert "Variables" not in result.stdout, "Variables section should not appear in health output"
+
+
+@then("I should not see VCS configuration section")
+def check_no_vcs_section(run_health_subcommand):
+    """Verify VCS configuration section is absent from health output."""
+    result = run_health_subcommand["result"]
+    assert result.exit_code == 0
+    assert "VCS" not in result.stdout, "VCS section should not appear in health output"

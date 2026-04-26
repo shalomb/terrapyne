@@ -214,6 +214,48 @@ def workspace_show(
         render_workspace_vcs(ws)
 
 
+@app.command("health")
+@handle_cli_errors
+def workspace_health(
+    ctx: typer.Context,
+    workspace: str | None = typer.Argument(
+        None, help="Workspace name (auto-detected from terraform.tf if in terraform directory)"
+    ),
+    organization: str | None = typer.Option(
+        None,
+        "--organization",
+        "-o",
+        help="TFC organization (auto-detected from context if available)",
+    ),
+):
+    """Show workspace health snapshot (status, active runs, latest commit)."""
+    org, ws_name = validate_context(organization, workspace, require_workspace=True)
+
+    with get_client(ctx, organization=org) as client:
+        ws = client.workspaces.get(
+            cast(str, ws_name), org, include="latest-run,latest-run.configuration-version"
+        )
+
+        latest_run = ws.latest_run
+        active_runs_count = 0
+        try:
+            active_list = RunStatus.get_active_statuses()
+            active_statuses = ",".join(active_list)
+            _, total_active = client.runs.list(ws.id, status=active_statuses, limit=1)
+            active_runs_count = total_active or 0
+        except TFCAPIError as e:
+            console.print(
+                f"\n[yellow]Warning:[/yellow] Unable to fetch run activity "
+                f"(API error {e.status_code})"
+            )
+
+        from terrapyne.rendering.rich_tables import render_workspace_snapshot
+
+        render_workspace_snapshot(
+            workspace=ws, latest_run=latest_run, active_runs_count=active_runs_count
+        )
+
+
 @app.command("vcs")
 @handle_cli_errors
 def workspace_vcs(
