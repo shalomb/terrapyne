@@ -146,6 +146,50 @@ def test_list_team_access(project_api, mock_client):
         mock_team_get.assert_called_once_with("team-1")
 
 
+@pytest.mark.parametrize(
+    "pattern, api_results, expected_names",
+    [
+        # prefix: 10234-* should match 10234-foo but not my-10234-project
+        (
+            "10234-*",
+            ["10234-foo", "my-10234-project", "10234-bar"],
+            ["10234-foo", "10234-bar"],
+        ),
+        # suffix: *-MAN should match PROJ-MAN but not PROJ-MANAGER
+        (
+            "*-MAN",
+            ["PROJ-MAN", "PROJ-MANAGER", "93126-MAN"],
+            ["PROJ-MAN", "93126-MAN"],
+        ),
+        # contains: *235* should match anything with 235 in name
+        (
+            "*235*",
+            ["10235-foo", "bar-235-baz", "99999-no"],
+            ["10235-foo", "bar-235-baz"],
+        ),
+    ],
+)
+def test_list_projects_wildcard_postfilter(
+    project_api, mock_client, pattern, api_results, expected_names
+):
+    """API results are post-filtered by fnmatch so false positives are excluded."""
+    mock_client.get_organization.return_value = "test-org"
+    mock_client.paginate_with_meta.return_value = (
+        iter(
+            [
+                {"id": f"prj-{i}", "type": "projects", "attributes": {"name": name}}
+                for i, name in enumerate(api_results)
+            ]
+        ),
+        len(api_results),
+    )
+
+    projects_iter, _ = project_api.list(search=pattern)
+    names = [p.name for p in projects_iter]
+
+    assert names == expected_names
+
+
 def test_list_team_access_enrichment_failure(project_api, mock_client):
     """Test team access listing when team name enrichment fails."""
     access_data = [

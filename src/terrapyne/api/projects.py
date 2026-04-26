@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import builtins
 from collections.abc import Iterator
+from fnmatch import fnmatch
 from typing import TYPE_CHECKING
 
 from terrapyne.api.client import TFCClient
@@ -52,7 +53,10 @@ class ProjectAPI:
 
         def project_iterator() -> Iterator[Project]:
             for item in items_iterator:
-                yield Project.from_api_response(item)
+                project = Project.from_api_response(item)
+                if search and "*" in search and not fnmatch(project.name, search):
+                    continue
+                yield project
 
         return project_iterator(), total_count
 
