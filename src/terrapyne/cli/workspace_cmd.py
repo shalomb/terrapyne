@@ -123,7 +123,7 @@ def workspace_show(
         active_runs_count = 0
         try:
             active_list = RunStatus.get_active_statuses()
-            active_statuses = ",".join(active_list)
+            active_statuses = ",".join(s.value for s in active_list)
 
             # Efficiently get total count of active runs
             _, total_active = client.runs.list(ws.id, status=active_statuses, limit=1)

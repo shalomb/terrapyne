@@ -67,7 +67,7 @@ class RunsAPI:
         """Get all currently active (non-terminal) runs for a workspace."""
         from terrapyne.models.run import RunStatus
 
-        active_statuses = ",".join(RunStatus.get_active_statuses())
+        active_statuses = ",".join(s.value for s in RunStatus.get_active_statuses())
         # TFC API supports comma-separated status filter
         runs, _ = self.list(workspace_id, status=active_statuses, limit=100)
         return runs

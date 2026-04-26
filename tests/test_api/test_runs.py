@@ -377,6 +377,28 @@ class TestRunRetrieval:
         assert runs[0].status == RunStatus.APPLIED
 
 
+class TestRunStatusActiveStatuses:
+    """Tests for RunStatus.get_active_statuses() return type."""
+
+    def test_get_active_statuses_returns_list_of_run_status(self):
+        """get_active_statuses() must return list[RunStatus], not list[str]."""
+        statuses = RunStatus.get_active_statuses()
+        assert len(statuses) > 0
+        assert all(isinstance(s, RunStatus) for s in statuses)
+
+    def test_get_active_statuses_excludes_terminal_states(self):
+        """Terminal states must not appear in active statuses."""
+        statuses = RunStatus.get_active_statuses()
+        terminal = {
+            RunStatus.APPLIED,
+            RunStatus.ERRORED,
+            RunStatus.CANCELED,
+            RunStatus.FORCE_CANCELED,
+            RunStatus.DISCARDED,
+        }
+        assert not terminal.intersection(statuses)
+
+
 class TestRunIntegration:
     """Test full run lifecycle workflows."""
 
