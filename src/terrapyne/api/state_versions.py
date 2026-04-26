@@ -36,15 +36,9 @@ class StateVersionsAPI:
         path = "/state-versions"
         params: dict[str, Any] = {}
 
-        # TFC API requires org+name, not workspace ID
-        if not (organization and workspace_name) and workspace_id:
-            from terrapyne.api.workspaces import WorkspaceAPI
-
-            ws = WorkspaceAPI(self.client).get_by_id(workspace_id)
-            workspace_name = ws.name
-            organization = self.client.get_organization()
-
-        if organization and workspace_name:
+        if workspace_id:
+            params["filter[workspace][id]"] = workspace_id
+        elif organization and workspace_name:
             params["filter[organization][name]"] = organization
             params["filter[workspace][name]"] = workspace_name
         else:

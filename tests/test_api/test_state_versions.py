@@ -45,6 +45,25 @@ def test_list_state_versions(api, mock_client):
     mock_client.paginate_with_meta.assert_called_once()
 
 
+def test_list_state_versions_by_workspace_id_no_round_trip(api, mock_client):
+    """When workspace_id is given, use filter[workspace][id] directly — no workspace lookup."""
+    mock_client.paginate_with_meta.return_value = (
+        [{"id": "sv-1", "attributes": {"serial": 1, "status": "complete", "resource-count": 5}}],
+        1,
+    )
+
+    versions, _total = api.list(workspace_id="ws-xyz")
+
+    assert len(versions) == 1
+    assert versions[0].id == "sv-1"
+    # Must use filter[workspace][id] directly
+    call_kwargs = mock_client.paginate_with_meta.call_args
+    params = call_kwargs[1].get("params") or call_kwargs[0][1]
+    assert params.get("filter[workspace][id]") == "ws-xyz"
+    # Must NOT have triggered a workspace lookup
+    mock_client.get.assert_not_called()
+
+
 def test_get_state_version(api, mock_client):
     """Test getting a single state version by ID."""
     mock_client.get.return_value = {
