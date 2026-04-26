@@ -169,7 +169,7 @@ class TeamProjectAccessComparison(BaseModel):
                 )
             )
 
-        return cls(
+        return cls.model_construct(
             identical=len(diffs) == 0,
             access_a=access_a,
             access_b=access_b,
