@@ -179,6 +179,107 @@ class TestAPIResponseHandling:
         assert len(results_list) > 0
 
 
+class TestPaginateWithMetaIncludedAccumulation:
+    """B3: paginate_with_meta must accumulate included across all pages."""
+
+    @patch("terrapyne.api.client.TFCClient.get")
+    def test_included_accumulates_across_pages(self, mock_get):
+        """included from all pages is available, not just the last page."""
+        creds = TerraformCredentials(host="app.terraform.io", token="test-token")
+        client = TFCClient(credentials=creds)
+
+        page1_url = "https://app.terraform.io/api/v2/workspaces?page%5Bnumber%5D=2"
+        mock_get.side_effect = [
+            {
+                "data": [{"id": "ws-1"}],
+                "included": [{"type": "projects", "id": "prj-1", "attributes": {"name": "Alpha"}}],
+                "meta": {"pagination": {"total-count": 2}},
+                "links": {"next": page1_url},
+            },
+            {
+                "data": [{"id": "ws-2"}],
+                "included": [{"type": "projects", "id": "prj-2", "attributes": {"name": "Beta"}}],
+                "meta": {"pagination": {"total-count": 2}},
+                "links": {},
+            },
+        ]
+
+        iterator, total = client.paginate_with_meta("/workspaces")
+        items = list(iterator)
+
+        assert total == 2
+        assert len(items) == 2
+        # Both project entries must be in included — not just the last page's
+        project_ids = {r["id"] for r in iterator.included if r["type"] == "projects"}
+        assert "prj-1" in project_ids, "prj-1 from page 1 was lost"
+        assert "prj-2" in project_ids, "prj-2 from page 2 missing"
+
+    @patch("terrapyne.api.client.TFCClient.get")
+    def test_included_is_empty_list_when_none_returned(self, mock_get):
+        """included defaults to empty list when API returns no included."""
+        creds = TerraformCredentials(host="app.terraform.io", token="test-token")
+        client = TFCClient(credentials=creds)
+
+        mock_get.return_value = {
+            "data": [{"id": "ws-1"}],
+            "meta": {"pagination": {"total-count": 1}},
+            "links": {},
+        }
+
+        iterator, _ = client.paginate_with_meta("/workspaces")
+        list(iterator)
+
+        assert iterator.included == []
+
+
+class TestPaginationUnification:
+    """A13: paginate_with_meta replaced with single pagination primitive."""
+
+    @patch("terrapyne.api.client.TFCClient.get")
+    def test_paginate_yields_items_without_meta(self, mock_get):
+        """paginate() still yields raw items for callers that don't need meta."""
+        creds = TerraformCredentials(host="app.terraform.io", token="test-token")
+        client = TFCClient(credentials=creds)
+
+        mock_get.return_value = {
+            "data": [{"id": "item-1"}, {"id": "item-2"}],
+            "meta": {"pagination": {"total-count": 2}},
+            "links": {},
+        }
+
+        items = list(client.paginate("/workspaces"))
+        assert [i["id"] for i in items] == ["item-1", "item-2"]
+
+    @patch("terrapyne.api.client.TFCClient.get")
+    def test_paginate_with_meta_returns_tuple(self, mock_get):
+        """paginate_with_meta returns (iterator, total_count) compatible tuple."""
+        creds = TerraformCredentials(host="app.terraform.io", token="test-token")
+        client = TFCClient(credentials=creds)
+
+        mock_get.return_value = {
+            "data": [{"id": "ws-1"}],
+            "included": [{"type": "projects", "id": "prj-1"}],
+            "meta": {"pagination": {"total-count": 42}},
+            "links": {},
+        }
+
+        result, total = client.paginate_with_meta("/workspaces")
+        assert total == 42
+        assert list(result) == [{"id": "ws-1"}]
+
+    @patch("terrapyne.api.client.TFCClient.get")
+    def test_no_inner_class_in_paginate_with_meta(self, mock_get):
+        """paginate_with_meta does not use a mutable ResponseIterator inner class."""
+        import inspect
+
+        import terrapyne.api.client as client_module
+
+        source = inspect.getsource(client_module.TFCClient.paginate_with_meta)
+        assert "class ResponseIterator" not in source, (
+            "ResponseIterator inner class should be removed"
+        )
+
+
 class TestHandleResponseError:
     """Test _handle_response_error maps HTTP status codes to domain exceptions."""
 

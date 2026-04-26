@@ -36,6 +36,19 @@ if TYPE_CHECKING:
 logger = logging.getLogger("terrapyne.api")
 
 
+class _PaginatedResult:
+    """Holds the result of a fully-consumed paginated API response."""
+
+    __slots__ = ("included", "items")
+
+    def __init__(self, items: list[dict[str, Any]], included: list[dict[str, Any]]) -> None:
+        self.items = items
+        self.included = included
+
+    def __iter__(self) -> Iterator[dict[str, Any]]:
+        return iter(self.items)
+
+
 class TFCClient:
     """Terraform Cloud API client with retry logic and pagination support."""
 
@@ -302,31 +315,17 @@ class TFCClient:
         Yields:
             Individual resource dicts
         """
-        params = (params or {}).copy()
-        page = 1
-
-        while True:
-            params.update({"page[number]": page, "page[size]": min(page_size, 100)})
-            response_data = self.get(path, params=params)
-
-            # Yield items from current page
-            data = response_data.get("data", [])
-            if not data:
-                break
-
-            yield from data
-
-            # Check if there are more pages
-            links = response_data.get("links", {})
-            if not links.get("next"):
-                break
-
-            page += 1
+        result, _ = self.paginate_with_meta(path, params=params, page_size=page_size)
+        yield from result
 
     def paginate_with_meta(
         self, path: str, params: dict[str, Any] | None = None, page_size: int = 100
-    ) -> tuple[Any, int | None]:
+    ) -> "tuple[_PaginatedResult, int | None]":
         """Paginate through API results with metadata.
+
+        Collects all pages eagerly, accumulating ``included`` across every page
+        so that relationship data (e.g. project names) is available for every
+        item, not just those on the last page.
 
         Args:
             path: API path
@@ -334,55 +333,33 @@ class TFCClient:
             page_size: Items per page (max 100)
 
         Returns:
-            Tuple of (iterator-like object with .included property, total count)
+            Tuple of (_PaginatedResult with .items and .included, total count)
         """
-        params = (params or {}).copy()
-        params.update({"page[number]": 1, "page[size]": min(page_size, 100)})
+        base_params = (params or {}).copy()
+        base_params["page[size]"] = min(page_size, 100)
 
-        # Get first page to extract total count
-        first_response = self.get(path, params=params)
+        items: list[dict[str, Any]] = []
+        included: list[dict[str, Any]] = []
+        total_count: int | None = None
+        page = 1
 
-        # Extract total count from meta
-        total_count = None
-        meta = first_response.get("meta", {})
-        pagination = meta.get("pagination", {})
-        total_count = pagination.get("total-count")
+        while True:
+            base_params["page[number]"] = page
+            response_data = self.get(path, params=base_params)
 
-        # Generator to yield items from all pages
-        class ResponseIterator:
-            def __init__(self, first_resp: dict[str, Any], client: TFCClient, base_params: dict):
-                self.first_resp = first_resp
-                self.client = client
-                self.params = base_params
-                self.included = first_resp.get("included", [])
+            if total_count is None:
+                meta = response_data.get("meta", {})
+                total_count = meta.get("pagination", {}).get("total-count")
 
-            def __iter__(self) -> Iterator[dict[str, Any]]:
-                # Yield items from first page
-                data = self.first_resp.get("data", [])
-                yield from data
+            items.extend(response_data.get("data", []))
+            included.extend(response_data.get("included", []))
 
-                # Continue with remaining pages if there are any
-                links = self.first_resp.get("links", {})
-                if links.get("next"):
-                    page = 2
-                    while True:
-                        self.params["page[number]"] = page
-                        response_data = self.client.get(path, params=self.params)
-                        self.included = response_data.get("included", [])
+            if not response_data.get("links", {}).get("next"):
+                break
 
-                        data = response_data.get("data", [])
-                        if not data:
-                            break
+            page += 1
 
-                        yield from data
-
-                        links = response_data.get("links", {})
-                        if not links.get("next"):
-                            break
-
-                        page += 1
-
-        return ResponseIterator(first_response, self, params), total_count
+        return _PaginatedResult(items, included), total_count
 
     def get_organization(self, org: str | None = None) -> str:
         """Get organization name (from param, instance, or raise error).
