@@ -94,6 +94,48 @@ def render_workspace_dashboard(
     console.print(snap_table)
 
 
+def render_workspace_snapshot(
+    workspace: Workspace, latest_run: Run | None = None, active_runs_count: int = 0
+) -> None:
+    """Render health & activity snapshot panel only (no detail table or variables).
+
+    Args:
+        workspace: Workspace instance
+        latest_run: Most recent run instance
+        active_runs_count: Number of queued or in-progress runs
+    """
+    snap_table = Table(
+        title=f"Health & Activity Snapshot — {workspace.name}", show_header=False, box=None
+    )
+    snap_table.add_column("Property", style="bold cyan", width=25)
+    snap_table.add_column("Value")
+
+    health_status = "Unknown (no runs found)"
+    if latest_run:
+        from terrapyne.rendering.logging import format_relative_time
+
+        status = latest_run.status
+        time_ago = (
+            format_relative_time(latest_run.created_at) if latest_run.created_at else "unknown time"
+        )
+        if status.is_successful:
+            health_status = f"🟢 Healthy (last run {status.value} {time_ago})"
+        elif status.is_error:
+            health_status = f"🔴 Unhealthy (last run {status.value} {time_ago})"
+        else:
+            health_status = f"🟡 Warning (last run {status.value} {time_ago})"
+
+    snap_table.add_row("Health", health_status)
+    snap_table.add_row("Active Runs", str(active_runs_count) if active_runs_count > 0 else "None")
+
+    if latest_run and latest_run.commit_sha:
+        author = latest_run.commit_author or "Unknown"
+        snap_table.add_row("Latest Commit", f"{latest_run.commit_sha[:7]} ({author})")
+        snap_table.add_row("Commit Message", latest_run.commit_message or "N/A")
+
+    console.print(snap_table)
+
+
 def render_workspace_variables(variables: Sequence[WorkspaceVariable]) -> None:
     """Render workspace variables as a Rich table.
 

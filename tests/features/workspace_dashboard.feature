@@ -36,3 +36,11 @@ Feature: Workspace Activity Dashboard
     Then I should receive JSON output
     And I should see snapshot section with latest run info
     And I should see active runs count in the snapshot
+
+  Scenario: health subcommand renders snapshot-only view
+    Given a workspace with a recently applied run
+    When I run the health subcommand
+    Then I should see the workspace health snapshot
+    And I should see the active run count
+    And I should not see workspace variables section
+    And I should not see VCS configuration section
