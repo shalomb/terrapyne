@@ -176,3 +176,62 @@ Feature: Workspace Operations
     And workspace "staging-app" should NOT have prod-app VCS configuration
     And output should show success message
     And exit code should be 0
+
+  # Workspace Create Feature Scenarios
+
+  Scenario: Create a workspace with required name only
+    Given organization "test-org" exists
+    When I create workspace "new-workspace" in "test-org"
+    Then workspace "new-workspace" should be created
+    And output should show "Created workspace: new-workspace"
+    And exit code should be 0
+
+  Scenario: Create a workspace with optional settings
+    Given organization "test-org" exists
+    When I create workspace "new-workspace" with tf-version "1.9.0" and execution-mode "remote"
+    Then workspace "new-workspace" should be created
+    And workspace should have terraform version "1.9.0"
+    And workspace should have execution mode "remote"
+    And exit code should be 0
+
+  Scenario: Create a workspace with project association
+    Given organization "test-org" exists
+    And project "prj-abc123" exists in "test-org"
+    When I create workspace "new-workspace" with project "prj-abc123"
+    Then workspace "new-workspace" should be created
+    And workspace should be associated with project "prj-abc123"
+    And exit code should be 0
+
+  Scenario: Create workspace fails when it already exists
+    Given workspace "existing-ws" already exists in "test-org"
+    When I try to create workspace "existing-ws" in "test-org"
+    Then I should see error message containing "already exists"
+    And exit code should be 1
+
+  # Workspace Delete Feature Scenarios
+
+  Scenario: Delete a workspace with confirmation
+    Given workspace "old-workspace" exists in "test-org"
+    When I delete workspace "old-workspace" with --force
+    Then workspace "old-workspace" should be deleted
+    And output should show "Deleted workspace: old-workspace"
+    And exit code should be 0
+
+  Scenario: Delete a workspace prompts for confirmation without --force
+    Given workspace "old-workspace" exists in "test-org"
+    When I delete workspace "old-workspace" without --force and confirm yes
+    Then workspace "old-workspace" should be deleted
+    And exit code should be 0
+
+  Scenario: Delete workspace aborted when user declines confirmation
+    Given workspace "old-workspace" exists in "test-org"
+    When I delete workspace "old-workspace" without --force and confirm no
+    Then workspace "old-workspace" should NOT be deleted
+    And output should show "Aborted"
+    And exit code should be 0
+
+  Scenario: Delete fails when workspace does not exist
+    Given workspace "ghost-workspace" does not exist in "test-org"
+    When I try to delete workspace "ghost-workspace" in "test-org"
+    Then I should see error message containing "not found"
+    And exit code should be 1

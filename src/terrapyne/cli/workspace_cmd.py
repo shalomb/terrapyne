@@ -13,7 +13,7 @@ from terrapyne.cli.utils import (
     validate_context,
 )
 from terrapyne.core.browser import get_workspace_url, open_url_in_browser
-from terrapyne.core.exceptions import TFCAPIError
+from terrapyne.core.exceptions import TFCAPIError, WorkspaceNotFoundError
 from terrapyne.models.run import RunStatus
 from terrapyne.models.variable import WorkspaceVariable
 from terrapyne.rendering.rich_tables import (
@@ -600,6 +600,118 @@ def workspace_clone(
         except WorkspaceNotFoundError as e:
             console.print(f"[red]Error:[/red] {e}")
             raise typer.Exit(1) from None
+
+
+@app.command("create")
+@handle_cli_errors
+def workspace_create(
+    ctx: typer.Context,
+    name: str = typer.Argument(..., help="Workspace name to create"),
+    organization: str | None = typer.Option(None, "--organization", "-o", help="TFC organization"),
+    project: str | None = typer.Option(None, "--project", "-p", help="Project ID to associate"),
+    tf_version: str | None = typer.Option(
+        None, "--tf-version", help="Terraform version (e.g. 1.9.0)"
+    ),
+    execution_mode: str | None = typer.Option(
+        None, "--execution-mode", "-m", help="Execution mode: remote, local, agent"
+    ),
+    working_dir: str | None = typer.Option(
+        None, "--working-dir", help="Working directory within VCS repo"
+    ),
+    vcs_repo: str | None = typer.Option(
+        None, "--vcs-repo", help="VCS repo identifier (e.g. org/repo)"
+    ),
+    oauth_token_id: str | None = typer.Option(
+        None, "--oauth-token-id", help="OAuth token ID for VCS connection"
+    ),
+):
+    """Create a new workspace.
+
+    Examples:
+        # Create a basic workspace
+        tfc workspace create my-new-workspace --organization my-org
+
+        # Create with specific Terraform version and execution mode
+        tfc workspace create my-new-workspace --tf-version 1.9.0 --execution-mode remote
+
+        # Create with VCS connection
+        tfc workspace create my-new-workspace --vcs-repo org/repo --oauth-token-id ot-abc123
+    """
+    org = resolve_organization(organization)
+    if not org:
+        console.print("[red]Error: Organization not specified and not found in context.[/red]")
+        raise typer.Exit(1)
+
+    vcs_repo_config = None
+    if vcs_repo:
+        if not oauth_token_id:
+            console.print("[red]Error: --oauth-token-id is required when --vcs-repo is set.[/red]")
+            raise typer.Exit(1)
+        vcs_repo_config = {"identifier": vcs_repo, "oauth-token-id": oauth_token_id}
+        if working_dir:
+            vcs_repo_config["working-directory"] = working_dir
+
+    with get_client(ctx, organization=org) as client:
+        ws = client.workspaces.create(
+            name=name,
+            organization=org,
+            project_id=project,
+            terraform_version=tf_version,
+            execution_mode=execution_mode,
+            working_directory=working_dir if not vcs_repo else None,
+            vcs_repo=vcs_repo_config,
+        )
+
+    console.print(f"[green]✓[/green] Created workspace: {ws.name}")
+    if ws.terraform_version:
+        console.print(f"  Terraform version: {ws.terraform_version}")
+    if ws.execution_mode:
+        console.print(f"  Execution mode:    {ws.execution_mode}")
+    if ws.project_id:
+        console.print(f"  Project:           {ws.project_id}")
+
+    url = get_workspace_url(org, ws.name)
+    console.print(f"  View: {url}")
+
+
+@app.command("delete")
+@handle_cli_errors
+def workspace_delete(
+    ctx: typer.Context,
+    name: str = typer.Argument(..., help="Workspace name to delete"),
+    organization: str | None = typer.Option(None, "--organization", "-o", help="TFC organization"),
+    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation prompt"),
+):
+    """Delete a workspace.
+
+    Examples:
+        # Delete with confirmation prompt
+        tfc workspace delete my-old-workspace --organization my-org
+
+        # Delete without confirmation (use in CI/CD)
+        tfc workspace delete my-old-workspace --organization my-org --force
+    """
+    org = resolve_organization(organization)
+    if not org:
+        console.print("[red]Error: Organization not specified and not found in context.[/red]")
+        raise typer.Exit(1)
+
+    with get_client(ctx, organization=org) as client:
+        try:
+            ws = client.workspaces.get(name, org)
+        except WorkspaceNotFoundError:
+            console.print(f"[red]Error:[/red] Workspace '{name}' not found in '{org}'.")
+            raise typer.Exit(1) from None
+
+        if not force and not typer.confirm(
+            f"Delete workspace '{name}' in '{org}'? This cannot be undone."
+        ):
+            console.print("[yellow]Aborted.[/yellow]")
+            raise typer.Exit(0)
+
+        client.workspaces.delete(ws.id)
+
+    console.print(f"[green]✓[/green] Deleted workspace: {name}")
 
 
 @app.command("costs")

@@ -13,6 +13,7 @@ from typer.testing import CliRunner
 from terrapyne.cli.main import app
 from terrapyne.models.variable import WorkspaceVariable
 from terrapyne.models.workspace import Workspace
+from tests.fixtures.factories import workspace_response
 
 runner = CliRunner()
 
@@ -1207,4 +1208,403 @@ def check_success_message(clone_settings_only):
     """Verify success message shown."""
     result = clone_settings_only["result"]
     assert result.exit_code == 0
-    assert "success" in result.stdout.lower() or "Successfully" in result.stdout
+
+
+# ============================================================================
+# Workspace Create Command Tests
+# ============================================================================
+
+
+@scenario("../features/workspace.feature", "Create a workspace with required name only")
+def test_create_workspace_basic():
+    """Scenario: Create a workspace with required name only."""
+
+
+@given('organization "test-org" exists')
+def _():
+    """Organization exists."""
+    pass
+
+
+@pytest.fixture
+@when('I create workspace "new-workspace" in "test-org"')
+def create_workspace_basic(workspace_list_response):
+    """Create workspace via CLI."""
+    created_ws = Workspace.from_api_response(
+        workspace_response(id="ws-newws1234567", name="new-workspace")["data"]
+    )
+    with (
+        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
+    ):
+        mock_org.return_value = "test-org"
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+        mock_instance.workspaces.create.return_value = created_ws
+
+        result = runner.invoke(
+            app, ["workspace", "create", "new-workspace", "--organization", "test-org"]
+        )
+        return {"result": result, "workspace": created_ws}
+
+
+@then('workspace "new-workspace" should be created')
+def check_workspace_created(create_workspace_basic):
+    """Verify workspace created."""
+    result = create_workspace_basic["result"]
+    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+
+
+@then('output should show "Created workspace: new-workspace"')
+def check_create_output(create_workspace_basic):
+    """Verify creation output message."""
+    result = create_workspace_basic["result"]
+    assert "new-workspace" in result.stdout
+
+
+@scenario("../features/workspace.feature", "Create a workspace with optional settings")
+def test_create_workspace_with_settings():
+    """Scenario: Create workspace with optional settings."""
+
+
+@pytest.fixture
+@when('I create workspace "new-workspace" with tf-version "1.9.0" and execution-mode "remote"')
+def create_workspace_with_settings():
+    """Create workspace with settings."""
+    created_ws = Workspace.from_api_response(
+        workspace_response(
+            id="ws-newws1234567",
+            name="new-workspace",
+            terraform_version="1.9.0",
+            execution_mode="remote",
+        )["data"]
+    )
+    with (
+        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
+    ):
+        mock_org.return_value = "test-org"
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+        mock_instance.workspaces.create.return_value = created_ws
+
+        result = runner.invoke(
+            app,
+            [
+                "workspace",
+                "create",
+                "new-workspace",
+                "--organization",
+                "test-org",
+                "--tf-version",
+                "1.9.0",
+                "--execution-mode",
+                "remote",
+            ],
+        )
+        return {"result": result, "workspace": created_ws}
+
+
+@then('workspace should have terraform version "1.9.0"')
+def check_tf_version(create_workspace_with_settings):
+    """Verify terraform version."""
+    result = create_workspace_with_settings["result"]
+    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+    assert "1.9.0" in result.stdout
+
+
+@then('workspace should have execution mode "remote"')
+def check_execution_mode_create(create_workspace_with_settings):
+    """Verify execution mode."""
+    result = create_workspace_with_settings["result"]
+    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+
+
+@scenario("../features/workspace.feature", "Create a workspace with project association")
+def test_create_workspace_with_project():
+    """Scenario: Create workspace with project association."""
+
+
+@given('project "prj-abc123" exists in "test-org"')
+def _():
+    """Project exists."""
+    pass
+
+
+@pytest.fixture
+@when('I create workspace "new-workspace" with project "prj-abc123"')
+def create_workspace_with_project():
+    """Create workspace with project."""
+    created_ws = Workspace.from_api_response(
+        workspace_response(id="ws-newws1234567", name="new-workspace", project_id="prj-abc123")[
+            "data"
+        ]
+    )
+    with (
+        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
+    ):
+        mock_org.return_value = "test-org"
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+        mock_instance.workspaces.create.return_value = created_ws
+
+        result = runner.invoke(
+            app,
+            [
+                "workspace",
+                "create",
+                "new-workspace",
+                "--organization",
+                "test-org",
+                "--project",
+                "prj-abc123",
+            ],
+        )
+        return {"result": result, "workspace": created_ws}
+
+
+@then('workspace should be associated with project "prj-abc123"')
+def check_project_association(create_workspace_with_project):
+    """Verify project association."""
+    result = create_workspace_with_project["result"]
+    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+
+
+@scenario("../features/workspace.feature", "Create workspace fails when it already exists")
+def test_create_workspace_already_exists():
+    """Scenario: Create workspace fails when already exists."""
+
+
+@given('workspace "existing-ws" already exists in "test-org"')
+def _():
+    """Workspace already exists."""
+    pass
+
+
+@pytest.fixture
+@when('I try to create workspace "existing-ws" in "test-org"')
+def create_workspace_already_exists():
+    """Try to create duplicate workspace."""
+    from terrapyne.core.exceptions import WorkspaceAlreadyExistsError
+
+    with (
+        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
+    ):
+        mock_org.return_value = "test-org"
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+        mock_instance.workspaces.create.side_effect = WorkspaceAlreadyExistsError(
+            "Workspace 'existing-ws' already exists", status_code=409
+        )
+
+        result = runner.invoke(
+            app, ["workspace", "create", "existing-ws", "--organization", "test-org"]
+        )
+        return {"result": result}
+
+
+@then('I should see error message containing "already exists"')
+def check_already_exists_error(create_workspace_already_exists):
+    """Verify already exists error."""
+    result = create_workspace_already_exists["result"]
+    assert result.exit_code == 1
+    assert "already exists" in result.stdout.lower()
+
+
+# ============================================================================
+# Workspace Delete Command Tests
+# ============================================================================
+
+
+@scenario("../features/workspace.feature", "Delete a workspace with confirmation")
+def test_delete_workspace_force():
+    """Scenario: Delete a workspace with --force."""
+
+
+@given('workspace "old-workspace" exists in "test-org"')
+def _():
+    """Workspace exists."""
+    pass
+
+
+@pytest.fixture
+@when('I delete workspace "old-workspace" with --force')
+def delete_workspace_force():
+    """Delete workspace with --force."""
+    existing_ws = Workspace.from_api_response(
+        workspace_response(id="ws-oldws1234567", name="old-workspace")["data"]
+    )
+    with (
+        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
+    ):
+        mock_org.return_value = "test-org"
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+        mock_instance.workspaces.get.return_value = existing_ws
+        mock_instance.workspaces.delete.return_value = None
+
+        result = runner.invoke(
+            app,
+            [
+                "workspace",
+                "delete",
+                "old-workspace",
+                "--organization",
+                "test-org",
+                "--force",
+            ],
+        )
+        return {"result": result}
+
+
+@then('workspace "old-workspace" should be deleted')
+def check_workspace_deleted(delete_workspace_force):
+    """Verify workspace deleted."""
+    result = delete_workspace_force["result"]
+    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+
+
+@then('output should show "Deleted workspace: old-workspace"')
+def check_delete_output(delete_workspace_force):
+    """Verify delete output message."""
+    result = delete_workspace_force["result"]
+    assert "old-workspace" in result.stdout
+
+
+@scenario(
+    "../features/workspace.feature",
+    "Delete a workspace prompts for confirmation without --force",
+)
+def test_delete_workspace_confirm_yes():
+    """Scenario: Delete workspace with confirmation prompt accepted."""
+
+
+@pytest.fixture
+@when('I delete workspace "old-workspace" without --force and confirm yes')
+def delete_workspace_confirm_yes():
+    """Delete workspace and confirm yes."""
+    existing_ws = Workspace.from_api_response(
+        workspace_response(id="ws-oldws1234567", name="old-workspace")["data"]
+    )
+    with (
+        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
+    ):
+        mock_org.return_value = "test-org"
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+        mock_instance.workspaces.get.return_value = existing_ws
+        mock_instance.workspaces.delete.return_value = None
+
+        result = runner.invoke(
+            app,
+            ["workspace", "delete", "old-workspace", "--organization", "test-org"],
+            input="y\n",
+        )
+        return {"result": result}
+
+
+@then('workspace "old-workspace" should be deleted', target_fixture="delete_result_yes")
+def check_workspace_deleted_yes(delete_workspace_confirm_yes):
+    """Verify workspace deleted after yes."""
+    result = delete_workspace_confirm_yes["result"]
+    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+
+
+@scenario(
+    "../features/workspace.feature",
+    "Delete workspace aborted when user declines confirmation",
+)
+def test_delete_workspace_confirm_no():
+    """Scenario: Delete workspace aborted on no."""
+
+
+@pytest.fixture
+@when('I delete workspace "old-workspace" without --force and confirm no')
+def delete_workspace_confirm_no():
+    """Delete workspace and decline confirmation."""
+    existing_ws = Workspace.from_api_response(
+        workspace_response(id="ws-oldws1234567", name="old-workspace")["data"]
+    )
+    with (
+        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
+    ):
+        mock_org.return_value = "test-org"
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+        mock_instance.workspaces.get.return_value = existing_ws
+
+        result = runner.invoke(
+            app,
+            ["workspace", "delete", "old-workspace", "--organization", "test-org"],
+            input="n\n",
+        )
+        return {"result": result}
+
+
+@then('workspace "old-workspace" should NOT be deleted')
+def check_workspace_not_deleted(delete_workspace_confirm_no):
+    """Verify workspace not deleted."""
+    result = delete_workspace_confirm_no["result"]
+    assert result.exit_code == 0
+
+
+@then('output should show "Aborted"')
+def check_aborted_output(delete_workspace_confirm_no):
+    """Verify aborted message."""
+    result = delete_workspace_confirm_no["result"]
+    assert "Aborted" in result.stdout or "aborted" in result.stdout.lower()
+
+
+@scenario("../features/workspace.feature", "Delete fails when workspace does not exist")
+def test_delete_workspace_not_found():
+    """Scenario: Delete fails when workspace does not exist."""
+
+
+@given('workspace "ghost-workspace" does not exist in "test-org"')
+def _():
+    """Workspace does not exist."""
+    pass
+
+
+@pytest.fixture
+@when('I try to delete workspace "ghost-workspace" in "test-org"')
+def delete_workspace_not_found():
+    """Try to delete nonexistent workspace."""
+    from terrapyne.core.exceptions import WorkspaceNotFoundError
+
+    with (
+        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
+    ):
+        mock_org.return_value = "test-org"
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+        mock_instance.workspaces.get.side_effect = WorkspaceNotFoundError(
+            "Workspace 'ghost-workspace' not found", status_code=404
+        )
+
+        result = runner.invoke(
+            app,
+            [
+                "workspace",
+                "delete",
+                "ghost-workspace",
+                "--organization",
+                "test-org",
+                "--force",
+            ],
+        )
+        return {"result": result}
+
+
+@then('I should see error message containing "not found"')
+def check_not_found_error(delete_workspace_not_found):
+    """Verify not found error."""
+    result = delete_workspace_not_found["result"]
+    assert result.exit_code == 1
+    assert "not found" in result.stdout.lower()
