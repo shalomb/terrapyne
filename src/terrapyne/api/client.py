@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from terrapyne.api.runs import RunsAPI
     from terrapyne.api.state_versions import StateVersionsAPI
     from terrapyne.api.teams import TeamsAPI
+    from terrapyne.api.varsets import VarSetAPI
     from terrapyne.api.vcs import VCSAPI
     from terrapyne.api.workspaces import WorkspaceAPI
 
@@ -132,6 +133,13 @@ class TFCClient:
         from terrapyne.api.vcs import VCSAPI
 
         return VCSAPI(self)
+
+    @cached_property
+    def varsets(self) -> "VarSetAPI":
+        """Get variable sets API instance."""
+        from terrapyne.api.varsets import VarSetAPI
+
+        return VarSetAPI(self)
 
     def _log_request(self, method: str, url: str, params: Any = None) -> float:
         if self.debug:
