@@ -34,7 +34,6 @@ from .core.exceptions import (
     WorkspaceAlreadyExistsError,
     WorkspaceNotFoundError,
 )
-from .core.local_binary import Terraform
 from .core.plan_parser import TerraformPlainTextPlanParser as PlanParser
 from .models.plan import Plan
 from .models.project import Project
@@ -44,6 +43,28 @@ from .models.team_access import TeamProjectAccess
 from .models.variable import WorkspaceVariable
 from .models.vcs import VCSConnection
 from .models.workspace import Workspace, WorkspaceVCS
+
+_DEPRECATED = {
+    "Terraform": ("terrapyne.local.Terraform", "terrapyne.local"),
+}
+
+
+def __getattr__(name: str):
+    if name in _DEPRECATED:
+        import warnings
+
+        _canonical, module = _DEPRECATED[name]
+        warnings.warn(
+            f"terrapyne.{name} is deprecated; use `from {module} import {name}` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        import importlib
+
+        mod = importlib.import_module(".local", package=__name__)
+        return getattr(mod, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     "VCSAPI",
@@ -65,7 +86,6 @@ __all__ = [
     "Team",
     "TeamProjectAccess",
     "TeamsAPI",
-    "Terraform",
     "TerraformApplyError",
     "TerraformCredentials",
     "TerraformError",
