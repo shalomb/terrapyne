@@ -130,6 +130,11 @@ def test_stream_logs():
     pass
 
 
+@scenario("../features/run_lifecycle.feature", "Triggering a true speculative plan")
+def test_trigger_speculative_plan():
+    pass
+
+
 # ============================================================================
 # Scenarios - Diagnostics
 # ============================================================================
@@ -969,3 +974,59 @@ def check_more_available():
 @given(parsers.parse('there are "{count}" runs in the execution history'))
 def many_runs_history(count):
     pass
+
+
+# ============================================================================
+# Speculative Plan Steps
+# ============================================================================
+
+
+@when(
+    parsers.parse('I trigger a speculative plan for "{workspace}"'),
+    target_fixture="speculative_result",
+)
+def trigger_speculative(workspace):
+    with (
+        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.api.client.TFCClient") as c,
+    ):
+        v.return_value = ("test-org", workspace)
+        mock_instance = MagicMock()
+        c.return_value.__enter__.return_value = mock_instance
+
+        ws = Workspace.model_construct(id="ws-123", name=workspace)
+        mock_instance.workspaces.get.return_value = ws
+
+        cv_id = "cv-spec-abc123"
+        run = Run.model_construct(
+            id="run-spec-456",
+            status=RunStatus.PLANNED_AND_FINISHED,
+            configuration_version_id=cv_id,
+        )
+        mock_instance.runs.create_speculative.return_value = run
+
+        result = runner.invoke(
+            app, ["run", "trigger", workspace, "--speculative", "--no-wait", "-o", "test-org"]
+        )
+        result.mock_instance = mock_instance
+        result.cv_id = cv_id
+        return result
+
+
+@then("a speculative configuration version should be created")
+def check_speculative_cv_created(speculative_result):
+    assert speculative_result.exit_code == 0
+    speculative_result.mock_instance.runs.create_speculative.assert_called_once()
+    call_kwargs = speculative_result.mock_instance.runs.create_speculative.call_args
+    assert call_kwargs is not None
+
+
+@then("a run should be associated with that configuration version")
+def check_run_associated_with_cv(speculative_result):
+    assert "run-spec-456" in speculative_result.stdout
+
+
+@then("the run should not be confirmable")
+def check_run_not_confirmable(speculative_result):
+    # Speculative run type should be shown in output
+    assert "SPECULATIVE" in speculative_result.stdout

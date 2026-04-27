@@ -178,6 +178,64 @@ class RunsAPI:
         response = self.client.post(path, json_data=payload)
         return Run.from_api_response(response["data"])
 
+    def create_speculative(
+        self,
+        workspace_id: str,
+        message: str | None = None,
+    ) -> Run:
+        """Create a true speculative plan via a speculative configuration-version.
+
+        A speculative plan is read-only and cannot be applied. It is attached to
+        a configuration-version with ``speculative: true`` and runs in a sandboxed
+        context that does not affect workspace state.
+
+        Args:
+            workspace_id: Workspace ID
+            message: Optional run message
+
+        Returns:
+            Created Run instance (status will eventually reach ``planned_and_finished``)
+
+        Raises:
+            TFCAPIError: If creation fails
+        """
+        # 1. Create a speculative configuration-version for the workspace
+        cv_payload: dict[str, Any] = {
+            "data": {
+                "type": "configuration-versions",
+                "attributes": {
+                    "speculative": True,
+                    "auto-queue-runs": False,
+                },
+            }
+        }
+        cv_response = self.client.post(
+            f"/workspaces/{workspace_id}/configuration-versions",
+            json_data=cv_payload,
+        )
+        cv_id = cv_response["data"]["id"]
+
+        # 2. Create a run referencing the speculative configuration-version
+        run_payload: dict[str, Any] = {
+            "data": {
+                "attributes": {
+                    "auto-apply": False,
+                    "is-destroy": False,
+                },
+                "relationships": {
+                    "workspace": {"data": {"type": "workspaces", "id": workspace_id}},
+                    "configuration-version": {
+                        "data": {"type": "configuration-versions", "id": cv_id}
+                    },
+                },
+            }
+        }
+        if message:
+            run_payload["data"]["attributes"]["message"] = message
+
+        response = self.client.post("/runs", json_data=run_payload)
+        return Run.from_api_response(response["data"])
+
     def apply(self, run_id: str, comment: str | None = None) -> Run:
         """Apply a run.
 

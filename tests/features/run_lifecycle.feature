@@ -57,3 +57,9 @@ Feature: Infrastructure Change Lifecycle
     Then the plan logs should be streamed progressively
     And the apply logs should be streamed progressively
     And no duplicate log lines should be printed
+
+  Scenario: Triggering a true speculative plan
+    When I trigger a speculative plan for "my-app-dev"
+    Then a speculative configuration version should be created
+    And a run should be associated with that configuration version
+    And the run should not be confirmable

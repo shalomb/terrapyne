@@ -162,7 +162,7 @@ def run_plan(
         typer.Option("--refresh-only", help="Trigger a refresh-only plan"),
     ] = False,
 ):
-    """Trigger a new plan (speculative run)."""
+    """Trigger a new queued plan (confirmable; use 'run trigger --speculative' for a true read-only speculative plan)."""
     # Resolve organization and workspace
     org, workspace_name = validate_context(organization, workspace, require_workspace=True)
 
@@ -463,6 +463,17 @@ def run_trigger(
         bool,
         typer.Option("--debug-run", help="Enable TFC debugging mode for this run"),
     ] = False,
+    speculative: Annotated[
+        bool,
+        typer.Option(
+            "--speculative",
+            help=(
+                "Create a true speculative plan (read-only, cannot be applied). "
+                "Uses the configuration-version API with speculative=true. "
+                "Omit this flag for a confirmable queued plan."
+            ),
+        ),
+    ] = False,
 ):
     """Trigger a new run with advanced queue management."""
     # Resolve organization and workspace
@@ -502,14 +513,16 @@ def run_trigger(
 
         # Identify run type
         run_type = "PLAN"
-        if destroy:
+        if speculative:
+            run_type = "SPECULATIVE"
+        elif destroy:
             run_type = "DESTROY"
         elif refresh_only:
             run_type = "REFRESH"
 
-        if target:
+        if not speculative and target:
             run_type = f"TARGETED {run_type}"
-        if replace:
+        if not speculative and replace:
             run_type = f"REPLACE {run_type}"
 
         console.print(
@@ -518,16 +531,22 @@ def run_trigger(
         )
 
         # 2. Create run
-        run = client.runs.create(
-            workspace_id=ws.id,
-            message=message or f"{run_type} triggered via terrapyne",
-            is_destroy=destroy,
-            auto_apply=auto_apply,
-            target_addrs=target,
-            replace_addrs=replace,
-            refresh_only=refresh_only,
-            debug=debug_run,
-        )
+        if speculative:
+            run = client.runs.create_speculative(
+                workspace_id=ws.id,
+                message=message or f"{run_type} triggered via terrapyne",
+            )
+        else:
+            run = client.runs.create(
+                workspace_id=ws.id,
+                message=message or f"{run_type} triggered via terrapyne",
+                is_destroy=destroy,
+                auto_apply=auto_apply,
+                target_addrs=target,
+                replace_addrs=replace,
+                refresh_only=refresh_only,
+                debug=debug_run,
+            )
 
         console.print(f"[green]✓[/green] Created {run_type} run: {run.id}")
         if message:
