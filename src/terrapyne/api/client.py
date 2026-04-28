@@ -27,6 +27,7 @@ from terrapyne.core.exceptions import (
 
 if TYPE_CHECKING:
     from terrapyne.api.projects import ProjectAPI
+    from terrapyne.api.run_triggers import RunTriggersAPI
     from terrapyne.api.runs import RunsAPI
     from terrapyne.api.state_versions import StateVersionsAPI
     from terrapyne.api.teams import TeamsAPI
@@ -140,6 +141,13 @@ class TFCClient:
         from terrapyne.api.varsets import VarSetAPI
 
         return VarSetAPI(self)
+
+    @cached_property
+    def run_triggers(self) -> "RunTriggersAPI":
+        """Get run triggers API instance."""
+        from terrapyne.api.run_triggers import RunTriggersAPI
+
+        return RunTriggersAPI(self)
 
     def _log_request(self, method: str, url: str, params: Any = None) -> float:
         if self.debug:
