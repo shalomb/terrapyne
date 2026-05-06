@@ -389,9 +389,8 @@ def run_errors(
                     date_str = (
                         run.created_at.strftime("%Y-%m-%d %H:%M") if run.created_at else "Unknown"
                     )
-                    console.print(
-                        f"  • [cyan]{run.id}[/cyan] ({date_str}): {run.message or 'No message'}"
-                    )
+                    error_text = client.runs.get_error_summary(run)
+                    console.print(f"  • [cyan]{run.id}[/cyan] ({date_str}): {error_text}")
 
         if not error_found:
             console.print(
