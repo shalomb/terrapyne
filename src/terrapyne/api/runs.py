@@ -1,6 +1,7 @@
 """TFC Runs API."""
 
 import builtins
+import re
 import time
 from collections.abc import Callable
 from typing import Any
@@ -9,6 +10,8 @@ from terrapyne.core.exceptions import TFCAuthenticationError, TFCNotFoundError
 from terrapyne.models.apply import Apply
 from terrapyne.models.plan import Plan
 from terrapyne.models.run import Run
+
+_ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 class RunsAPI:
@@ -339,6 +342,40 @@ class RunsAPI:
         except (TFCNotFoundError, TFCAuthenticationError):
             # Logs might not be ready yet
             return ""
+
+    def get_error_summary(self, run: Run) -> str:
+        """Extract the Terraform error text from an errored run.
+
+        When the plan stage completed successfully (plan_status == "finished")
+        the failure occurred during apply — so the apply log is fetched.
+        Otherwise the error is in the plan log.
+
+        Falls back to run.message when no log is available or no Error: lines
+        are found (e.g. the run was cancelled before Terraform produced output).
+
+        Args:
+            run: An errored Run instance, ideally with plan_status populated
+                 via the plans included sideload.
+
+        Returns:
+            Extracted error lines joined by newline, or run.message as fallback.
+        """
+        fallback = run.message or run.id
+
+        if not run.plan_id:
+            return fallback
+
+        if run.plan_status == "finished":
+            # Plan succeeded — error is in the apply stage
+            raw = self.get_apply_logs(run.apply_id) if run.apply_id else ""
+        else:
+            raw = self.get_plan_logs(run.plan_id)
+
+        clean = _ANSI_ESCAPE.sub("", raw)
+        error_lines = [
+            line.strip() for line in clean.splitlines() if line.lstrip().startswith("Error:")
+        ]
+        return "\n".join(error_lines) if error_lines else fallback
 
     def get_apply(self, apply_id: str) -> Apply:
         """Get apply details.

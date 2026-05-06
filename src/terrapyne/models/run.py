@@ -163,6 +163,9 @@ class Run(BaseModel):
     apply_id: str | None = None
     configuration_version_id: str | None = None
 
+    # Enrichment: plan stage status (extracted from plans included sideload)
+    plan_status: str | None = None
+
     # Enrichment: Commit info (extracted from configuration-version)
     commit_sha: str | None = Field(None, alias="commit-sha")
     commit_message: str | None = Field(None, alias="commit-message")
@@ -220,6 +223,7 @@ class Run(BaseModel):
         additions = attrs.get("resource-additions")
         changes = attrs.get("resource-changes")
         destructions = attrs.get("resource-destructions")
+        plan_status = None
 
         if included:
             for item in included:
@@ -235,9 +239,10 @@ class Run(BaseModel):
                         commit_message = ingress.get("commit-message")
                         commit_author = ingress.get("commit-author")
 
-                # Resource counts from plan (overrides run attributes if present)
+                # Plan status and resource counts from plans sideload
                 if item.get("type") == "plans" and item.get("id") == plan_id:
                     p_attrs = item.get("attributes", {})
+                    plan_status = p_attrs.get("status")
                     if p_attrs.get("resource-additions") is not None:
                         additions = p_attrs.get("resource-additions")
                     if p_attrs.get("resource-changes") is not None:
@@ -256,6 +261,7 @@ class Run(BaseModel):
             plan_id=plan_id,
             apply_id=apply_id,
             configuration_version_id=configuration_version_id,
+            plan_status=plan_status,
             commit_sha=commit_sha,
             commit_message=commit_message,
             commit_author=commit_author,
