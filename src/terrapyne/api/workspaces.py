@@ -27,6 +27,7 @@ class WorkspaceAPI:
         search: str | None = None,
         project_id: str | None = None,
         include: str | None = None,
+        current_run_status: str | None = None,
     ) -> tuple[Iterator[Workspace], int | None]:
         """List workspaces in an organization.
 
@@ -35,6 +36,9 @@ class WorkspaceAPI:
             search: Search pattern for workspace names
             project_id: Filter by project ID
             include: Resources to include
+            current_run_status: Filter by the status of each workspace's current run
+                (e.g. "errored"). Automatically adds "latest-run" to includes so that
+                the embedded run is available without a second API call.
 
         Returns:
             Tuple of (iterator of Workspace instances, total count or None)
@@ -43,8 +47,14 @@ class WorkspaceAPI:
         path = f"/organizations/{org}/workspaces"
 
         params: dict[str, Any] = {}
-        if include:
-            params["include"] = include
+
+        # Build include list, ensuring latest-run is present when filtering by run status.
+        includes = set(include.split(",") if include else [])
+        if current_run_status:
+            includes.add("latest-run")
+        if includes:
+            params["include"] = ",".join(sorted(includes))
+
         if search:
             if "*" in search:
                 params["search[wildcard-name]"] = search
@@ -52,6 +62,8 @@ class WorkspaceAPI:
                 params["search[name]"] = search
         if project_id:
             params["filter[project][id]"] = project_id
+        if current_run_status:
+            params["filter[current-run][status]"] = current_run_status
 
         items_iterator, total_count = self.client.paginate_with_meta(path, params=params)
 
