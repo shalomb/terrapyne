@@ -46,3 +46,17 @@ Feature: Machine-readable command output
       When I request the project detail as JSON
       Then the output is valid JSON
       And the result is a JSON object with key "id"
+
+  Rule: run errors emits a JSON array when --json is passed
+
+    Scenario: run errors with --json produces a parseable array
+      Given a project with errored workspaces
+      When I request run errors as JSON
+      Then the output is valid JSON
+      And each entry has "workspace" and "error" keys
+
+    Scenario: run errors with --json and no errors produces an empty array
+      Given a project with no errored workspaces
+      When I request run errors as JSON
+      Then the output is valid JSON
+      And the result is an empty JSON array

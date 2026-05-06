@@ -310,3 +310,89 @@ def check_json_object_key(cli_result, key):
     data = json.loads(cli_result.stdout)
     assert isinstance(data, dict)
     assert key in data
+
+
+# ---------------------------------------------------------------------------
+# run errors --json scenarios
+# ---------------------------------------------------------------------------
+
+
+@scenario(
+    "../features/json_output.feature",
+    "run errors with --json produces a parseable array",
+)
+def test_run_errors_json():
+    pass
+
+
+@scenario(
+    "../features/json_output.feature",
+    "run errors with --json and no errors produces an empty array",
+)
+def test_run_errors_json_empty():
+    pass
+
+
+@given("a project with errored workspaces", target_fixture="mock_client")
+def project_with_errors():
+    import datetime
+
+    m = MagicMock()
+    prj = Project.model_construct(id="prj-err", name="platform", created_at=None, resource_count=1)
+    m._test_project = prj
+    run = Run.model_construct(
+        id="run-fail1",
+        status=RunStatus("errored"),
+        message="Triggered via CLI",
+        created_at=datetime.datetime(2099, 1, 1, tzinfo=datetime.timezone.utc),
+        plan_id="plan-1",
+        apply_id="apply-1",
+    )
+    ws = Workspace.model_construct(id="ws-err", name="app-dev", latest_run=run)
+    m.runs.get_error_summary.return_value = "Error: access denied"
+    m._errored_workspaces = [ws]
+    return m
+
+
+@given("a project with no errored workspaces", target_fixture="mock_client")
+def project_no_errors():
+    m = MagicMock()
+    prj = Project.model_construct(id="prj-ok", name="platform", created_at=None, resource_count=0)
+    m._test_project = prj
+    m._errored_workspaces = []
+    return m
+
+
+@when("I request run errors as JSON", target_fixture="cli_result")
+def req_run_errors_json(mock_client):
+    with (
+        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.cli.run_cmd.resolve_project_context") as r,
+        patch("terrapyne.cli.run_cmd.get_errored_workspaces") as g,
+        patch("terrapyne.api.client.TFCClient") as c,
+    ):
+        v.return_value = ("test-org", None)
+        r.return_value = ("test-org", mock_client._test_project)
+        g.return_value = mock_client._errored_workspaces
+        c.return_value.__enter__.return_value = mock_client
+        return runner.invoke(
+            app, ["run", "errors", "--organization", "test-org", "--json"], catch_exceptions=False
+        )
+
+
+@then('each entry has "workspace" and "error" keys')
+def check_error_entries(cli_result):
+    assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}:\n{cli_result.stdout}"
+    data = json.loads(cli_result.stdout)
+    assert isinstance(data, list)
+    assert len(data) > 0
+    for entry in data:
+        assert "workspace" in entry
+        assert "error" in entry
+
+
+@then("the result is an empty JSON array")
+def check_empty_array(cli_result):
+    assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}:\n{cli_result.stdout}"
+    data = json.loads(cli_result.stdout)
+    assert data == []
