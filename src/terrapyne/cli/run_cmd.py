@@ -359,6 +359,10 @@ def run_errors(
         int,
         typer.Option("--limit", "-n", help="Max errors to show per workspace"),
     ] = 3,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Output as JSON array (one entry per workspace with errors)"),
+    ] = False,
 ):
     """Identify recent execution errors across a project or the entire organisation.
 
@@ -386,9 +390,25 @@ def run_errors(
             except ValueError:
                 scope_label = f"organisation '{org}' (all projects)"
 
-        console.print(f"[dim]Scanning for errored workspaces in {scope_label}[/dim]")
+        if not json_output:
+            console.print(f"[dim]Scanning for errored workspaces in {scope_label}[/dim]")
 
         errored = get_errored_workspaces(client, days=days, project_id=project_id, organization=org)
+
+        if json_output:
+            results: list[dict[str, Any]] = []
+            for ws in errored:
+                run = ws.latest_run
+                results.append(
+                    {
+                        "workspace": ws.name,
+                        "run_id": run.id if run else None,
+                        "created_at": run.created_at.isoformat() if run and run.created_at else None,
+                        "error": client.runs.get_error_summary(run) if run else None,
+                    }
+                )
+            emit_json(results)
+            return
 
         if not errored:
             console.print(
