@@ -840,42 +840,36 @@ def analyze_project_failures_step(project_errors_setup):
     from terrapyne.models.run import RunStatus
 
     project = project_errors_setup["project"]
-    with patch("terrapyne.api.client.TFCClient") as mock_client:
+    with (
+        patch("terrapyne.api.client.TFCClient") as mock_client,
+        patch("terrapyne.cli.run_cmd.get_errored_workspaces") as mock_get_errored,
+    ):
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance
 
-        # 1. Mock projects.list
         proj = Project.model_construct(id="proj-123", name=project)
         mock_instance.projects.list.return_value = ([proj], 1)
 
-        # 2. Mock workspaces.list
-        workspaces = []
+        # Build errored workspace list with latest_run populated (new API contract)
+        errored_workspaces = []
+        seen: set[str] = set()
         for r in project_errors_setup["runs"]:
-            if not any(w.name == r["workspace"] for w in workspaces):
-                workspaces.append(
-                    Workspace.model_construct(id=f"ws-{r['workspace']}", name=r["workspace"])
+            ws_name = r["workspace"]
+            if ws_name not in seen:
+                seen.add(ws_name)
+                run = Run.model_construct(
+                    id=r["run_id"],
+                    status=RunStatus.ERRORED,
+                    message=r["message"],
+                    created_at=datetime.fromisoformat(r["created_at"].replace("Z", "+00:00")),
                 )
-        mock_instance.workspaces.list.return_value = (iter(workspaces), len(workspaces))
+                ws = Workspace.model_construct(
+                    id=f"ws-{ws_name}", name=ws_name, latest_run=run
+                )
+                errored_workspaces.append(ws)
 
-        # 3. Mock runs.list for each workspace
-        def mock_runs_list(workspace_id, limit=50, status=None):
-            ws_name = workspace_id.replace("ws-", "")
-            ws_runs = []
-            for r in project_errors_setup["runs"]:
-                if r["workspace"] == ws_name:
-                    ws_runs.append(
-                        Run.model_construct(
-                            id=r["run_id"],
-                            status=RunStatus.ERRORED,
-                            message=r["message"],
-                            created_at=datetime.fromisoformat(
-                                r["created_at"].replace("Z", "+00:00")
-                            ),
-                        )
-                    )
-            return (ws_runs, len(ws_runs))
-
-        mock_instance.runs.list.side_effect = mock_runs_list
+        mock_get_errored.return_value = errored_workspaces
+        mock_instance.runs.get_error_summary.return_value = "Error: test error"
 
         result = runner.invoke(app, ["run", "errors", project, "--organization", "test-org"])
         return result
@@ -890,7 +884,6 @@ def check_failure_report(analyze_project_failures):
 
 @then("the report should include environment names, IDs, and error summaries")
 def check_failure_report_details(analyze_project_failures):
-    assert "Workspace" in analyze_project_failures.stdout
     assert (
         "run-" in analyze_project_failures.stdout
         or "execution-id" in analyze_project_failures.stdout
@@ -914,16 +907,16 @@ def analyze_project_failures_clean_step(no_project_failures, days):
     from terrapyne.models.project import Project
 
     project = no_project_failures["project"]
-    with patch("terrapyne.api.client.TFCClient") as mock_client:
+    with (
+        patch("terrapyne.api.client.TFCClient") as mock_client,
+        patch("terrapyne.cli.run_cmd.get_errored_workspaces") as mock_get_errored,
+    ):
         mock_instance = MagicMock()
         mock_client.return_value.__enter__.return_value = mock_instance
 
-        # Mock project found
         proj = Project.model_construct(id="proj-123", name=project)
         mock_instance.projects.list.return_value = ([proj], 1)
-
-        # Mock no workspaces
-        mock_instance.workspaces.list.return_value = (iter([]), 0)
+        mock_get_errored.return_value = []
 
         result = runner.invoke(
             app,
@@ -942,7 +935,7 @@ def analyze_project_failures_clean_step(no_project_failures, days):
 
 @then("I should be notified that no project errors were found")
 def check_no_errors_msg(analyze_project_failures_clean):
-    assert "No recent errors found" in analyze_project_failures_clean.stdout
+    assert "No errored workspaces found" in analyze_project_failures_clean.stdout
     assert analyze_project_failures_clean.exit_code == 0
 
 

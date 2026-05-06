@@ -10,6 +10,7 @@ from typing import Annotated, Any
 
 import typer
 
+from terrapyne.api.org_errors import get_errored_workspaces
 from terrapyne.cli.utils import (
     console,
     emit_json,
@@ -359,43 +360,54 @@ def run_errors(
         typer.Option("--limit", "-n", help="Max errors to show per workspace"),
     ] = 3,
 ):
-    """Identify recent execution errors across a project."""
+    """Identify recent execution errors across a project or the entire organisation.
+
+    When PROJECT_NAME is omitted, scans the entire organisation using a single
+    API call (filter[current-run][status]=errored) — much faster than iterating
+    every project and workspace individually.
+    """
     org, _ = validate_context(organization)
 
     with get_client(ctx, organization=org) as client:
-        # Resolve project
-        org, project = resolve_project_context(client, org, project_name)
+        project_id: str | None = None
+        scope_label: str
 
-        console.print(f"[dim]Searching for recent errors in project:[/dim] {project.name}")
+        if project_name:
+            # Scoped to a single project (existing behaviour).
+            _, project = resolve_project_context(client, org, project_name)
+            project_id = project.id
+            scope_label = f"project '{project.name}'"
+        else:
+            # Try to infer project from workspace context; fall back to org-wide.
+            try:
+                _, project = resolve_project_context(client, org, None)
+                project_id = project.id
+                scope_label = f"project '{project.name}' (from workspace context)"
+            except ValueError:
+                scope_label = f"organisation '{org}' (all projects)"
 
-        # Get workspaces
-        workspaces_iter, _ = client.workspaces.list(org, project_id=project.id)
-        workspaces = list(workspaces_iter)
+        console.print(f"[dim]Scanning for errored workspaces in {scope_label}[/dim]")
 
-        since = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=days)
-        error_found = False
+        errored = get_errored_workspaces(client, days=days, project_id=project_id, organization=org)
 
-        for ws in workspaces:
-            # Fetch errored runs
-            runs, _ = client.runs.list(ws.id, status="errored", limit=limit)
-
-            # Filter by date
-            recent_errors = [r for r in runs if r.created_at and r.created_at > since]
-
-            if recent_errors:
-                error_found = True
-                console.print(f"\n[bold red]✗ Workspace: {ws.name}[/bold red]")
-                for run in recent_errors:
-                    date_str = (
-                        run.created_at.strftime("%Y-%m-%d %H:%M") if run.created_at else "Unknown"
-                    )
-                    error_text = client.runs.get_error_summary(run)
-                    console.print(f"  • [cyan]{run.id}[/cyan] ({date_str}): {error_text}")
-
-        if not error_found:
+        if not errored:
             console.print(
-                f"[green]✓ No recent errors found in project '{project.name}' over the last {days} days.[/green]"
+                f"[green]✓ No errored workspaces found in {scope_label} over the last {days} days.[/green]"
             )
+            return
+
+        for ws in errored:
+            console.print(f"\n[bold red]✗ {ws.name}[/bold red]", end="")
+            if ws.project_name:
+                console.print(f" [dim]({ws.project_name})[/dim]", end="")
+            console.print()
+            if ws.latest_run:
+                run = ws.latest_run
+                date_str = (
+                    run.created_at.strftime("%Y-%m-%d %H:%M") if run.created_at else "Unknown"
+                )
+                error_text = client.runs.get_error_summary(run)
+                console.print(f"  • [cyan]{run.id}[/cyan] ({date_str}): {error_text}")
 
 
 @app.command("trigger")
