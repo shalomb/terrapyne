@@ -4,6 +4,7 @@ from typing import Annotated, cast
 
 import typer
 
+from terrapyne.cli import triggers_cmd
 from terrapyne.cli.utils import (
     console,
     emit_json,
@@ -24,6 +25,7 @@ from terrapyne.rendering.rich_tables import (
 )
 
 app = typer.Typer(help="Workspace management commands")
+app.add_typer(triggers_cmd.app, name="triggers")
 
 
 @app.callback(invoke_without_command=True)
