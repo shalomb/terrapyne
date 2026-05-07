@@ -13,6 +13,7 @@ from terrapyne.cli import (
     run_cmd,
     state_cmd,
     team_cmd,
+    varset_cmd,
     vcs_cmd,
     workspace_cmd,
 )
@@ -45,6 +46,9 @@ app.add_typer(project_cmd.app, name="project")
 
 # Add state commands
 app.add_typer(state_cmd.app, name="state")
+
+# Add varset commands
+app.add_typer(varset_cmd.app, name="varset")
 
 
 def version_callback(value: bool) -> None:
