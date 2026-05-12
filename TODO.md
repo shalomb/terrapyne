@@ -56,8 +56,8 @@ For evaluating live TFC behaviour, use:
 | C2 | `run plan` semantics mismatch — not a true speculative plan | 🟡 | M | 1.0 | TODO |
 | C3 | `StateVersionsAPI.list()` needless workspace round-trip | 🟢 | S | 1.0 | TODO |
 | **NEW FEATURES** |
-| F1 | Variable Sets (`/varsets`) — org/project-scoped variables | 🔴 | L | 1.33 | TODO |
-| F2 | Run Triggers — workspace-to-workspace automation | 🔴 | L | 1.33 | TODO |
+| F1 | Variable Sets (`/varsets`) — org/project-scoped variables | 🔴 | L | 1.33 | ✅ |
+| F2 | Run Triggers — workspace-to-workspace automation | 🔴 | L | 1.33 | ✅ |
 | F3 | `workspace create` / `workspace delete` commands | 🔴 | M | 2.0 | TODO |
 | F4 | Workspace notifications (webhook/Slack config) | 🟡 | M | 1.0 | TODO |
 | F5 | Policy sets / Sentinel outcome reporting | 🟡 | M | 1.0 | TODO |
