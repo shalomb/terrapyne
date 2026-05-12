@@ -219,7 +219,7 @@ class TestRunApply:
 
         # Verify API calls
         mock_client.post.assert_called_once_with("/runs/run-abc123/actions/apply", json_data=None)
-        mock_client.get.assert_called_with("/runs/run-abc123", params={})
+        mock_client.get.assert_called_with("/runs/run-abc123", params={"include": "plan"})
 
         # Verify returned run
         assert isinstance(run, Run)
@@ -273,6 +273,57 @@ class TestRunRetrieval:
         """Create RunsAPI instance with mock client."""
         return RunsAPI(mock_client)
 
+    def test_get_run_always_includes_plan_sideload(self, api, mock_client):
+        """runs.get() must always request include=plan so plan_status is populated.
+
+        B5: Without this, plan_status is always None and get_error_summary
+        cannot determine whether the error is in the plan or apply stage.
+        """
+        plan_id = "plan-xyz"
+        run_id = "run-abc123"
+        mock_client.get.return_value = {
+            "data": {
+                "id": run_id,
+                "type": "runs",
+                "attributes": {
+                    "status": "errored",
+                    "created-at": "2024-01-15T10:00:00Z",
+                    "updated-at": "2024-01-15T10:05:00Z",
+                    "message": "Deploy failed",
+                    "auto-apply": True,
+                    "is-destroy": False,
+                },
+                "relationships": {
+                    "plan": {"data": {"id": plan_id, "type": "plans"}},
+                },
+            },
+            "included": [
+                {
+                    "id": plan_id,
+                    "type": "plans",
+                    "attributes": {
+                        "status": "finished",
+                        "has-changes": True,
+                        "resource-additions": 0,
+                        "resource-changes": 0,
+                        "resource-destructions": 0,
+                        "resource-imports": 0,
+                        "action-invocations": 0,
+                    },
+                }
+            ],
+        }
+
+        run = api.get(run_id)
+
+        # plan sideload was requested
+        call_params = mock_client.get.call_args[1]["params"]
+        assert "include" in call_params
+        assert "plan" in call_params["include"]
+
+        # plan_status is populated from the sideload
+        assert run.plan_status == "finished"
+
     def test_get_run(self, api, mock_client):
         """Test retrieving a run by ID."""
         run_id = "run-abc123"
@@ -292,8 +343,9 @@ class TestRunRetrieval:
 
         run = api.get(run_id)
 
-        # Verify API call
-        mock_client.get.assert_called_once_with(f"/runs/{run_id}", params={})
+        # include=plan is always present (B5 fix)
+        call_params = mock_client.get.call_args[1]["params"]
+        assert "plan" in call_params.get("include", "")
 
         # Verify returned run
         assert run.id == run_id

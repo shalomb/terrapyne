@@ -27,6 +27,8 @@ For evaluating live TFC behaviour, use:
 | # | Finding | Impact | Effort | WSJF | Status |
 |---|---|---|---|---|---|
 | **BUGS** |
+| B5 | `runs.get()` never passes `include=plans` — `plan_status` always `None` | 🔴 | S | 4.0 | TODO |
+| B6 | `get_error_summary` falls back to `run.message` when `plan_status` is `None` instead of trying apply log | 🔴 | S | 4.0 | TODO |
 | B1 | `_handle_response_error` catches wrong exception type | 🔴 | S | 4.0 | TODO |
 | B2 | Retry-on-mutation: POST/PATCH/DELETE retry `TFCAPIError` (unsafe) | 🔴 | S | 4.0 | TODO |
 | B3 | `paginate_with_meta` `included` leaks only last page | 🟡 | S | 2.0 | TODO |
@@ -54,8 +56,8 @@ For evaluating live TFC behaviour, use:
 | C2 | `run plan` semantics mismatch — not a true speculative plan | 🟡 | M | 1.0 | TODO |
 | C3 | `StateVersionsAPI.list()` needless workspace round-trip | 🟢 | S | 1.0 | TODO |
 | **NEW FEATURES** |
-| F1 | Variable Sets (`/varsets`) — org/project-scoped variables | 🔴 | L | 1.33 | TODO |
-| F2 | Run Triggers — workspace-to-workspace automation | 🔴 | L | 1.33 | TODO |
+| F1 | Variable Sets (`/varsets`) — org/project-scoped variables | 🔴 | L | 1.33 | ✅ |
+| F2 | Run Triggers — workspace-to-workspace automation | 🔴 | L | 1.33 | ✅ |
 | F3 | `workspace create` / `workspace delete` commands | 🔴 | M | 2.0 | TODO |
 | F4 | Workspace notifications (webhook/Slack config) | 🟡 | M | 1.0 | TODO |
 | F5 | Policy sets / Sentinel outcome reporting | 🟡 | M | 1.0 | TODO |
@@ -66,6 +68,64 @@ For evaluating live TFC behaviour, use:
 ---
 
 ## Task Details
+
+### B5 — `runs.get()` never requests `include=plans`
+
+**Intent**: Populate `run.plan_status` so callers can determine whether the error is in the plan or apply stage.
+
+**Context**: `runs.get(run_id)` fetches `/runs/{id}` with no `include` param. The `Run.from_api_response` model correctly handles a `plans` sideload to extract `plan_status`, but since it’s never requested the field is always `None`. This silently breaks `get_error_summary` (see B6) and any downstream logic that branches on plan_status.
+
+**Root cause**:
+```python
+# api/runs.py:get()
+path = f"/runs/{run_id}"
+response = self.client.get(path, params=params)  # no include=plans
+```
+
+**Fix**: Always include `plans` in the sideload, or pass it when the caller needs plan_status:
+```python
+params["include"] = "plan"  # sideloads the plan object
+```
+
+**Success Criteria**:
+- `client.runs.get(run_id).plan_status` returns `"finished"` for a run whose plan succeeded but apply errored
+- Existing tests updated; new test covers plan_status population
+
+---
+
+### B6 — `get_error_summary` silent fallback when `plan_status` is `None`
+
+**Intent**: Surface the actual Terraform error from errored runs, not the run message.
+
+**Context**: `get_error_summary` branches on `plan_status == "finished"` to decide whether to read the apply log or the plan log. When `plan_status` is `None` (always, due to B5), it reads the plan log — which is empty for apply-stage failures — then silently falls back to `run.message`. The caller sees the commit message instead of the Terraform error.
+
+Discovered during ASG BB integration testing:
+```
+# Expected:
+Error: creating Lambda Function: InvalidParameterValueException: 
+  The provided execution role does not have permissions to call CreateNetworkInterface
+
+# Actual (run.message fallback):
+"fix: VPC Lambda IAM permissions"
+```
+
+**Fix**: When `plan_status` is `None`, try both logs (apply first for plan-and-apply runs, then plan log as fallback):
+```python
+if run.plan_status == "finished" or (run.plan_status is None and run.apply_id):
+    raw = self.get_apply_logs(run.apply_id) if run.apply_id else ""
+    if not raw:  # fallback to plan log
+        raw = self.get_plan_logs(run.plan_id)
+else:
+    raw = self.get_plan_logs(run.plan_id)
+```
+
+**Success Criteria**:
+- `get_error_summary` returns the Terraform `Error:` text for apply-stage failures even when `plan_status` is `None`
+- `tfc run errors` and `tfc run show` surface the actual error, not the commit message
+- Fixes B5 first (so plan_status is populated), then B6 is the defensive fallback
+- Test covers: plan-errored run, apply-errored run, apply-errored run with plan_status=None
+
+---
 
 ### B1 — `_handle_response_error` catches wrong exception type
 
