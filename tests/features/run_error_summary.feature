@@ -47,3 +47,24 @@ Feature: Run error summary extraction
     Given a run "run-no-plan" is errored with no plan ID
     When I get the error summary for the run
     Then the summary contains the run message
+
+  Scenario: Apply-stage failure with unknown plan status — apply log tried first
+    Given a run "run-none-status" is errored with plan status unknown and an apply ID
+    And the apply log contains:
+      """
+      Error: creating Lambda Function: InvalidParameterValueException: The provided execution role does not have permissions
+      """
+    When I get the error summary for the run
+    Then the summary contains "InvalidParameterValueException"
+    And the apply log was fetched before the plan log
+
+  Scenario: Apply-stage failure with unknown plan status — empty apply log falls back to plan log
+    Given a run "run-none-fallback" is errored with plan status unknown and an apply ID
+    And the apply log is empty
+    And the plan log contains:
+      """
+      Error: plan stage error
+      """
+    When I get the error summary for the run
+    Then the summary contains "plan stage error"
+    And the apply log was fetched before the plan log

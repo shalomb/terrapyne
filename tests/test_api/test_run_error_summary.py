@@ -177,3 +177,50 @@ class TestGetErrorSummary:
         summary = api.get_error_summary(run)
 
         assert summary == "Merge PR #42"
+
+    # ------------------------------------------------------------------
+    # B6 — plan_status=None defensive fallback (apply log tried first)
+    # ------------------------------------------------------------------
+
+    def test_plan_status_none_with_apply_id_tries_apply_log(self, api, mock_client):
+        """When plan_status is None but apply_id exists, try the apply log first.
+
+        This covers the case where runs.get() was called without include=plan
+        (B5) so plan_status is None, but the run errored during apply.
+        """
+        run = _make_run("run-none-status", plan_status=None, message="fix: VPC Lambda IAM")
+        mock_client._request.return_value.text = (
+            "Error: creating Lambda Function: InvalidParameterValueException: "
+            "The provided execution role does not have permissions\n"
+        )
+
+        summary = api.get_error_summary(run)
+
+        assert "InvalidParameterValueException" in summary
+        called_paths = [c.args[1] for c in mock_client._request.call_args_list]
+        assert any("applies" in p and "logs" in p for p in called_paths)
+
+    def test_plan_status_none_empty_apply_log_falls_back_to_plan_log(self, api, mock_client):
+        """When plan_status is None and apply log is empty, fall back to plan log.
+
+        Verifies that apply log is tried first (order matters for B6 fix).
+        """
+        run = _make_run("run-none-fallback", plan_status=None, message="fallback msg")
+
+        def fake_request(method, path, **_kwargs):
+            m = MagicMock()
+            m.text = "Error: plan stage error\n" if "plans" in path else ""
+            return m
+
+        mock_client._request.side_effect = fake_request
+
+        summary = api.get_error_summary(run)
+
+        assert "plan stage error" in summary
+        # Apply log must have been tried before the plan log
+        called_paths = [c.args[1] for c in mock_client._request.call_args_list]
+        apply_idx = next((i for i, p in enumerate(called_paths) if "applies" in p), None)
+        plan_idx = next((i for i, p in enumerate(called_paths) if "plans" in p), None)
+        assert apply_idx is not None, "Apply log was never fetched"
+        assert plan_idx is not None, "Plan log was never fetched"
+        assert apply_idx < plan_idx, "Apply log must be tried before plan log"

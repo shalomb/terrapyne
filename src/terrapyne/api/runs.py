@@ -108,16 +108,22 @@ class RunsAPI:
     def get(self, run_id: str, include: str | None = None) -> Run:
         """Get run by ID.
 
+        Always requests the ``plan`` sideload so that ``plan_status`` is
+        populated on the returned Run.  Without it, ``get_error_summary``
+        cannot determine whether the failure was in the plan or apply stage.
+
         Args:
             run_id: Run ID
-            include: Resources to include (e.g. 'configuration-version')
+            include: Additional resources to include (e.g. 'configuration-version').
+                     ``plan`` is always included regardless of this value.
 
         Returns:
             Run instance
         """
-        params = {}
+        includes = {"plan"}
         if include:
-            params["include"] = include
+            includes.update(include.split(","))
+        params = {"include": ",".join(sorted(includes))}
 
         path = f"/runs/{run_id}"
         response = self.client.get(path, params=params)
@@ -365,9 +371,12 @@ class RunsAPI:
         if not run.plan_id:
             return fallback
 
-        if run.plan_status == "finished":
-            # Plan succeeded — error is in the apply stage
+        if run.plan_status == "finished" or (run.plan_status is None and run.apply_id):
+            # Plan succeeded (or status unknown but apply exists) — try apply log first
             raw = self.get_apply_logs(run.apply_id) if run.apply_id else ""
+            if not raw:
+                # Apply log empty; error may still be in the plan log
+                raw = self.get_plan_logs(run.plan_id)
         else:
             raw = self.get_plan_logs(run.plan_id)
 
