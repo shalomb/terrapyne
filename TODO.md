@@ -27,13 +27,13 @@ For evaluating live TFC behaviour, use:
 | # | Finding | Impact | Effort | WSJF | Status |
 |---|---|---|---|---|---|
 | **BUGS** |
-| B5 | `runs.get()` never passes `include=plans` — `plan_status` always `None` | 🔴 | S | 4.0 | TODO |
-| B6 | `get_error_summary` falls back to `run.message` when `plan_status` is `None` instead of trying apply log | 🔴 | S | 4.0 | TODO |
-| B1 | `_handle_response_error` catches wrong exception type | 🔴 | S | 4.0 | TODO |
-| B2 | Retry-on-mutation: POST/PATCH/DELETE retry `TFCAPIError` (unsafe) | 🔴 | S | 4.0 | TODO |
 | B3 | `paginate_with_meta` `included` leaks only last page | 🟡 | S | 2.0 | TODO |
 | B4 | `project.list()` wildcard search strips `*` but doesn't post-filter | 🟢 | S | 1.0 | TODO |
 | **COMPLETED** |
+| B5 | `runs.get()` never passes `include=plans` — `plan_status` always `None` | 🔴 | S | 4.0 | ✅ |
+| B6 | `get_error_summary` falls back to `run.message` when `plan_status` is `None` instead of trying apply log | 🔴 | S | 4.0 | ✅ |
+| B1 | `_handle_response_error` catches wrong exception type | 🔴 | S | 4.0 | ✅ |
+| B2 | Retry-on-mutation: POST/PATCH/DELETE retry `TFCAPIError` (unsafe) | 🔴 | S | 4.0 | ✅ |
 | 17 | Restore test coverage to 65% | 🔴 | S | 4.0 | ✅ |
 | 18 | Fix cost estimate regression | 🔴 | S | 4.0 | ✅ |
 | 19 | Remove broad exception silencing in `workspace_cmd.py` | 🔴 | S | 4.0 | ✅ |
@@ -351,10 +351,11 @@ terraform {
 | D6 | ADR-004 Gherkin examples diverged from feature file | 🟡 | S | 2.0 | TODO |
 | D8 | How-to SDK example: clarify Iterator and nullable total | 🟢 | S | 1.0 | TODO |
 | **ARCH** |
-| A3 | `emit_json` imports `unittest.mock.Mock` in prod | 🟡 | S | 2.0 | TODO |
-| A4 | `parse-plan` CLI spawns local Terraform binary | 🟡 | S | 2.0 | TODO |
 | A6 | `model_construct()` skips validation across all models | 🟡 | M | 1.33 | TODO |
-| A7 | `Workspace.latest_run` Any type (circular ref) | 🟡 | S | 2.0 | TODO |
+| A16 | `sensitive=True` variables may leak values in `--debug` log output | 🟡 | S | 2.0 | TODO |
+| A3 | `emit_json` imports `unittest.mock.Mock` in prod | 🟡 | S | 2.0 | ✅ |
+| A4 | `parse-plan` CLI spawns local Terraform binary | 🟡 | S | 2.0 | ✅ |
+| A7 | `Workspace.latest_run` Any type (circular ref) | 🟡 | S | 2.0 | ✅ |
 | A8 | Three uncoordinated `Console()` instances | 🟡 | M | 1.33 | TODO |
 | A9 | `Terraform` and `TFCClient` conflated in top-level | 🟡 | M | 1.0 | TODO |
 | A10| `RunStatus.get_active_statuses()` returns `list[str]` | 🟢 | S | 1.0 | TODO |
@@ -383,6 +384,14 @@ terraform {
 #### A7 — Workspace.latest_run type hint
 - **Context**: Uses `Any` to avoid circular import.
 - **Action**: Use `from __future__ import annotations` and `if TYPE_CHECKING: from ...run import Run`.
+
+#### A16 — Sensitive variable values may leak in `--debug` output
+
+**Context**: Variables with `sensitive=True` are masked in normal CLI output, but the `--debug` flag traces all API payloads. If a variable's value appears in a request/response body during debug logging, it is exposed in plaintext even though the user marked it sensitive.
+
+**Action**: Filter or redact `value` fields for sensitive variables in debug-mode API response logging. Add a `__repr__` override on `Variable` that masks the value when `sensitive=True`.
+
+---
 
 #### A12 — run_cmd.py decomposition
 - **Context**: 850 lines mixing CLI glue with complex log streaming and polling state machines.
