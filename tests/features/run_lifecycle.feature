@@ -63,3 +63,23 @@ Feature: Infrastructure Change Lifecycle
     Then a speculative configuration version should be created
     And a run should be associated with that configuration version
     And the run should not be confirmable
+
+  Scenario: Watching an externally triggered run and auto-applying after planning
+    Given an externally triggered run "run-ext-123" has reached "planned" status
+    When I watch "run-ext-123" with --auto-apply
+    Then the run should be applied automatically
+    And the command should wait for the apply to complete
+    And the command should exit with code 0
+
+  Scenario: Watching an externally triggered run without auto-apply pauses at approval
+    Given an externally triggered run "run-ext-456" has reached "planned" status
+    When I watch "run-ext-456" without --auto-apply
+    Then the run should not be applied
+    And the output should indicate the run requires manual approval
+    And the command should exit with code 0
+
+  Scenario: Watching an externally triggered run that errors during planning
+    Given an externally triggered run "run-ext-789" has errored
+    When I watch "run-ext-789" with --auto-apply
+    Then the run should not be applied
+    And the command should exit with code 1

@@ -135,6 +135,30 @@ def test_trigger_speculative_plan():
     pass
 
 
+@scenario(
+    "../features/run_lifecycle.feature",
+    "Watching an externally triggered run and auto-applying after planning",
+)
+def test_watch_auto_apply():
+    pass
+
+
+@scenario(
+    "../features/run_lifecycle.feature",
+    "Watching an externally triggered run without auto-apply pauses at approval",
+)
+def test_watch_no_auto_apply():
+    pass
+
+
+@scenario(
+    "../features/run_lifecycle.feature",
+    "Watching an externally triggered run that errors during planning",
+)
+def test_watch_auto_apply_errored():
+    pass
+
+
 # ============================================================================
 # Scenarios - Diagnostics
 # ============================================================================
@@ -705,7 +729,11 @@ def check_debug_initiated(cli_result):
 )
 def change_in_progress(run_id):
     m = MagicMock()
-    m.runs.get.return_value = Run.model_construct(id=run_id, status=RunStatus.PLANNING)
+    # First poll returns PLANNING (not terminal), second returns APPLIED (terminal)
+    m.runs.get.side_effect = [
+        Run.model_construct(id=run_id, status=RunStatus.PLANNING),
+        Run.model_construct(id=run_id, status=RunStatus.APPLIED),
+    ]
     return m
 
 
@@ -714,13 +742,10 @@ def start_monitoring(mock_client, run_id):
     with (
         patch("terrapyne.cli.utils.validate_context") as v,
         patch("terrapyne.api.client.TFCClient") as c,
+        patch("time.sleep"),
     ):
         v.return_value = ("test-org", None)
         c.return_value.__enter__.return_value = mock_client
-
-        mock_client.runs.poll_until_complete.return_value = Run.model_construct(
-            id=run_id, status=RunStatus.APPLIED
-        )
 
         return runner.invoke(app, ["run", "watch", run_id, "-o", "test-org"])
 
@@ -863,9 +888,7 @@ def analyze_project_failures_step(project_errors_setup):
                     message=r["message"],
                     created_at=datetime.fromisoformat(r["created_at"].replace("Z", "+00:00")),
                 )
-                ws = Workspace.model_construct(
-                    id=f"ws-{ws_name}", name=ws_name, latest_run=run
-                )
+                ws = Workspace.model_construct(id=f"ws-{ws_name}", name=ws_name, latest_run=run)
                 errored_workspaces.append(ws)
 
         mock_get_errored.return_value = errored_workspaces
@@ -1023,3 +1046,95 @@ def check_run_associated_with_cv(speculative_result):
 def check_run_not_confirmable(speculative_result):
     # Speculative run type should be shown in output
     assert "SPECULATIVE" in speculative_result.stdout
+
+
+# ============================================================================
+# Watch --auto-apply steps
+# ============================================================================
+
+
+@given(
+    parsers.parse('an externally triggered run "{run_id}" has reached "{status}" status'),
+    target_fixture="mock_client",
+)
+def external_run_at_status(run_id, status):
+    m = MagicMock()
+    run_status = RunStatus(status)
+    # poll sequence: first call returns approval-awaiting state
+    m.runs.get.return_value = Run.model_construct(id=run_id, status=run_status, plan_id="p-ext")
+    m.runs.apply.return_value = Run.model_construct(id=run_id, status=RunStatus.APPLYING)
+    m.runs.poll_until_complete.return_value = Run.model_construct(
+        id=run_id, status=RunStatus.APPLIED, plan_id="p-ext"
+    )
+    m.runs.get_plan.return_value = MagicMock(additions=2, changes=0, destructions=0)
+    return m
+
+
+@given(
+    parsers.parse('an externally triggered run "{run_id}" has errored'),
+    target_fixture="mock_client",
+)
+def external_run_errored(run_id):
+    m = MagicMock()
+    m.runs.get.return_value = Run.model_construct(id=run_id, status=RunStatus.ERRORED)
+    return m
+
+
+@when(
+    parsers.parse('I watch "{run_id}" with --auto-apply'),
+    target_fixture="cli_result",
+)
+def watch_with_auto_apply(mock_client, run_id):
+    with (
+        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.api.client.TFCClient") as c,
+        patch("time.sleep"),
+    ):
+        v.return_value = ("test-org", None)
+        c.return_value.__enter__.return_value = mock_client
+        return runner.invoke(app, ["run", "watch", run_id, "--auto-apply", "-o", "test-org"])
+
+
+@when(
+    parsers.parse('I watch "{run_id}" without --auto-apply'),
+    target_fixture="cli_result",
+)
+def watch_without_auto_apply(mock_client, run_id):
+    with (
+        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.api.client.TFCClient") as c,
+        patch("time.sleep"),
+    ):
+        v.return_value = ("test-org", None)
+        c.return_value.__enter__.return_value = mock_client
+        return runner.invoke(app, ["run", "watch", run_id, "-o", "test-org"])
+
+
+@then("the run should be applied automatically")
+def check_run_applied(mock_client, cli_result):
+    mock_client.runs.apply.assert_called_once()
+
+
+@then("the command should wait for the apply to complete")
+def check_waited_for_apply(mock_client, cli_result):
+    mock_client.runs.poll_until_complete.assert_called_once()
+
+
+@then("the run should not be applied")
+def check_run_not_applied(mock_client, cli_result):
+    mock_client.runs.apply.assert_not_called()
+
+
+@then("the output should indicate the run requires manual approval")
+def check_manual_approval_output(cli_result):
+    assert "manual approval" in cli_result.stdout.lower()
+
+
+@then("the command should exit with code 0")
+def watch_exit_zero(cli_result):
+    assert cli_result.exit_code == 0
+
+
+@then("the command should exit with code 1")
+def watch_exit_one(cli_result):
+    assert cli_result.exit_code == 1
