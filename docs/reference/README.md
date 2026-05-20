@@ -19,4 +19,4 @@ Reference documentation is information-oriented. It provides technical specifica
 ## 🛠️ Standards & Compliance
 
 - **[Versioning Policy](../../CHANGELOG.md)** — How we use Semantic Versioning (SemVer) for the CLI and SDK.
-- **[Engineering Standards](../../GEMINI.md)** — The non-negotiable quality guardrails used to build Terrapyne.
+- **[Engineering Standards](../../AGENTS.md)** — The non-negotiable quality guardrails used to build Terrapyne.

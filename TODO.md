@@ -26,10 +26,16 @@ For evaluating live TFC behaviour, use:
 
 | # | Finding | Impact | Effort | WSJF | Status |
 |---|---|---|---|---|---|
-| **BUGS** |
-| B3 | `paginate_with_meta` `included` leaks only last page | 🟡 | S | 2.0 | TODO |
-| B4 | `project.list()` wildcard search strips `*` but doesn't post-filter | 🟢 | S | 1.0 | TODO |
+| **NEW FEATURES** |
+| F4 | Workspace notifications (webhook/Slack config) | 🟡 | M | 1.0 | TODO |
+| F5 | Policy sets / Sentinel outcome reporting | 🟡 | M | 1.0 | TODO |
+| F6 | Private registry query (modules + providers) | 🟡 | M | 1.0 | TODO |
+| F7 | Agent pools — list and show self-hosted agents | 🟡 | M | 1.0 | TODO |
+| F8 | SSH keys / VCS OAuth token management | 🟢 | L | 0.33 | TODO |
+| F9 | `workspace update` command and API update method | 🔴 | M | 2.0 | TODO |
 | **COMPLETED** |
+| B3 | `paginate_with_meta` `included` leaks only last page | 🟡 | S | 2.0 | ✅ |
+| B4 | `project.list()` wildcard search strips `*` but doesn't post-filter | 🟢 | S | 1.0 | ✅ |
 | B5 | `runs.get()` never passes `include=plans` — `plan_status` always `None` | 🔴 | S | 4.0 | ✅ |
 | B6 | `get_error_summary` falls back to `run.message` when `plan_status` is `None` instead of trying apply log | 🔴 | S | 4.0 | ✅ |
 | B1 | `_handle_response_error` catches wrong exception type | 🔴 | S | 4.0 | ✅ |
@@ -49,21 +55,13 @@ For evaluating live TFC behaviour, use:
 | 1c | `tfc project show` project snapshot | 🟡 | M | 1.0 | ✅ |
 | 8  | Local file-based response cache with TTL | 🟢 | L | 0.3 | ✅ |
 | 10 | Enhanced run lifecycle (trigger types, queue wait, approvals) | 🔴 | M | 2.0 | ✅ |
-| **COVERAGE** |
-| 14 | Restore test coverage minimum to 80% (long-term goal) | 🔴 | M | 2.0 | TODO |
-| **CORRECTNESS** |
-| C1 | `cloud` block backend detection (Terraform ≥ 1.1) | 🔴 | M | 2.0 | TODO |
-| C2 | `run plan` semantics mismatch — not a true speculative plan | 🟡 | M | 1.0 | TODO |
-| C3 | `StateVersionsAPI.list()` needless workspace round-trip | 🟢 | S | 1.0 | TODO |
-| **NEW FEATURES** |
+| 14 | Restore test coverage minimum to 80% (long-term goal) | 🔴 | M | 2.0 | ✅ |
+| C1 | `cloud` block backend detection (Terraform ≥ 1.1) | 🔴 | M | 2.0 | ✅ |
+| C2 | `run plan` semantics mismatch — not a true speculative plan | 🟡 | M | 1.0 | ✅ |
+| C3 | `StateVersionsAPI.list()` needless workspace round-trip | 🟢 | S | 1.0 | ✅ |
 | F1 | Variable Sets (`/varsets`) — org/project-scoped variables | 🔴 | L | 1.33 | ✅ |
 | F2 | Run Triggers — workspace-to-workspace automation | 🔴 | L | 1.33 | ✅ |
-| F3 | `workspace create` / `workspace delete` commands | 🔴 | M | 2.0 | TODO |
-| F4 | Workspace notifications (webhook/Slack config) | 🟡 | M | 1.0 | TODO |
-| F5 | Policy sets / Sentinel outcome reporting | 🟡 | M | 1.0 | TODO |
-| F6 | Private registry query (modules + providers) | 🟡 | M | 1.0 | TODO |
-| F7 | Agent pools — list and show self-hosted agents | 🟡 | M | 1.0 | TODO |
-| F8 | SSH keys / VCS OAuth token management | 🟢 | L | 0.33 | TODO |
+| F3 | `workspace create` / `workspace delete` commands | 🔴 | M | 2.0 | ✅ |
 
 ---
 
@@ -343,29 +341,31 @@ terraform {
 | # | Finding | Impact | Effort | WSJF | Status |
 |---|---|---|---|---|---|
 | **DOCS** |
-| D1 | Fix broken docs links in AGENTS.md & deprecate GEMINI.md | 🔴 | S | 4.0 | TODO |
-| D2 | CLI reference lists non-existent `workspace health` | 🟡 | S | 2.0 | TODO |
-| D3 | SDK reference missing managers (state_versions, vcs) | 🟡 | S | 2.0 | TODO |
 | D4 | SDK models table incomplete | 🟡 | S | 2.0 | TODO |
 | D5 | `plan-parser.md` is a planning artifact, not explanation | 🟡 | S | 2.0 | TODO |
 | D6 | ADR-004 Gherkin examples diverged from feature file | 🟡 | S | 2.0 | TODO |
-| D8 | How-to SDK example: clarify Iterator and nullable total | 🟢 | S | 1.0 | TODO |
+| D9 | Update reference docs for missing models | 🟢 | S | 1.0 | TODO |
 | **ARCH** |
-| A6 | `model_construct()` skips validation across all models | 🟡 | M | 1.33 | TODO |
 | A16 | `sensitive=True` variables may leak values in `--debug` log output | 🟡 | S | 2.0 | TODO |
+| A8 | Three uncoordinated `Console()` instances | 🟡 | M | 1.33 | TODO |
+| A12 | `run_cmd.py` decomposition (852 lines) | 🟢 | L | 0.3 | TODO |
+| A13 | `paginate()` and `paginate_with_meta()` divergent | 🟢 | M | 0.5 | TODO |
+| A14 | Domain errors defined in API layer | 🟢 | S | 1.0 | TODO |
+| A15 | `utils/` is an unconstrained catch-all | 🟢 | L | 0.3 | TODO |
+| A17 | Export all SDK models in package root | 🟡 | S | 2.0 | TODO |
+| **COMPLETED** |
+| D1 | Fix broken docs links in AGENTS.md & deprecate GEMINI.md | 🔴 | S | 4.0 | ✅ |
+| D2 | CLI reference lists non-existent `workspace health` | 🟡 | S | 2.0 | ✅ |
+| D3 | SDK reference missing managers (state_versions, vcs) | 🟡 | S | 2.0 | ✅ |
+| D8 | How-to SDK example: clarify Iterator and nullable total | 🟢 | S | 1.0 | ✅ |
+| A6 | `model_construct()` skips validation across all models | 🟡 | M | 1.33 | ✅ |
 | A3 | `emit_json` imports `unittest.mock.Mock` in prod | 🟡 | S | 2.0 | ✅ |
 | A4 | `parse-plan` CLI spawns local Terraform binary | 🟡 | S | 2.0 | ✅ |
 | A7 | `Workspace.latest_run` Any type (circular ref) | 🟡 | S | 2.0 | ✅ |
-| A8 | Three uncoordinated `Console()` instances | 🟡 | M | 1.33 | TODO |
-| A9 | `Terraform` and `TFCClient` conflated in top-level | 🟡 | M | 1.0 | TODO |
-| A10| `RunStatus.get_active_statuses()` returns `list[str]` | 🟢 | S | 1.0 | TODO |
-| A11| Inline `RunStatus` import in `workspace_show` | 🟢 | S | 1.0 | TODO |
-| A12| `run_cmd.py` decomposition (852 lines) | 🟢 | L | 0.3 | TODO |
-| A13| `paginate()` and `paginate_with_meta()` divergent | 🟢 | M | 0.5 | TODO |
-| A14| Domain errors defined in API layer | 🟢 | S | 1.0 | TODO |
-| A15| `utils/` is an unconstrained catch-all | 🟢 | L | 0.3 | TODO |
-| **FEAT** |
-| D7 | Promote `workspace health` to real CLI command | 🟡 | M | 1.33 | TODO |
+| A9 | `Terraform` and `TFCClient` conflated in top-level | 🟡 | M | 1.0 | ✅ |
+| A10| `RunStatus.get_active_statuses()` returns `list[str]` | 🟢 | S | 1.0 | ✅ |
+| A11| Inline `RunStatus` import in `workspace_show` | 🟢 | S | 1.0 | ✅ |
+| D7 | Promote `workspace health` to real CLI command | 🟡 | M | 1.33 | ✅ |
 
 ### Task Details (Audit)
 
@@ -396,4 +396,35 @@ terraform {
 #### A12 — run_cmd.py decomposition
 - **Context**: 850 lines mixing CLI glue with complex log streaming and polling state machines.
 - **Action**: Extract `RunMonitor` or move polling logic to `RunsAPI`.
+
+---
+
+#### F9 — `workspace update` command and API update method
+
+**Intent**: Complete the workspace CRUD operations (F3) by supporting update/patch operations on workspace configurations.
+
+**Success Criteria**:
+- `tfc workspace update <name> [--tf-version <v>] [--execution-mode <m>] [--working-dir <d>] [--project-id <p>] [--project-name <pn>]`
+- API support: `client.workspaces.update(workspace_id, ...)`
+- Standard TDD/BDD tests verifying the modifications are propagated correctly.
+
+---
+
+#### A17 — Export all SDK models in package root
+
+**Intent**: Export standard models like `VariableSet`, `RunTrigger`, `Apply`, `StateVersion`, `StateVersionOutput`, and `RunStatus` directly from the `terrapyne` package root.
+
+**Success Criteria**:
+- Package imports: `from terrapyne import VariableSet, RunTrigger, Apply, StateVersion, StateVersionOutput, RunStatus` work seamlessly.
+- Models are added to `__all__` in `src/terrapyne/__init__.py`.
+
+---
+
+#### D9 — Update reference docs for missing models
+
+**Intent**: Add documentation for missing models (`VariableSet`, `VariableSetVariable`, `RunTrigger`) to `docs/reference/sdk.md`.
+
+**Success Criteria**:
+- Import example and model lists in `docs/reference/sdk.md` contain references to `VariableSet`, `VariableSetVariable`, and `RunTrigger`.
+
 
