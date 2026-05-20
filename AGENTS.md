@@ -15,7 +15,7 @@ uv run mypy src/                # Type check
 
 - **Red/Green TDD**: Write failing tests first, minimal implementation, then refactor
 - **Adzic BDD**: Feature files use Gojko Adzic's Specification by Example (outcome-focused, not implementation-scripted)
-- **Atomic Commits**: Every commit is verified, self-contained, uses Conventional Commits
+- **Atomic Commits (ACP)**: Every commit is a single, self-contained unit of verified work — one reason to change, all tests green, linting and type checks pass. Never batch unrelated changes. Never commit broken state.
 - **No AI Markers**: Never add co-author or AI attribution to code, commits, docs, or PR descriptions
 
 ## Development Guides
@@ -97,11 +97,20 @@ mypy src/
 
 ## Commits & PRs
 
-- **Format**: Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`)
-- **Scope**: Single responsibility per commit (atomic)
-- **Message**: Describe *why*, not *what* (the diff shows what)
-- **Verification**: All commits pass tests, linting, type checks
-- **Skill**: Use `/commit` skill to craft safe, verified commits
+Atomic Commit Protocol (ACP) — **mandatory, not optional**:
+
+1. **One reason to change** — each commit addresses exactly one concern (feature slice, bug fix, doc update, refactor). Split work before committing, never after.
+2. **Verified before commit** — the full verification suite must pass locally:
+   ```bash
+   uv run pytest tests/ --ignore=tests/uat -x -q --no-header --cov=src --cov-report=term
+   uv run ruff check src/ tests/
+   uv run mypy src/
+   ```
+3. **Conventional Commits format** — `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:` — message describes *why*, not *what*
+4. **No AI markers** — no co-author lines, no AI attribution anywhere
+5. **Use `/commit` skill** — always use the commit skill to stage, verify, and craft the message
+
+A commit that breaks tests, bundles unrelated changes, or skips verification is a protocol violation. Revert it.
 
 See [Commits & Review Guide](docs/how-to/commits-and-review.md) for details.
 
@@ -133,8 +142,8 @@ See [Commits & Review Guide](docs/how-to/commits-and-review.md) for details.
    uv run mypy src/
    ```
 
-6. Commit & push:
-   - Use `/commit` skill for safe, verified commits
+6. Commit & push (ACP — see Commits & PRs section):
+   - Use `/commit` skill — mandatory, runs verification before committing
    - Push branch before opening PR: `git push -u origin <branch>`
    - Open PR: `gh pr create --title "..." --body "..." --base main`
    - Fill in every section of `.github/PULL_REQUEST_TEMPLATE.md` in the PR body

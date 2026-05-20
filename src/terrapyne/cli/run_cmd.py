@@ -403,7 +403,9 @@ def run_errors(
                     {
                         "workspace": ws.name,
                         "run_id": run.id if run else None,
-                        "created_at": run.created_at.isoformat() if run and run.created_at else None,
+                        "created_at": run.created_at.isoformat()
+                        if run and run.created_at
+                        else None,
                         "error": client.runs.get_error_summary(run) if run else None,
                     }
                 )
@@ -628,28 +630,84 @@ def run_watch(
             help="TFC organization (auto-detected from context if available)",
         ),
     ] = None,
+    auto_apply: Annotated[
+        bool,
+        typer.Option(
+            "--auto-apply",
+            help="Automatically apply when planning/cost-estimation completes",
+        ),
+    ] = False,
+    comment: Annotated[
+        str | None,
+        typer.Option("--comment", "-m", help="Comment to attach to the apply action"),
+    ] = None,
     max_wait: Annotated[
         int,
         typer.Option("--max-wait", help="Max seconds to wait"),
     ] = 1800,
 ):
-    """Watch progress of an existing run."""
+    """Watch progress of an existing run (e.g. triggered by a VCS push).
+
+    With --auto-apply, automatically confirms the run once planning or cost
+    estimation completes, then waits for the apply to finish.
+    """
+    import time
+
     org, _ = validate_context(organization)
 
     with get_client(ctx, organization=org) as client:
         console.print(f"[dim]Watching run:[/dim] {run_id}")
+
+        intervals = [2, 2, 3, 5, 5, 10, 10, 15, 30]
+        interval_index = 0
+        start_time = time.time()
+        max_wait_f = float(max_wait)
+
         try:
-            final_run = client.runs.poll_until_complete(run_id, max_wait=float(max_wait))
+            # Phase 1: poll until awaiting approval or terminal
+            while True:
+                run = client.runs.get(run_id)
+
+                if run.status.is_terminal:
+                    break
+
+                if run.status.is_awaiting_approval:
+                    if auto_apply:
+                        console.print(f"\n[dim]Run reached[/dim] {run.status.value} — applying...")
+                        client.runs.apply(run_id, comment=comment)
+                    break
+
+                elapsed = time.time() - start_time
+                if elapsed >= max_wait_f:
+                    raise TimeoutError(
+                        f"Run {run_id} did not reach a confirmable state within {max_wait}s "
+                        f"(current status: {run.status.value})"
+                    )
+
+                wait_time = intervals[interval_index]
+                if interval_index < len(intervals) - 1:
+                    interval_index += 1
+                time.sleep(wait_time)
+
+            # Phase 2: if we applied, wait for the apply to complete
+            if auto_apply and run.status.is_awaiting_approval:
+                console.print("[dim]Waiting for apply to complete...[/dim]")
+                run = client.runs.poll_until_complete(run_id, max_wait=max_wait_f)
+
             print()
 
             plan = None
-            if final_run.plan_id:
+            if run.plan_id:
                 with suppress(Exception):
-                    plan = client.runs.get_plan(final_run.plan_id)
+                    plan = client.runs.get_plan(run.plan_id)
 
-            render_run_detail(final_run, plan=plan)
+            render_run_detail(run, plan=plan)
 
-            if not final_run.status.is_successful:
+            if run.status.is_awaiting_approval:
+                console.print("\n[yellow]⏸ Run paused — requires manual approval.[/yellow]")
+                raise typer.Exit(0)
+
+            if not run.status.is_successful:
                 raise typer.Exit(1)
 
         except TimeoutError as e:

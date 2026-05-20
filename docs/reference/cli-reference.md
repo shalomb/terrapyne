@@ -37,7 +37,7 @@ Run management and monitoring.
 - `apply`: Apply infrastructure changes.
 - `errors`: Find errored runs across workspaces.
 - `trigger`: Trigger a new run with optional targeting or replacement.
-- `watch`: Watch run progress until complete.
+- `watch`: Watch run progress until complete. Use `--auto-apply` to automatically confirm the run once planning or cost-estimation completes and wait for the apply to finish; use `--comment`/`-m` to attach a comment to the apply action.
 - `follow`: Follow a run's logs in real-time.
 - `discard`: Discard a run that is in a non-terminal state.
 - `cancel`: Cancel a run that is currently planning or applying.
