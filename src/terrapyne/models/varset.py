@@ -45,6 +45,10 @@ class VariableSetVariable(BaseModel):
     def is_env_var(self) -> bool:
         return self.category == "env"
 
+    def __repr__(self) -> str:
+        """String representation masking sensitive values."""
+        return f"VariableSetVariable(key={self.key!r}, value={self.display_value!r}, sensitive={self.sensitive!r})"
+
 
 class VariableSet(BaseModel):
     """Terraform Cloud variable set (org or project scoped)."""

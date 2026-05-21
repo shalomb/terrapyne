@@ -88,6 +88,20 @@ class TestWorkspaceVariableModel:
         assert var.display_value == "••••••••"
         assert var.value == "super-secret-password"  # actual value unchanged
 
+    def test_workspace_variable_repr_sensitive(self):
+        """Test __repr__ masks value if sensitive."""
+        var = WorkspaceVariable(
+            id="var-1", key="secret", value="hidden", category="env", sensitive=True
+        )
+        assert repr(var) == "WorkspaceVariable(key='secret', value='••••••••', sensitive=True)"
+
+    def test_workspace_variable_repr_visible(self):
+        """Test __repr__ shows value if not sensitive."""
+        var = WorkspaceVariable(
+            id="var-2", key="public", value="visible", category="env", sensitive=False
+        )
+        assert repr(var) == "WorkspaceVariable(key='public', value='visible', sensitive=False)"
+
     def test_workspace_variable_display_value_visible(self):
         """Test display_value property shows non-sensitive values."""
         api_response = {

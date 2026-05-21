@@ -56,3 +56,7 @@ class WorkspaceVariable(BaseModel):
     def is_env_var(self) -> bool:
         """Check if this is an environment variable."""
         return self.category == "env"
+
+    def __repr__(self) -> str:
+        """String representation masking sensitive values."""
+        return f"WorkspaceVariable(key={self.key!r}, value={self.display_value!r}, sensitive={self.sensitive!r})"

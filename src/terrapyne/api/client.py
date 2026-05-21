@@ -149,11 +149,28 @@ class TFCClient:
 
         return RunTriggersAPI(self)
 
+    def _sanitize_payload(self, payload: Any) -> Any:
+        """Recursively redact sensitive values from API payloads."""
+        if isinstance(payload, dict):
+            is_sensitive = payload.get("sensitive") is True
+
+            result = {}
+            for k, v in payload.items():
+                if k == "value" and is_sensitive:
+                    result[k] = "••••••••"
+                else:
+                    result[k] = self._sanitize_payload(v)
+            return result
+        if isinstance(payload, list):
+            return [self._sanitize_payload(item) for item in payload]
+        return payload
+
     def _log_request(self, method: str, url: str, params: Any = None) -> float:
         if self.debug:
             logger.info(f"API Request: {method} {url}")
             if params:
-                logger.info(f"  Params: {params}")
+                sanitized = self._sanitize_payload(params)
+                logger.info(f"  Params: {sanitized}")
         return time.time()
 
     def _log_response(
@@ -164,6 +181,13 @@ class TFCClient:
             logger.info(f"API Response: {method} {url} -> {response.status_code} ({duration:.3f}s)")
             if response.status_code >= 400:
                 logger.info(f"  Error Body: {response.text}")
+            elif response.text:
+                try:
+                    data = response.json()
+                    sanitized = self._sanitize_payload(data)
+                    logger.info(f"  Body: {sanitized}")
+                except Exception:
+                    pass
 
     def _handle_response_error(self, response: httpx.Response) -> None:
         """Handle HTTP response errors and raise domain-specific exceptions."""
