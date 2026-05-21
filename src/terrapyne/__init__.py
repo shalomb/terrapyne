@@ -35,12 +35,16 @@ from .core.exceptions import (
     WorkspaceNotFoundError,
 )
 from .core.plan_parser import TerraformPlainTextPlanParser as PlanParser
+from .models.apply import Apply
 from .models.plan import Plan
 from .models.project import Project
-from .models.run import Run
+from .models.run import Run, RunStatus
+from .models.run_trigger import RunTrigger
+from .models.state_version import StateVersion, StateVersionOutput
 from .models.team import Team
 from .models.team_access import TeamProjectAccess
 from .models.variable import WorkspaceVariable
+from .models.varset import VariableSet, VariableSetVariable
 from .models.vcs import VCSConnection
 from .models.workspace import Workspace, WorkspaceVCS
 
@@ -68,6 +72,7 @@ def __getattr__(name: str):
 
 __all__ = [
     "VCSAPI",
+    "Apply",
     "CloneWorkspaceAPI",
     "Plan",
     "PlanParser",
@@ -75,7 +80,11 @@ __all__ = [
     "ProjectAPI",
     "RemoteBackend",
     "Run",
+    "RunStatus",
+    "RunTrigger",
     "RunsAPI",
+    "StateVersion",
+    "StateVersionOutput",
     "TFCAPIError",
     "TFCAuthenticationError",
     "TFCClient",
@@ -93,6 +102,8 @@ __all__ = [
     "TerrapyneError",
     "VCSConnection",
     "VCSTokenRequiredError",
+    "VariableSet",
+    "VariableSetVariable",
     "Workspace",
     "WorkspaceAPI",
     "WorkspaceAlreadyExistsError",

@@ -15,23 +15,24 @@ The workspace-dashboard feature requires writing BDD tests that verify the dashb
 ### Feature specification (Gherkin)
 
 ```gherkin
-Feature: Workspace Activity Snapshot
+Feature: Workspace Activity Dashboard
   As a DevOps engineer
-  I want a health and activity summary when I inspect a workspace
-  So that I can assess its state without opening the GUI
+  I want to see a health and activity summary when I inspect a workspace
+  So that I can assess its state and recent activity without opening the GUI
 
   Scenario: Workspace with recent successful run shows healthy status
-    Given a workspace with a recently applied run linked to a VCS repository
-    When I show the workspace
-    Then I should see the workspace health status
-    And I should see the count of queued runs
-    And I should see the latest commit information
+    Given a workspace with a recently applied run
+    When I show the workspace details
+    Then I should see the workspace health snapshot
+    And I should see the latest run information
+    And I should see the active run count
 
   Scenario: Workspace with no run history shows unknown health
-    Given a workspace with no run history
-    When I show the workspace
-    Then I should see that health status is unknown
-    And I should see active run count as zero
+    Given a workspace with no runs
+    When I show the workspace details
+    Then I should see the workspace health snapshot
+    And I should see unknown health status
+    And I should see zero active runs
 ```
 
 ### Step definitions (Python)
