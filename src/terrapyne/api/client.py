@@ -344,22 +344,6 @@ class TFCClient:
 
     def paginate(
         self, path: str, params: dict[str, Any] | None = None, page_size: int = 100
-    ) -> Iterator[dict[str, Any]]:
-        """Paginate through API results.
-
-        Args:
-            path: API path
-            params: Query parameters
-            page_size: Items per page (max 100)
-
-        Yields:
-            Individual resource dicts
-        """
-        result, _ = self.paginate_with_meta(path, params=params, page_size=page_size)
-        yield from result
-
-    def paginate_with_meta(
-        self, path: str, params: dict[str, Any] | None = None, page_size: int = 100
     ) -> "tuple[_PaginatedResult, int | None]":
         """Paginate through API results with metadata.
 

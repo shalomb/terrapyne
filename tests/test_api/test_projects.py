@@ -21,7 +21,7 @@ def project_api(mock_client):
 def test_list_projects_basic(project_api, mock_client):
     """Test listing projects."""
     mock_client.get_organization.return_value = "test-org"
-    mock_client.paginate_with_meta.return_value = (
+    mock_client.paginate.return_value = (
         iter([{"id": "prj-1", "type": "projects", "attributes": {"name": "p1"}}]),
         1,
     )
@@ -32,19 +32,17 @@ def test_list_projects_basic(project_api, mock_client):
     assert len(projects) == 1
     assert projects[0].id == "prj-1"
     assert total == 1
-    mock_client.paginate_with_meta.assert_called_once_with(
-        "/organizations/test-org/projects", params={}
-    )
+    mock_client.paginate.assert_called_once_with("/organizations/test-org/projects", params={})
 
 
 def test_list_projects_with_search_exact(project_api, mock_client):
     """Test listing projects with exact name search."""
     mock_client.get_organization.return_value = "test-org"
-    mock_client.paginate_with_meta.return_value = (iter([]), 0)
+    mock_client.paginate.return_value = (iter([]), 0)
 
     project_api.list(search="exact-name")
 
-    mock_client.paginate_with_meta.assert_called_once_with(
+    mock_client.paginate.assert_called_once_with(
         "/organizations/test-org/projects", params={"filter[names]": "exact-name"}
     )
 
@@ -52,11 +50,11 @@ def test_list_projects_with_search_exact(project_api, mock_client):
 def test_list_projects_with_search_wildcard(project_api, mock_client):
     """Test listing projects with wildcard search."""
     mock_client.get_organization.return_value = "test-org"
-    mock_client.paginate_with_meta.return_value = (iter([]), 0)
+    mock_client.paginate.return_value = (iter([]), 0)
 
     project_api.list(search="wild*card")
 
-    mock_client.paginate_with_meta.assert_called_once_with(
+    mock_client.paginate.assert_called_once_with(
         "/organizations/test-org/projects", params={"q": "wildcard"}
     )
 
@@ -65,7 +63,7 @@ def test_get_project_by_name_found(project_api, mock_client):
     """Test get_by_name when project exists."""
     mock_client.get_organization.return_value = "test-org"
     prj_data = {"id": "prj-123", "type": "projects", "attributes": {"name": "target-project"}}
-    mock_client.paginate_with_meta.return_value = (iter([prj_data]), 1)
+    mock_client.paginate.return_value = (iter([prj_data]), 1)
 
     project = project_api.get_by_name("target-project")
 
@@ -76,7 +74,7 @@ def test_get_project_by_name_found(project_api, mock_client):
 def test_get_project_by_name_not_found(project_api, mock_client):
     """Test get_by_name when project does not exist."""
     mock_client.get_organization.return_value = "test-org"
-    mock_client.paginate_with_meta.return_value = (iter([]), 0)
+    mock_client.paginate.return_value = (iter([]), 0)
 
     with pytest.raises(ValueError, match="Project 'missing' not found"):
         project_api.get_by_name("missing")
@@ -130,7 +128,7 @@ def test_list_team_access(project_api, mock_client):
             },
         }
     ]
-    mock_client.paginate.return_value = iter(access_data)
+    mock_client.paginate.return_value = (iter(access_data), 1)
 
     # 2. Mock TeamsAPI.get for team name enrichment
     with patch("terrapyne.api.teams.TeamsAPI.get") as mock_team_get:
@@ -174,7 +172,7 @@ def test_list_projects_wildcard_postfilter(
 ):
     """API results are post-filtered by fnmatch so false positives are excluded."""
     mock_client.get_organization.return_value = "test-org"
-    mock_client.paginate_with_meta.return_value = (
+    mock_client.paginate.return_value = (
         iter(
             [
                 {"id": f"prj-{i}", "type": "projects", "attributes": {"name": name}}
@@ -202,7 +200,7 @@ def test_list_team_access_enrichment_failure(project_api, mock_client):
             },
         }
     ]
-    mock_client.paginate.return_value = iter(access_data)
+    mock_client.paginate.return_value = (iter(access_data), 1)
 
     with patch("terrapyne.api.teams.TeamsAPI.get") as mock_team_get:
         mock_team_get.side_effect = Exception("API Error")

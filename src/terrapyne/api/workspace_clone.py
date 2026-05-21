@@ -180,7 +180,7 @@ class CloneWorkspaceAPI:
             Iterator of WorkspaceVariable instances
         """
         path = f"/workspaces/{workspace_id}/vars"
-        items_iterator, _ = self.client.paginate_with_meta(path)
+        items_iterator, _ = self.client.paginate(path)
 
         def variable_iterator() -> Iterator[WorkspaceVariable]:
             for item in items_iterator:

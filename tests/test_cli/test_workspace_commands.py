@@ -97,6 +97,8 @@ def list_all_workspaces(org_setup, workspace_list_response):
 def check_workspace_list(list_all_workspaces):
     """Verify workspace list is displayed."""
     result = list_all_workspaces["result"]
+    if result.exit_code != 0:
+        print(f"DEBUG EXCEPTION: {result.exception}", "DEBUG STDOUT:", result.stdout)
     assert result.exit_code == 0
     assert "my-app-dev" in result.stdout or "my-app-prod" in result.stdout
 
@@ -546,7 +548,7 @@ def clone_with_variables(
             WorkspaceVariable.from_api_response(var)
             for var in workspace_variables_prod_response["data"]
         ]
-        mock_instance.paginate_with_meta.return_value = (iter(variables), 3)
+        mock_instance.paginate.return_value = (iter(variables), 3)
 
         # Mock variable creation
         mock_instance.post.return_value = variable_create_response

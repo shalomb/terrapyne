@@ -9,7 +9,7 @@ from typing import Any
 import typer
 from rich.table import Table
 
-from terrapyne.cli.utils import get_client, validate_context
+from terrapyne.cli.context_helpers import get_client, validate_context
 from terrapyne.core.state_diff import (
     DEFAULT_FIELDS,
 )

@@ -49,7 +49,7 @@ class ProjectAPI:
                 # Exact name → use filter[names] for fast server-side match
                 params["filter[names]"] = search
 
-        items_iterator, total_count = self.client.paginate_with_meta(path, params=params)
+        items_iterator, total_count = self.client.paginate(path, params=params)
 
         def project_iterator() -> Iterator[Project]:
             for item in items_iterator:
@@ -144,7 +144,8 @@ class ProjectAPI:
 
         # Fetch team access records
         team_access_list = []
-        for item in self.client.paginate(path, params=params):
+        items, _ = self.client.paginate(path, params=params)
+        for item in items:
             team_access_list.append(TeamProjectAccess.from_api_response(item))
 
         # Fetch team names for each team ID

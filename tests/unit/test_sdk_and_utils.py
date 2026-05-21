@@ -34,8 +34,8 @@ class TestChangeDirectory:
 class TestValidateContext:
     """Tests for validate_context function from terrapyne.cli.utils."""
 
-    @patch("terrapyne.cli.utils.resolve_organization")
-    @patch("terrapyne.cli.utils.resolve_workspace")
+    @patch("terrapyne.cli.context_helpers.resolve_organization")
+    @patch("terrapyne.cli.context_helpers.resolve_workspace")
     def test_validate_context_returns_workspace_when_provided_without_require_workspace(
         self, mock_resolve_ws, mock_resolve_org
     ):
@@ -50,8 +50,8 @@ class TestValidateContext:
         assert org == "my-org"
         assert ws == "my-workspace"
 
-    @patch("terrapyne.cli.utils.resolve_organization")
-    @patch("terrapyne.cli.utils.resolve_workspace")
+    @patch("terrapyne.cli.context_helpers.resolve_organization")
+    @patch("terrapyne.cli.context_helpers.resolve_workspace")
     def test_validate_context_returns_none_workspace_when_not_provided_and_not_required(
         self, mock_resolve_ws, mock_resolve_org
     ):
@@ -66,8 +66,8 @@ class TestValidateContext:
         assert org == "my-org"
         assert ws is None
 
-    @patch("terrapyne.cli.utils.resolve_organization")
-    @patch("terrapyne.cli.utils.resolve_workspace")
+    @patch("terrapyne.cli.context_helpers.resolve_organization")
+    @patch("terrapyne.cli.context_helpers.resolve_workspace")
     def test_validate_context_returns_workspace_when_required(
         self, mock_resolve_ws, mock_resolve_org
     ):
@@ -82,8 +82,8 @@ class TestValidateContext:
         assert org == "my-org"
         assert ws == "my-workspace"
 
-    @patch("terrapyne.cli.utils.resolve_organization")
-    @patch("terrapyne.cli.utils.resolve_workspace")
+    @patch("terrapyne.cli.context_helpers.resolve_organization")
+    @patch("terrapyne.cli.context_helpers.resolve_workspace")
     def test_validate_context_raises_when_workspace_required_but_not_resolved(
         self, mock_resolve_ws, mock_resolve_org
     ):

@@ -4,13 +4,10 @@ from typing import cast
 
 import typer
 
-from terrapyne.cli.utils import (
-    console,
-    get_client,
-    handle_cli_errors,
-    resolve_organization,
-    validate_context,
-)
+from terrapyne.cli.context_helpers import get_client, validate_context
+from terrapyne.cli.error_handlers import handle_cli_errors
+from terrapyne.core.context import resolve_organization
+from terrapyne.rendering.logging import console
 
 app = typer.Typer(help="Manage workspace run trigger relationships")
 

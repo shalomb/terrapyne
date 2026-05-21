@@ -56,7 +56,7 @@ def request_project_details_no_name():
     """Request project details via CLI without arguments."""
     with (
         patch("terrapyne.cli.project_cmd.validate_context") as mock_validate_cmd,
-        patch("terrapyne.cli.utils.validate_context") as mock_validate_utils,
+        patch("terrapyne.cli.context_helpers.validate_context") as mock_validate_utils,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_instance = MagicMock()
@@ -85,7 +85,7 @@ def request_project_teams_no_name():
     """Request project teams via CLI without arguments."""
     with (
         patch("terrapyne.cli.project_cmd.validate_context") as mock_validate_cmd,
-        patch("terrapyne.cli.utils.validate_context") as mock_validate_utils,
+        patch("terrapyne.cli.context_helpers.validate_context") as mock_validate_utils,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_instance = MagicMock()

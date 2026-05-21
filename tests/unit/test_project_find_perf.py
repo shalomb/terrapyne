@@ -9,11 +9,11 @@ class TestProjectListFiltering:
     def _make_client(self):
         mock = MagicMock()
         mock.get_organization.return_value = "test-org"
-        mock.paginate_with_meta.return_value = (iter([]), None)
+        mock.paginate.return_value = (iter([]), None)
         return mock
 
     def _get_params(self, client):
-        return client.paginate_with_meta.call_args.kwargs.get("params", {})
+        return client.paginate.call_args.kwargs.get("params", {})
 
     def test_exact_name_uses_filter_names(self):
         """No wildcards → use filter[names] for exact server-side match."""

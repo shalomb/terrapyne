@@ -22,7 +22,7 @@ def api(mock_client):
 
 def test_list_state_versions(api, mock_client):
     """Test listing state versions for a workspace."""
-    mock_client.paginate_with_meta.return_value = (
+    mock_client.paginate.return_value = (
         [
             {
                 "id": "sv-1",
@@ -42,12 +42,12 @@ def test_list_state_versions(api, mock_client):
     assert versions[0].id == "sv-1"
     assert versions[1].id == "sv-2"
     assert total == 2
-    mock_client.paginate_with_meta.assert_called_once()
+    mock_client.paginate.assert_called_once()
 
 
 def test_list_state_versions_by_workspace_id_no_round_trip(api, mock_client):
     """When workspace_id is given, use filter[workspace][id] directly — no workspace lookup."""
-    mock_client.paginate_with_meta.return_value = (
+    mock_client.paginate.return_value = (
         [{"id": "sv-1", "attributes": {"serial": 1, "status": "complete", "resource-count": 5}}],
         1,
     )
@@ -57,7 +57,7 @@ def test_list_state_versions_by_workspace_id_no_round_trip(api, mock_client):
     assert len(versions) == 1
     assert versions[0].id == "sv-1"
     # Must use filter[workspace][id] directly
-    call_kwargs = mock_client.paginate_with_meta.call_args
+    call_kwargs = mock_client.paginate.call_args
     params = call_kwargs[1].get("params") or call_kwargs[0][1]
     assert params.get("filter[workspace][id]") == "ws-xyz"
     # Must NOT have triggered a workspace lookup
@@ -97,24 +97,27 @@ def test_get_current_state_version(api, mock_client):
 
 def test_list_outputs(api, mock_client):
     """Test listing outputs for a state version."""
-    mock_client.paginate.return_value = [
-        {
-            "attributes": {
-                "name": "db_url",
-                "value": "postgres://host",
-                "type": "string",
-                "sensitive": False,
-            }
-        },
-        {
-            "attributes": {
-                "name": "db_pass",
-                "value": None,
-                "type": "string",
-                "sensitive": True,
-            }
-        },
-    ]
+    mock_client.paginate.return_value = (
+        [
+            {
+                "attributes": {
+                    "name": "db_url",
+                    "value": "postgres://host",
+                    "type": "string",
+                    "sensitive": False,
+                }
+            },
+            {
+                "attributes": {
+                    "name": "db_pass",
+                    "value": None,
+                    "type": "string",
+                    "sensitive": True,
+                }
+            },
+        ],
+        1,
+    )
 
     outputs = api.list_outputs("sv-abc")
 
@@ -129,20 +132,23 @@ def test_find_version_before(api, mock_client):
     """Test finding a state version before a given date."""
     before_dt = datetime(2023, 1, 1, tzinfo=UTC)
 
-    mock_client.paginate.return_value = [
-        {
-            "id": "sv-new",
-            "attributes": {"created-at": "2023-01-02T00:00:00Z", "serial": 10},
-        },
-        {
-            "id": "sv-target",
-            "attributes": {"created-at": "2022-12-31T23:59:59Z", "serial": 9},
-        },
-        {
-            "id": "sv-old",
-            "attributes": {"created-at": "2022-12-30T00:00:00Z", "serial": 8},
-        },
-    ]
+    mock_client.paginate.return_value = (
+        [
+            {
+                "id": "sv-new",
+                "attributes": {"created-at": "2023-01-02T00:00:00Z", "serial": 10},
+            },
+            {
+                "id": "sv-target",
+                "attributes": {"created-at": "2022-12-31T23:59:59Z", "serial": 9},
+            },
+            {
+                "id": "sv-old",
+                "attributes": {"created-at": "2022-12-30T00:00:00Z", "serial": 8},
+            },
+        ],
+        1,
+    )
 
     # Need to mock WorkspaceAPI for name resolution
     with patch("terrapyne.api.workspaces.WorkspaceAPI") as ws_api_mock:

@@ -419,7 +419,7 @@ class TestWorkspaceVariableIntegration:
         assert created_var.id == "var-new123"
 
         # Mock get_variables to include the newly created variable
-        mock_client.paginate.return_value = iter([create_response])
+        mock_client.paginate.return_value = (iter([create_response]), 1)
 
         # Get variables
         variables = api.get_variables(workspace_id)

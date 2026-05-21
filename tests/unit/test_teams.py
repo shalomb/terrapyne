@@ -107,12 +107,12 @@ class TestListTeamsServerSideFiltering:
     def test_list_teams_filters(self, search, names, expected_params):
         """Test list_teams parameter handling for various filter combinations."""
         client = _make_client_mock()
-        client.paginate_with_meta.return_value = (iter([]), 0)
+        client.paginate.return_value = (iter([]), 0)
 
         api = TeamsAPI(client)
         api.list_teams(organization="my-org", search=search, names=names)
 
-        client.paginate_with_meta.assert_called_once_with(
+        client.paginate.assert_called_once_with(
             "/organizations/my-org/teams", params=expected_params
         )
 
@@ -122,7 +122,7 @@ class TestListTeamsServerSideFiltering:
             _make_team_response("team-aaa", "platform-developer", members=3),
             _make_team_response("team-bbb", "platform-viewer", members=1),
         ]
-        client.paginate_with_meta.return_value = (iter(raw), 2)
+        client.paginate.return_value = (iter(raw), 2)
 
         api = TeamsAPI(client)
         teams_iter, total = api.list_teams(organization="my-org", search="platform")
@@ -147,7 +147,7 @@ class TestGetProjectAccess:
             _make_team_project_access_response("tprj-111", "team-aaa", "prj-001"),
             _make_team_project_access_response("tprj-222", "team-bbb", "prj-001"),
         ]
-        client.paginate.return_value = iter(raw)
+        client.paginate.return_value = (iter(raw), 1)
 
         api = TeamsAPI(client)
         result = api.get_project_access(project_id="prj-001", team_id="team-aaa")
@@ -164,7 +164,7 @@ class TestGetProjectAccess:
     def test_raises_when_team_not_in_project(self):
         client = _make_client_mock()
         raw = [_make_team_project_access_response("tprj-111", "team-aaa", "prj-001")]
-        client.paginate.return_value = iter(raw)
+        client.paginate.return_value = (iter(raw), 1)
 
         api = TeamsAPI(client)
         with pytest.raises(ValueError, match="No project access record found"):
@@ -182,7 +182,7 @@ class TestSetProjectAccess:
         existing_raw = [
             _make_team_project_access_response("tprj-111", "team-aaa", "prj-001", access="read")
         ]
-        client.paginate.return_value = iter(existing_raw)
+        client.paginate.return_value = (iter(existing_raw), 1)
 
         updated_raw = _make_team_project_access_response(
             "tprj-111", "team-aaa", "prj-001", access="admin"
@@ -202,7 +202,7 @@ class TestSetProjectAccess:
     def test_accepts_all_valid_access_levels(self, access: str):
         client = _make_client_mock()
         existing_raw = [_make_team_project_access_response("tprj-111", "team-aaa", "prj-001")]
-        client.paginate.return_value = iter(existing_raw)
+        client.paginate.return_value = (iter(existing_raw), 1)
         client.patch.return_value = {
             "data": _make_team_project_access_response(
                 "tprj-111", "team-aaa", "prj-001", access=access
@@ -238,7 +238,7 @@ class TestCompareProjectAccess:
         client = _make_client_mock()
         raw_a = [_make_team_project_access_response("tprj-111", "team-aaa", "prj-001")]
         raw_b = [_make_team_project_access_response("tprj-222", "team-bbb", "prj-002")]
-        client.paginate.side_effect = [iter(raw_a), iter(raw_b)]
+        client.paginate.side_effect = [(iter(raw_a), 1), (iter(raw_b), 1)]
 
         api = TeamsAPI(client)
         comparison = api.compare_project_access(
@@ -257,7 +257,7 @@ class TestCompareProjectAccess:
             _make_team_project_access_response("tprj-111", "team-aaa", "prj-001", runs="apply")
         ]
         raw_b = [_make_team_project_access_response("tprj-222", "team-bbb", "prj-002", runs="read")]
-        client.paginate.side_effect = [iter(raw_a), iter(raw_b)]
+        client.paginate.side_effect = [(iter(raw_a), 1), (iter(raw_b), 1)]
 
         api = TeamsAPI(client)
         comparison = api.compare_project_access(
@@ -283,7 +283,7 @@ class TestCompareProjectAccess:
         raw_b = [
             _make_team_project_access_response("tprj-222", "team-bbb", "prj-002", access="read")
         ]
-        client.paginate.side_effect = [iter(raw_a), iter(raw_b)]
+        client.paginate.side_effect = [(iter(raw_a), 1), (iter(raw_b), 1)]
 
         api = TeamsAPI(client)
         comparison = api.compare_project_access(

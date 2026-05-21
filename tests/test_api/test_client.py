@@ -89,41 +89,14 @@ class TestPaginationDefensiveCopy:
         # Setup mock response
         mock_get.return_value = {
             "data": [{"id": "item-1"}],
-            "meta": {"pagination": {"total-count": 1}},
-        }
-
-        # Original params dict we want to reuse
-        params = {"limit": 10}
-
-        # First call with params
-        list(client.paginate("/workspaces", params=params))
-
-        # Verify params dict wasn't mutated
-        assert params == {"limit": 10}, "Original params dict was mutated!"
-
-        # Second call should work the same way
-        list(client.paginate("/workspaces", params=params))
-
-        # Both calls should succeed without params mutation causing issues
-        assert mock_get.call_count >= 2
-
-    @patch("terrapyne.api.client.TFCClient.get")
-    def test_paginate_with_meta_params_not_mutated(self, mock_get):
-        """Test that paginate_with_meta() doesn't mutate original params dict."""
-        creds = TerraformCredentials(host="app.terraform.io", token="test-token")
-        client = TFCClient(credentials=creds)
-
-        # Setup mock response
-        mock_get.return_value = {
-            "data": [{"id": "item-1"}],
             "meta": {"pagination": {"total-count": 2}},
         }
 
         # Original params dict
         params = {"status": "applied"}
 
-        # Call paginate_with_meta
-        results, _total = client.paginate_with_meta("/runs", params=params)
+        # Call paginate
+        results, _total = client.paginate("/runs", params=params)
         list(results)  # Consume generator to trigger paginate calls
 
         # Verify params dict wasn't mutated
@@ -142,7 +115,8 @@ class TestAPIResponseHandling:
         mock_get.return_value = {"data": [{"id": "ws-1", "attributes": {"name": "test"}}]}
 
         # Should not raise
-        results = list(client.paginate("/workspaces"))
+        results, _ = client.paginate("/workspaces")
+        results = list(results)
         assert len(results) > 0
 
     @patch("terrapyne.api.client.TFCClient.get")
@@ -157,7 +131,8 @@ class TestAPIResponseHandling:
         }
 
         # Should handle gracefully
-        results = list(client.paginate("/workspaces"))
+        results, _ = client.paginate("/workspaces")
+        results = list(results)
         assert results == []
 
     @patch("terrapyne.api.client.TFCClient.get")
@@ -172,7 +147,7 @@ class TestAPIResponseHandling:
         }
 
         # Get results with metadata
-        results, total = client.paginate_with_meta("/workspaces")
+        results, total = client.paginate("/workspaces")
         results_list = list(results)
 
         assert total == 5
@@ -180,7 +155,7 @@ class TestAPIResponseHandling:
 
 
 class TestPaginateWithMetaIncludedAccumulation:
-    """B3: paginate_with_meta must accumulate included across all pages."""
+    """B3: paginate must accumulate included across all pages."""
 
     @patch("terrapyne.api.client.TFCClient.get")
     def test_included_accumulates_across_pages(self, mock_get):
@@ -204,7 +179,7 @@ class TestPaginateWithMetaIncludedAccumulation:
             },
         ]
 
-        iterator, total = client.paginate_with_meta("/workspaces")
+        iterator, total = client.paginate("/workspaces")
         items = list(iterator)
 
         assert total == 2
@@ -226,14 +201,14 @@ class TestPaginateWithMetaIncludedAccumulation:
             "links": {},
         }
 
-        iterator, _ = client.paginate_with_meta("/workspaces")
+        iterator, _ = client.paginate("/workspaces")
         list(iterator)
 
         assert iterator.included == []
 
 
 class TestPaginationUnification:
-    """A13: paginate_with_meta replaced with single pagination primitive."""
+    """A13: paginate replaced with single pagination primitive."""
 
     @patch("terrapyne.api.client.TFCClient.get")
     def test_paginate_yields_items_without_meta(self, mock_get):
@@ -247,12 +222,13 @@ class TestPaginationUnification:
             "links": {},
         }
 
-        items = list(client.paginate("/workspaces"))
+        items, _ = client.paginate("/workspaces")
+        items = list(items)
         assert [i["id"] for i in items] == ["item-1", "item-2"]
 
     @patch("terrapyne.api.client.TFCClient.get")
-    def test_paginate_with_meta_returns_tuple(self, mock_get):
-        """paginate_with_meta returns (iterator, total_count) compatible tuple."""
+    def test_paginate_returns_tuple(self, mock_get):
+        """paginate returns (iterator, total_count) compatible tuple."""
         creds = TerraformCredentials(host="app.terraform.io", token="test-token")
         client = TFCClient(credentials=creds)
 
@@ -263,18 +239,18 @@ class TestPaginationUnification:
             "links": {},
         }
 
-        result, total = client.paginate_with_meta("/workspaces")
+        result, total = client.paginate("/workspaces")
         assert total == 42
         assert list(result) == [{"id": "ws-1"}]
 
     @patch("terrapyne.api.client.TFCClient.get")
-    def test_no_inner_class_in_paginate_with_meta(self, mock_get):
-        """paginate_with_meta does not use a mutable ResponseIterator inner class."""
+    def test_no_inner_class_in_paginate(self, mock_get):
+        """paginate does not use a mutable ResponseIterator inner class."""
         import inspect
 
         import terrapyne.api.client as client_module
 
-        source = inspect.getsource(client_module.TFCClient.paginate_with_meta)
+        source = inspect.getsource(client_module.TFCClient.paginate)
         assert "class ResponseIterator" not in source, (
             "ResponseIterator inner class should be removed"
         )

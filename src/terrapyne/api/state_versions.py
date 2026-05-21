@@ -44,7 +44,7 @@ class StateVersionsAPI:
         else:
             raise ValueError("Either workspace_id or organization+workspace_name required")
 
-        items_iter, total_count = self.client.paginate_with_meta(path, params=params)
+        items_iter, total_count = self.client.paginate(path, params=params)
 
         versions = []
         for item in items_iter:
@@ -84,7 +84,8 @@ class StateVersionsAPI:
         """List outputs for a state version without downloading full state."""
         path = f"/state-versions/{state_version_id}/outputs"
         outputs = []
-        for item in self.client.paginate(path):
+        items, _ = self.client.paginate(path)
+        for item in items:
             attrs = item.get("attributes", {})
             outputs.append(
                 StateVersionOutput(
@@ -120,7 +121,8 @@ class StateVersionsAPI:
             "filter[workspace][name]": ws.name,
         }
 
-        for item in self.client.paginate(path, params=params):
+        items, _ = self.client.paginate(path, params=params)
+        for item in items:
             sv = StateVersion.from_api_response(item)
             if not sv.created_at:
                 continue

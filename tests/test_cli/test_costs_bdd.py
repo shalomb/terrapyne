@@ -32,26 +32,24 @@ def mock_api_client():
         return "test-org", prj
 
     with (
-        patch("terrapyne.api.client.TFCClient") as mock_ws_client,
-        patch("terrapyne.api.client.TFCClient") as mock_prj_client,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
         patch("terrapyne.cli.workspace_cmd.validate_context") as mock_ws_ctx,
         patch("terrapyne.cli.project_cmd.validate_context") as mock_prj_ctx,
-        patch("terrapyne.cli.project_cmd.resolve_project_context") as mock_resolve_ctx,
+        patch("terrapyne.cli.context_helpers.resolve_project_context") as mock_resolve_ctx,
     ):
         mock_instance = MagicMock()
-        mock_ws_client.return_value.__enter__.return_value = mock_instance
-        mock_prj_client.return_value = mock_instance
-        mock_prj_client.return_value.__enter__.return_value = mock_instance
+        mock_client.return_value = mock_instance
+        mock_client.return_value.__enter__.return_value = mock_instance
 
         # Mock get_organization to return the organization name
         mock_instance.get_organization.return_value = "test-org"
 
         # Store projects and workspaces in a dict that can be updated by fixture steps
-        # This allows steps to add data that will be returned by paginate_with_meta
+        # This allows steps to add data that will be returned by paginate
         fixture_data = {"projects": {}, "workspaces": {}}
 
         def paginate_side_effect(path, params=None, **kwargs):
-            """Mock paginate_with_meta that returns data based on what the steps have set up."""
+            """Mock paginate that returns data based on what the steps have set up."""
             if params is None:
                 params = {}
 
@@ -66,7 +64,7 @@ def mock_api_client():
             # Default: return empty
             return (iter([]), 0)
 
-        mock_instance.paginate_with_meta.side_effect = paginate_side_effect
+        mock_instance.paginate.side_effect = paginate_side_effect
         # Also store fixture_data on the mock for steps to access
         mock_instance._fixture_data = fixture_data
 
@@ -216,7 +214,7 @@ def project_exists(mock_api_client: MagicMock, project_name: str) -> None:
     # Store the project in the test mapping
     mock_api_client._test_projects[project_name] = prj_model
 
-    # Store in fixture data so paginate_with_meta can find it
+    # Store in fixture data so paginate can find it
     mock_api_client._fixture_data["projects"][project_name] = prj_api_response
 
     # Also mock the direct get_by_name call as a fallback

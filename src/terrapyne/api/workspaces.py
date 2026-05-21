@@ -65,7 +65,7 @@ class WorkspaceAPI:
         if current_run_status:
             params["filter[current-run][status]"] = current_run_status
 
-        items_iterator, total_count = self.client.paginate_with_meta(path, params=params)
+        items_iterator, total_count = self.client.paginate(path, params=params)
 
         def workspace_iterator() -> Iterator[Workspace]:
             for item in items_iterator:
@@ -139,7 +139,8 @@ class WorkspaceAPI:
         path = f"/workspaces/{workspace_id}/vars"
 
         variables = []
-        for item in self.client.paginate(path):
+        items, _ = self.client.paginate(path)
+        for item in items:
             variables.append(WorkspaceVariable.from_api_response(item))
 
         # Sort variables: terraform vars first, then env vars, alphabetically within each

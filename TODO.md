@@ -346,13 +346,14 @@ terraform {
 | D6 | ADR-004 Gherkin examples diverged from feature file | 🟡 | S | 2.0 | TODO |
 | D9 | Update reference docs for missing models | 🟢 | S | 1.0 | TODO |
 | **ARCH** |
-| A16 | `sensitive=True` variables may leak values in `--debug` log output | 🟡 | S | 2.0 | TODO |
-| A8 | Three uncoordinated `Console()` instances | 🟡 | M | 1.33 | TODO |
 | A12 | `run_cmd.py` decomposition (852 lines) | 🟢 | L | 0.3 | TODO |
 | A13 | `paginate()` and `paginate_with_meta()` divergent | 🟢 | M | 0.5 | TODO |
 | A14 | Domain errors defined in API layer | 🟢 | S | 1.0 | TODO |
 | A15 | `utils/` is an unconstrained catch-all | 🟢 | L | 0.3 | TODO |
-| A17 | Export all SDK models in package root | 🟡 | S | 2.0 | TODO |
+| A17 | Export all SDK models in package root | 🟡 | S | 2.0 | ✅ |
+| **COMPLETED** |
+| A16 | `sensitive=True` variables may leak values in `--debug` log output | 🟡 | S | 2.0 | ✅ |
+| A8 | Three uncoordinated `Console()` instances | 🟡 | M | 1.33 | ✅ |
 | **COMPLETED** |
 | D1 | Fix broken docs links in AGENTS.md & deprecate GEMINI.md | 🔴 | S | 4.0 | ✅ |
 | D2 | CLI reference lists non-existent `workspace health` | 🟡 | S | 2.0 | ✅ |

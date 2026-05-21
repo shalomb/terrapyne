@@ -56,30 +56,30 @@ class TestWorkspaceCurrentRunStatusFilter:
         return WorkspaceAPI(mock_client)
 
     def test_list_passes_current_run_status_filter(self, api, mock_client):
-        """filter[current-run][status] is forwarded to paginate_with_meta."""
-        mock_client.paginate_with_meta.return_value = (iter([]), 0)
+        """filter[current-run][status] is forwarded to paginate."""
+        mock_client.paginate.return_value = (iter([]), 0)
 
         list(api.list(current_run_status="errored")[0])
 
-        call_params = mock_client.paginate_with_meta.call_args[1]["params"]
+        call_params = mock_client.paginate.call_args[1]["params"]
         assert call_params["filter[current-run][status]"] == "errored"
 
     def test_list_includes_latest_run_when_filter_set(self, api, mock_client):
         """include=latest-run is added automatically when current_run_status is set."""
-        mock_client.paginate_with_meta.return_value = (iter([]), 0)
+        mock_client.paginate.return_value = (iter([]), 0)
 
         list(api.list(current_run_status="errored")[0])
 
-        call_params = mock_client.paginate_with_meta.call_args[1]["params"]
+        call_params = mock_client.paginate.call_args[1]["params"]
         assert "latest-run" in call_params.get("include", "")
 
     def test_list_no_filter_does_not_add_current_run_param(self, api, mock_client):
         """Without current_run_status, no filter[current-run][status] param is sent."""
-        mock_client.paginate_with_meta.return_value = (iter([]), 0)
+        mock_client.paginate.return_value = (iter([]), 0)
 
         list(api.list()[0])
 
-        call_params = mock_client.paginate_with_meta.call_args[1]["params"]
+        call_params = mock_client.paginate.call_args[1]["params"]
         assert "filter[current-run][status]" not in call_params
 
     def test_list_returns_workspaces_with_latest_run_populated(self, api, mock_client):
@@ -92,7 +92,7 @@ class TestWorkspaceCurrentRunStatusFilter:
         paginator = MagicMock()
         paginator.__iter__ = MagicMock(return_value=iter([ws_data]))
         paginator.included = [run_include]
-        mock_client.paginate_with_meta.return_value = (paginator, 1)
+        mock_client.paginate.return_value = (paginator, 1)
 
         workspaces, total = api.list(current_run_status="errored")
         ws_list = list(workspaces)
@@ -104,11 +104,11 @@ class TestWorkspaceCurrentRunStatusFilter:
 
     def test_list_combines_current_run_filter_with_project_filter(self, api, mock_client):
         """Both filter[current-run][status] and filter[project][id] can be set together."""
-        mock_client.paginate_with_meta.return_value = (iter([]), 0)
+        mock_client.paginate.return_value = (iter([]), 0)
 
         list(api.list(current_run_status="errored", project_id="prj-xyz")[0])
 
-        call_params = mock_client.paginate_with_meta.call_args[1]["params"]
+        call_params = mock_client.paginate.call_args[1]["params"]
         assert call_params["filter[current-run][status]"] == "errored"
         assert call_params["filter[project][id]"] == "prj-xyz"
 

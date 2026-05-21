@@ -5,18 +5,15 @@ from typing import Annotated, cast
 import typer
 
 from terrapyne.cli import triggers_cmd
-from terrapyne.cli.utils import (
-    console,
-    emit_json,
-    get_client,
-    handle_cli_errors,
-    resolve_organization,
-    validate_context,
-)
+from terrapyne.cli.context_helpers import get_client, validate_context
+from terrapyne.cli.error_handlers import handle_cli_errors
+from terrapyne.cli.output_helpers import emit_json
 from terrapyne.core.browser import get_workspace_url, open_url_in_browser
+from terrapyne.core.context import resolve_organization
 from terrapyne.core.exceptions import TFCAPIError, WorkspaceNotFoundError
 from terrapyne.models.run import RunStatus
 from terrapyne.models.variable import WorkspaceVariable
+from terrapyne.rendering.logging import console
 from terrapyne.rendering.rich_tables import (
     render_workspace_dashboard,
     render_workspace_variables,

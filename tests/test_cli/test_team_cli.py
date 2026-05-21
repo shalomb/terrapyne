@@ -67,7 +67,7 @@ def user_exists(user_id):
 @when("I list all teams", target_fixture="cli_result")
 def list_all_teams(mock_client):
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as v,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as v,
         patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = "test-org"
@@ -81,7 +81,7 @@ def list_all_teams(mock_client):
 )
 def create_team(name, permission):
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as v,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as v,
         patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = "test-org"
@@ -97,7 +97,7 @@ def create_team(name, permission):
 @when(parsers.parse('I delete the team "{name}"'), target_fixture="cli_result")
 def delete_team_step(mock_client, name):
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as v,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as v,
         patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = "test-org"
@@ -109,7 +109,7 @@ def delete_team_step(mock_client, name):
 @when(parsers.parse('I add "{user_id}" to the "{team_name}" team'), target_fixture="cli_result")
 def add_team_member_step(mock_client, user_id, team_name):
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as v,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as v,
         patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = "test-org"
@@ -129,7 +129,7 @@ def add_team_member_step(mock_client, user_id, team_name):
 )
 def remove_team_member_step(mock_client, user_id, team_name):
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as v,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as v,
         patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = "test-org"

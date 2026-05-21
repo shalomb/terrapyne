@@ -86,7 +86,7 @@ def has_state_versions(mock_client, datatable):
 @when("I pull the current state", target_fixture="cli_result")
 def pull_state(mock_client):
     with (
-        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.cli.state_cmd.validate_context") as v,
         patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", "my-infra")
@@ -97,7 +97,7 @@ def pull_state(mock_client):
 @when("I list state versions", target_fixture="cli_result")
 def list_state_versions(mock_client):
     with (
-        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.cli.state_cmd.validate_context") as v,
         patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", "my-infra")

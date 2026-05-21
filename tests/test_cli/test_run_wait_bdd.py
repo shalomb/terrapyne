@@ -110,7 +110,7 @@ def trigger_with_wait(mock_client, workspace_name):
         mock_client.runs.get_plan.return_value = MagicMock(additions=1, changes=0, destructions=0)
 
     with (
-        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
         patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", workspace_name)
@@ -124,7 +124,7 @@ def trigger_with_wait(mock_client, workspace_name):
 )
 def trigger_wait_queue(mock_client, workspace_name):
     with (
-        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
         patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", workspace_name)
@@ -140,7 +140,7 @@ def trigger_wait_queue(mock_client, workspace_name):
 )
 def trigger_discard_older(mock_client, workspace_name):
     with (
-        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
         patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", workspace_name)

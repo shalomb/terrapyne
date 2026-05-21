@@ -134,9 +134,9 @@ class TestCloneVariablesIntegration:
             },
         ]
 
-        # paginate_with_meta returns (iterator, total_count) with raw API dicts
+        # paginate returns (iterator, total_count) with raw API dicts
         # The get_workspace_variables wraps each with from_api_response
-        mock_client.paginate_with_meta.return_value = (
+        mock_client.paginate.return_value = (
             iter(source_vars),  # Raw API response dicts
             2,
         )
@@ -181,8 +181,8 @@ class TestCloneVariablesIntegration:
             },
         ]
 
-        # paginate_with_meta returns raw API dicts
-        mock_client.paginate_with_meta.return_value = (
+        # paginate returns raw API dicts
+        mock_client.paginate.return_value = (
             iter(variables),  # Raw API dicts, not parsed objects
             2,
         )
@@ -201,7 +201,7 @@ class TestCloneVariablesIntegration:
     def test_clone_empty_variables(self, api, mock_client):
         """Test cloning workspace with no variables."""
         # Return empty iterator when no variables
-        mock_client.paginate_with_meta.return_value = (iter([]), 0)
+        mock_client.paginate.return_value = (iter([]), 0)
 
         result = api.clone_variables(
             source_workspace_id="ws-source-123",
@@ -214,7 +214,7 @@ class TestCloneVariablesIntegration:
     def test_clone_variables_error_handling(self, api, mock_client):
         """Test error handling during variable cloning."""
         # Return raw API dict
-        mock_client.paginate_with_meta.return_value = (
+        mock_client.paginate.return_value = (
             iter(
                 [
                     {
@@ -474,7 +474,7 @@ class TestCloneWorkflowIntegration:
                 },
             }
         ]
-        mock_client.paginate_with_meta.return_value = (
+        mock_client.paginate.return_value = (
             iter(variables),  # Raw API dicts
             1,
         )
