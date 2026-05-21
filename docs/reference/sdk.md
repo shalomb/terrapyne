@@ -46,6 +46,8 @@ All API operations are accessed through `TFCClient` properties:
 | `client.teams` | `TeamsAPI` | list_teams, get, create, update, delete, add/remove_member, get/set_project_access |
 | `client.state_versions` | `StateVersionsAPI` | list, get, get_current, download, list_outputs, find_version_before |
 | `client.vcs` | `VCSAPI` | get_workspace_vcs, update_workspace_branch, list_connections, list_repositories |
+| `client.varsets` | `VarSetAPI` | list, get, get_variables, apply_to_workspace, remove_from_workspace |
+| `client.run_triggers` | `RunTriggersAPI` | list_for_workspace, create, delete |
 
 ## Pydantic Models
 
