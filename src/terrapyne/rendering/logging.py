@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 import typing as t
 from datetime import datetime
 from textwrap import indent
@@ -37,8 +38,26 @@ _ansi_reset_all = "\033[0m"
 
 Color = int | tuple[int, int, int] | str
 
+
+class _DynamicStderr:
+    def write(self, s: str) -> None:
+        sys.stderr.write(s)
+
+    def flush(self) -> None:
+        sys.stderr.flush()
+
+    def isatty(self) -> bool:
+        if hasattr(sys.stderr, "isatty"):
+            return sys.stderr.isatty()
+        return False
+
+    def fileno(self) -> int:
+        return sys.stderr.fileno()
+
+
 # Consolidated console instances for CLI output
 console = Console()
+error_console = Console(file=t.cast(t.TextIO, _DynamicStderr()))
 
 
 def _interpret_color(color: Color, offset: int = 0) -> str:

@@ -11,7 +11,7 @@ import typer
 from terrapyne.api.client import TFCClient
 from terrapyne.core.context import resolve_organization, resolve_workspace
 from terrapyne.core.exceptions import TerrapyneError, TFCAPIError
-from terrapyne.rendering.logging import console
+from terrapyne.rendering.logging import console, error_console
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -35,14 +35,29 @@ def get_client(ctx: typer.Context | None, organization: str | None = None) -> TF
 
 
 def set_console(new_console: Console) -> None:
-    """Set the global console instance (useful for testing)."""
-    global console  # noqa: PLW0603
-    console = new_console
+    """Set the global console instance properties (useful for testing)."""
+    # Instead of rebinding, we update the existing consoles so that modules
+    # that have already imported them see the changes.
+    # Do NOT set console.file here because that hardcodes it to the un-redirected
+    # sys.stdout, breaking CliRunner capture. Let rich evaluate sys.stdout dynamically.
+    console._width = new_console.width
+    console.legacy_windows = False
+
+    error_console._width = new_console.width
+    error_console.legacy_windows = False
+
+    if hasattr(new_console, "force_terminal"):
+        console._force_terminal = new_console.force_terminal
+        error_console._force_terminal = new_console.force_terminal
+    elif hasattr(new_console, "_force_terminal"):
+        console._force_terminal = new_console._force_terminal
+        error_console._force_terminal = new_console._force_terminal
 
 
 def set_quiet_mode(quiet: bool) -> None:
     """Set quiet mode flag on the global console."""
     console.quiet = quiet
+    error_console.quiet = quiet
 
 
 def setup_logging(debug: bool = False) -> None:
