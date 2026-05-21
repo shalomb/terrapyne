@@ -1,4 +1,8 @@
-# Plan Parser Analysis
+# ADR-005: Plan Parser Analysis
+
+**Date:** 2026-05-21  
+**Status:** Accepted  
+**Relates to:** core/plan_parser  
 
 The `PlanParser` is a conceptual component of Terrapyne designed to bridge the gap between unstructured terminal output and structured program execution. It extracts machine-readable states from raw CLI plan logs.
 
