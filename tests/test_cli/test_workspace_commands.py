@@ -73,7 +73,7 @@ def _(org_setup):
 def list_all_workspaces(org_setup, workspace_list_response):
     """List workspaces via CLI."""
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
@@ -132,8 +132,8 @@ def _(workspace_context):
 def show_workspace_details(workspace_context, workspace_detail_response):
     """Show workspace details via CLI."""
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
-        patch("terrapyne.cli.utils.resolve_workspace") as mock_ws,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
+        patch("terrapyne.cli.context_helpers.resolve_workspace") as mock_ws,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
@@ -260,8 +260,8 @@ def _(workspace_with_vcs):
 def show_vcs_config(workspace_with_vcs, workspace_detail_response):
     """Show VCS config via CLI."""
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
-        patch("terrapyne.cli.utils.resolve_workspace") as mock_ws,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
+        patch("terrapyne.cli.context_helpers.resolve_workspace") as mock_ws,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
@@ -318,8 +318,8 @@ def _(workspace_without_vcs):
 def show_vcs_no_connection(workspace_without_vcs):
     """Try to show VCS for workspace without VCS."""
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
-        patch("terrapyne.cli.utils.resolve_workspace") as mock_ws,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
+        patch("terrapyne.cli.context_helpers.resolve_workspace") as mock_ws,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
@@ -398,7 +398,7 @@ def _(clone_setup):
 def clone_basic_settings(clone_setup, workspace_cloned_response):
     """Clone workspace with basic settings."""
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
@@ -529,7 +529,7 @@ def clone_with_variables(
 ):
     """Clone workspace with variables."""
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
@@ -665,7 +665,7 @@ def _():
 def clone_with_vcs(workspace_prod_response, workspace_cloned_response):
     """Clone workspace with VCS."""
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
@@ -772,7 +772,7 @@ def _():
 def clone_source_not_found():
     """Try to clone from non-existent workspace."""
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
@@ -852,7 +852,7 @@ def _():
 def clone_target_exists(workspace_prod_response):
     """Try to clone to existing target."""
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
@@ -932,7 +932,7 @@ def _():
 def clone_with_force(workspace_prod_response, workspace_cloned_response):
     """Clone with force flag."""
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
@@ -1018,7 +1018,7 @@ def _():
 def clone_detailed_output(workspace_prod_response, workspace_cloned_response):
     """Clone with all options."""
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
@@ -1136,7 +1136,7 @@ def _():
 def clone_settings_only(workspace_prod_response, workspace_cloned_response):
     """Clone without optional flags."""
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
@@ -1236,7 +1236,7 @@ def create_workspace_basic(workspace_list_response):
         workspace_response(id="ws-newws1234567", name="new-workspace")["data"]
     )
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
@@ -1282,7 +1282,7 @@ def create_workspace_with_settings():
         )["data"]
     )
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
@@ -1343,7 +1343,7 @@ def create_workspace_with_project():
         ]
     )
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
@@ -1391,7 +1391,7 @@ def create_workspace_already_exists():
     from terrapyne.core.exceptions import WorkspaceAlreadyExistsError
 
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
@@ -1439,7 +1439,7 @@ def delete_workspace_force():
         workspace_response(id="ws-oldws1234567", name="old-workspace")["data"]
     )
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
@@ -1492,7 +1492,7 @@ def delete_workspace_confirm_yes():
         workspace_response(id="ws-oldws1234567", name="old-workspace")["data"]
     )
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
@@ -1532,7 +1532,7 @@ def delete_workspace_confirm_no():
         workspace_response(id="ws-oldws1234567", name="old-workspace")["data"]
     )
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"
@@ -1580,7 +1580,7 @@ def delete_workspace_not_found():
     from terrapyne.core.exceptions import WorkspaceNotFoundError
 
     with (
-        patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
         patch("terrapyne.api.client.TFCClient") as mock_client,
     ):
         mock_org.return_value = "test-org"

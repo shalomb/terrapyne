@@ -184,7 +184,7 @@ def setup_console():
     """Ensure Rich console uses a clean instance for every test."""
     from rich.console import Console
 
-    from terrapyne.cli.utils import set_console
+    from terrapyne.cli.output_helpers import set_console
 
     # Create a fresh console for each test
     new_console = Console(force_terminal=True, width=100)

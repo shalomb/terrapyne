@@ -40,7 +40,7 @@ class TestValidateContext:
         self, mock_resolve_ws, mock_resolve_org
     ):
         """validate_context should return workspace when provided, even if require_workspace=False."""
-        from terrapyne.cli.utils import validate_context
+        from terrapyne.cli.context_helpers import validate_context
 
         mock_resolve_org.return_value = "my-org"
         mock_resolve_ws.return_value = "my-workspace"
@@ -56,7 +56,7 @@ class TestValidateContext:
         self, mock_resolve_ws, mock_resolve_org
     ):
         """validate_context should return None for workspace if not provided and not required."""
-        from terrapyne.cli.utils import validate_context
+        from terrapyne.cli.context_helpers import validate_context
 
         mock_resolve_org.return_value = "my-org"
         mock_resolve_ws.return_value = None
@@ -72,7 +72,7 @@ class TestValidateContext:
         self, mock_resolve_ws, mock_resolve_org
     ):
         """validate_context should return workspace when require_workspace=True."""
-        from terrapyne.cli.utils import validate_context
+        from terrapyne.cli.context_helpers import validate_context
 
         mock_resolve_org.return_value = "my-org"
         mock_resolve_ws.return_value = "my-workspace"
@@ -88,7 +88,7 @@ class TestValidateContext:
         self, mock_resolve_ws, mock_resolve_org
     ):
         """validate_context should raise ValueError if workspace is required but not resolved."""
-        from terrapyne.cli.utils import validate_context
+        from terrapyne.cli.context_helpers import validate_context
 
         mock_resolve_org.return_value = "my-org"
         mock_resolve_ws.side_effect = ValueError("No workspace detected")
@@ -105,7 +105,7 @@ class TestEmitJson:
         import ast
         import inspect
 
-        from terrapyne.cli.utils import emit_json
+        from terrapyne.cli.output_helpers import emit_json
 
         source = inspect.getsource(emit_json)
         tree = ast.parse(source)
@@ -117,7 +117,7 @@ class TestEmitJson:
                 assert node.module is None or "unittest" not in node.module
 
     def test_serialises_dict(self, capsys):
-        from terrapyne.cli.utils import emit_json
+        from terrapyne.cli.output_helpers import emit_json
 
         emit_json({"key": "value"})
         out = capsys.readouterr().out
@@ -126,7 +126,7 @@ class TestEmitJson:
     def test_serialises_datetime(self, capsys):
         from datetime import datetime
 
-        from terrapyne.cli.utils import emit_json
+        from terrapyne.cli.output_helpers import emit_json
 
         emit_json({"ts": datetime(2024, 1, 2, 3, 4, 5)})
         out = capsys.readouterr().out
@@ -135,7 +135,7 @@ class TestEmitJson:
     def test_serialises_pydantic_model(self, capsys):
         from pydantic import BaseModel
 
-        from terrapyne.cli.utils import emit_json
+        from terrapyne.cli.output_helpers import emit_json
 
         class Thing(BaseModel):
             name: str
