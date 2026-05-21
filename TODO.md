@@ -32,7 +32,7 @@ For evaluating live TFC behaviour, use:
 | F6 | Private registry query (modules + providers) | 🟡 | M | 1.0 | TODO |
 | F7 | Agent pools — list and show self-hosted agents | 🟡 | M | 1.0 | TODO |
 | F8 | SSH keys / VCS OAuth token management | 🟢 | L | 0.33 | TODO |
-| F9 | `workspace update` command and API update method | 🔴 | M | 2.0 | TODO |
+| F9 | `workspace update` command and API update method | 🔴 | M | 2.0 | ✅ |
 | **COMPLETED** |
 | B3 | `paginate_with_meta` `included` leaks only last page | 🟡 | S | 2.0 | ✅ |
 | B4 | `project.list()` wildcard search strips `*` but doesn't post-filter | 🟢 | S | 1.0 | ✅ |

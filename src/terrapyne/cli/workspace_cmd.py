@@ -673,6 +673,91 @@ def workspace_create(
     console.print(f"  View: {url}")
 
 
+@app.command("update")
+@handle_cli_errors
+def workspace_update(
+    ctx: typer.Context,
+    name: str = typer.Argument(..., help="Workspace name to update"),
+    organization: str | None = typer.Option(None, "--organization", "-o", help="TFC organization"),
+    project_id: str | None = typer.Option(
+        None, "--project-id", help="Project ID to move workspace to"
+    ),
+    project_name: str | None = typer.Option(
+        None, "--project-name", help="Project name to move workspace to"
+    ),
+    tf_version: str | None = typer.Option(
+        None, "--tf-version", help="Terraform version (e.g. 1.9.0)"
+    ),
+    execution_mode: str | None = typer.Option(
+        None, "--execution-mode", "-m", help="Execution mode: remote, local, agent"
+    ),
+    working_dir: str | None = typer.Option(
+        None, "--working-dir", help="Working directory within VCS repo"
+    ),
+    new_name: str | None = typer.Option(None, "--name", "-n", help="New name for the workspace"),
+):
+    """Update workspace configuration.
+
+    Examples:
+        # Update Terraform version
+        tfc workspace update my-workspace --tf-version 1.9.0
+
+        # Change execution mode
+        tfc workspace update my-workspace --execution-mode local
+
+        # Move to a different project
+        tfc workspace update my-workspace --project-name my-project
+    """
+    org = resolve_organization(organization)
+    if not org:
+        console.print("[red]Error: Organization not specified and not found in context.[/red]")
+        raise typer.Exit(1)
+
+    if not any(
+        [project_id, project_name, tf_version, execution_mode, working_dir is not None, new_name]
+    ):
+        console.print("[yellow]Warning: No update flags provided.[/yellow]")
+        return
+
+    with get_client(ctx, organization=org) as client:
+        # Resolve project name to ID if provided
+        final_project_id = project_id
+        if project_name and not project_id:
+            try:
+                proj = client.projects.get_by_name(project_name, org)
+                final_project_id = proj.id
+            except Exception as e:
+                console.print(f"[red]Error:[/red] {e}")
+                raise typer.Exit(1) from None
+
+        try:
+            ws = client.workspaces.update(
+                workspace_name=name,
+                organization=org,
+                project_id=final_project_id,
+                terraform_version=tf_version,
+                execution_mode=execution_mode,
+                working_directory=working_dir,
+                name=new_name,
+            )
+        except Exception as e:
+            console.print(f"[red]Error:[/red] Failed to update workspace: {e}")
+            raise typer.Exit(1) from None
+
+    console.print(f"[green]✓[/green] Successfully updated workspace '{name}'")
+    if new_name:
+        console.print(f"  New name:          {ws.name}")
+    if tf_version:
+        console.print(f"  Terraform version: {ws.terraform_version}")
+    if execution_mode:
+        console.print(f"  Execution mode:    {ws.execution_mode}")
+    if final_project_id:
+        console.print(f"  Project ID:        {ws.project_id}")
+
+    url = get_workspace_url(org, ws.name)
+    console.print(f"  View: {url}")
+
+
 @app.command("delete")
 @handle_cli_errors
 def workspace_delete(
