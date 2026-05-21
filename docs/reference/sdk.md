@@ -47,20 +47,54 @@ All API operations are accessed through `TFCClient` properties:
 | `client.state_versions` | `StateVersionsAPI` | list, get, get_current, download, list_outputs, find_version_before |
 | `client.vcs` | `VCSAPI` | get_workspace_vcs, update_workspace_branch, list_connections, list_repositories |
 
-## Models
+## Pydantic Models
 
-All API responses are parsed into Pydantic models:
+All API responses are parsed into type-safe Pydantic models. You can import them directly from the package root:
 
 ```python
-from terrapyne.models import (
-    Apply, Plan, Project, Run, RunStatus,
-    StateVersion, StateVersionOutput,
-    Team, TeamProjectAccess,
-    VCSConnection, Workspace, WorkspaceVCS, WorkspaceVariable,
+from terrapyne import (
+    Apply,
+    Plan,
+    Project,
+    Run,
+    RunStatus,
+    RunTrigger,
+    StateVersion,
+    StateVersionOutput,
+    Team,
+    TeamProjectAccess,
+    VariableSet,
+    VariableSetVariable,
+    VCSConnection,
+    Workspace,
+    WorkspaceVCS,
+    WorkspaceVariable,
 )
 ```
 
-Each model has a `from_api_response(data)` class method for parsing raw API dicts.
+Each model has a `from_api_response(data)` class method for parsing raw API responses.
+
+### Models Reference
+
+| Model | Description | Key Attributes |
+|---|---|---|
+| `Workspace` | Represents a Terraform Cloud workspace. | `id`, `name`, `terraform_version`, `working_directory`, `execution_mode` |
+| `WorkspaceVCS` | VCS repository settings linked to a workspace. | `identifier`, `branch`, `oauth_token_id` |
+| `WorkspaceVariable` | A variable defined in a workspace (Terraform or Environment). | `id`, `key`, `value`, `category`, `sensitive`, `hcl` |
+| `VariableSet` | A reusable group of variables scoped to an organization or projects. | `id`, `name`, `description`, `global`, `project_count`, `var_count` |
+| `VariableSetVariable` | A single variable defined inside a Variable Set. | `id`, `key`, `value`, `category`, `sensitive`, `hcl` |
+| `Run` | Represents a Terraform execution run. | `id`, `status`, `message`, `is_speculative`, `created_at`, `plan_status` |
+| `RunStatus` | Enum of possible run states (e.g., `PLANNING`, `APPLIED`, `ERRORED`). | Enum values representing the API state machine. |
+| `RunTrigger` | Source workspace trigger that initiates runs on target workspaces. | `id`, `workspace_id`, `source_workspace_id` |
+| `Plan` | Details of a run's planning phase. | `id`, `status`, `resource_additions`, `resource_destructions` |
+| `Apply` | Details of a run's apply phase. | `id`, `status`, `resource_additions`, `resource_destructions` |
+| `StateVersion` | Represents a specific state file version. | `id`, `serial`, `created_at`, `resource_count`, `run_id` |
+| `StateVersionOutput` | Represents a single output from a state version. | `name`, `value`, `type`, `sensitive` |
+| `Team` | Represents an organization team. | `id`, `name`, `member_count` |
+| `TeamProjectAccess` | Represents a team's permissions on a project. | `team_id`, `project_id`, `access` |
+| `Project` | Represents a project grouping workspaces. | `id`, `name`, `description` |
+| `VCSConnection` | An OAuth connection link to a VCS provider (e.g., GitHub, GitLab). | `id`, `service_provider`, `name` |
+
 
 ## Examples
 

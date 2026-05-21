@@ -147,13 +147,37 @@ class TestEmitJson:
 
 class TestSDKNamespace:
     def test_sdk_imports(self):
-        from terrapyne import RunsAPI, TFCClient
+        from terrapyne import (
+            Apply,
+            RunsAPI,
+            RunStatus,
+            RunTrigger,
+            StateVersion,
+            StateVersionOutput,
+            TFCClient,
+            VariableSet,
+            VariableSetVariable,
+        )
 
         assert TFCClient is not None
         assert RunsAPI is not None
+        assert VariableSet is not None
+        assert RunTrigger is not None
+        assert Apply is not None
+        assert StateVersion is not None
+        assert StateVersionOutput is not None
+        assert RunStatus is not None
+        assert VariableSetVariable is not None
 
     def test_main_all_exports(self):
         import terrapyne
 
         assert "TFCClient" in terrapyne.__all__
         assert "Plan" in terrapyne.__all__
+        assert "VariableSet" in terrapyne.__all__
+        assert "RunTrigger" in terrapyne.__all__
+        assert "Apply" in terrapyne.__all__
+        assert "StateVersion" in terrapyne.__all__
+        assert "StateVersionOutput" in terrapyne.__all__
+        assert "RunStatus" in terrapyne.__all__
+        assert "VariableSetVariable" in terrapyne.__all__
