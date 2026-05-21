@@ -7,13 +7,13 @@ from datetime import UTC, datetime
 from typing import Any
 
 import typer
-from rich.console import Console
 from rich.table import Table
 
-from terrapyne.cli.utils import console, get_client, validate_context
+from terrapyne.cli.utils import get_client, validate_context
 from terrapyne.core.state_diff import (
     DEFAULT_FIELDS,
 )
+from terrapyne.rendering.logging import console, error_console
 
 app = typer.Typer(help="State version commands")
 
@@ -118,7 +118,7 @@ def state_show(
             # Resolve workspace from target arg, -w flag, or context
             resolve_ws = target or ws_name
             if not resolve_ws:
-                Console(stderr=True).print(
+                error_console.print(
                     "[red]Error: Provide a workspace name or state version ID[/red]"
                 )
                 raise typer.Exit(1)
@@ -153,7 +153,7 @@ def state_pull(
             state = client.state_versions.download(state_version_id)
         else:
             if not ws_name:
-                Console(stderr=True).print(
+                error_console.print(
                     "[red]Error: Workspace required when no state version ID given[/red]"
                 )
                 raise typer.Exit(1)
@@ -184,7 +184,7 @@ def state_outputs(
 
     # Validate that --raw is not combined with other formats
     if raw and output_format != "table":
-        Console(stderr=True).print("[red]Error: --raw is mutually exclusive with --format[/red]")
+        error_console.print("[red]Error: --raw is mutually exclusive with --format[/red]")
         raise typer.Exit(1)
 
     # Shift target to name if raw is set and workspace is in context
@@ -211,7 +211,7 @@ def state_outputs(
             sv = client.state_versions.get_current(ws.id)
             state_version_id = sv.id
         else:
-            console.print(
+            error_console.print(
                 "[red]Error: Provide a workspace name, workspace ID, or state version ID[/red]"
             )
             raise typer.Exit(1)
@@ -221,7 +221,7 @@ def state_outputs(
     if name:
         output = next((o for o in outputs if o.name == name), None)
         if not output:
-            Console(stderr=True).print(f"[red]Error: Output '{name}' not found.[/red]")
+            error_console.print(f"[red]Error: Output '{name}' not found.[/red]")
             raise typer.Exit(1)
 
         if raw:

@@ -67,3 +67,57 @@ class TestTFCClientCachedProperty:
 
             # Should be the same instance (cached)
             assert sv1 is sv2
+
+
+class TestClientSanitization:
+    """Test payload sanitization for debug logs."""
+
+    def test_sanitize_payload_sensitive(self):
+        """Verify sensitive variables are masked."""
+        from terrapyne.api.client import TFCClient
+
+        with patch("terrapyne.core.credentials.TerraformCredentials.load"):
+            client = TFCClient(organization="test")
+            payload = {
+                "data": {
+                    "type": "vars",
+                    "attributes": {"key": "secret_key", "value": "super_secret", "sensitive": True},
+                }
+            }
+            sanitized = client._sanitize_payload(payload)
+            assert sanitized["data"]["attributes"]["value"] == "••••••••"
+            assert sanitized["data"]["attributes"]["key"] == "secret_key"
+
+    def test_sanitize_payload_non_sensitive(self):
+        """Verify non-sensitive variables are NOT masked."""
+        from terrapyne.api.client import TFCClient
+
+        with patch("terrapyne.core.credentials.TerraformCredentials.load"):
+            client = TFCClient(organization="test")
+            payload = {
+                "data": {
+                    "type": "vars",
+                    "attributes": {
+                        "key": "public_key",
+                        "value": "visible_value",
+                        "sensitive": False,
+                    },
+                }
+            }
+            sanitized = client._sanitize_payload(payload)
+            assert sanitized["data"]["attributes"]["value"] == "visible_value"
+            assert sanitized["data"]["attributes"]["key"] == "public_key"
+
+    def test_sanitize_payload_list(self):
+        """Verify list of sensitive variables is masked."""
+        from terrapyne.api.client import TFCClient
+
+        with patch("terrapyne.core.credentials.TerraformCredentials.load"):
+            client = TFCClient(organization="test")
+            payload = [
+                {"attributes": {"key": "secret", "value": "hidden", "sensitive": True}},
+                {"attributes": {"key": "public", "value": "visible", "sensitive": False}},
+            ]
+            sanitized = client._sanitize_payload(payload)
+            assert sanitized[0]["attributes"]["value"] == "••••••••"
+            assert sanitized[1]["attributes"]["value"] == "visible"
