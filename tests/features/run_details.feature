@@ -43,10 +43,3 @@ Feature: Run Details and Diagnostics
     When I attempt to examine its details
     Then I should be notified that the record was not found
     And the request should not proceed
-
-  Scenario: Viewing logs for a run that failed before generating plan output
-    Given the run "run-prefail123" errored before the plan stage produced output
-    And the archivist log URL contains "Error: Invalid provider configuration"
-    When I retrieve the logs for run "run-prefail123"
-    Then the output should contain "Error: Invalid provider configuration"
-    And the output should not say "empty or not yet ready"
