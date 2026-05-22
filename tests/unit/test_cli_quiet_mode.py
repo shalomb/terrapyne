@@ -15,15 +15,11 @@ class TestQuietMode:
 
     def test_quiet_mode_can_be_enabled(self):
         """Quiet mode can be enabled."""
-        from terrapyne.cli import output_helpers
-
         output_helpers.set_quiet_mode(True)
         assert output_helpers.console.quiet
 
     def test_quiet_mode_can_be_disabled(self):
         """Quiet mode can be disabled after being enabled."""
-        from terrapyne.cli import output_helpers
-
         output_helpers.set_quiet_mode(True)
         assert output_helpers.console.quiet
         output_helpers.set_quiet_mode(False)
