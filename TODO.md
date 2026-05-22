@@ -341,14 +341,14 @@ terraform {
 | # | Finding | Impact | Effort | WSJF | Status |
 |---|---|---|---|---|---|
 | **DOCS** |
-| D4 | SDK models table incomplete | 🟡 | S | 2.0 | TODO |
-| D5 | `plan-parser.md` is a planning artifact, not explanation | 🟡 | S | 2.0 | TODO |
-| D6 | ADR-004 Gherkin examples diverged from feature file | 🟡 | S | 2.0 | TODO |
-| D9 | Update reference docs for missing models | 🟢 | S | 1.0 | TODO |
+| D4 | SDK models table incomplete | 🟡 | S | 2.0 | ✅ |
+| D5 | `plan-parser.md` is a planning artifact, not explanation | 🟡 | S | 2.0 | ✅ |
+| D6 | ADR-004 Gherkin examples diverged from feature file | 🟡 | S | 2.0 | ✅ |
+| D9 | Update reference docs for missing models | 🟢 | S | 1.0 | ✅ |
 | **ARCH** |
 | A12 | `run_cmd.py` decomposition (852 lines) | 🟢 | L | 0.3 | TODO |
 | A13 | `paginate()` and `paginate_with_meta()` divergent | 🟢 | M | 0.5 | TODO |
-| A14 | Domain errors defined in API layer | 🟢 | S | 1.0 | TODO |
+| A14 | Domain errors defined in API layer | 🟢 | S | 1.0 | ✅ |
 | A15 | `utils/` is an unconstrained catch-all | 🟢 | L | 0.3 | TODO |
 | A17 | Export all SDK models in package root | 🟡 | S | 2.0 | ✅ |
 | **COMPLETED** |
