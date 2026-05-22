@@ -531,6 +531,7 @@ class CloneWorkspaceAPI:
         execution_mode: str | None = None,
         auto_apply: bool | None = None,
         tags: list[str] | None = None,
+        agent_pool_id: str | None = None,
     ) -> Workspace:
         """Create a new workspace.
 
@@ -538,9 +539,10 @@ class CloneWorkspaceAPI:
             workspace_name: Name for the new workspace
             organization: Organization name
             terraform_version: Terraform version to use
-            execution_mode: Execution mode (remote or local)
+            execution_mode: Execution mode (remote, local, or agent)
             auto_apply: Whether to auto-apply
             tags: Tags to apply to workspace
+            agent_pool_id: Agent pool ID (required when execution_mode is "agent")
 
         Returns:
             Created Workspace instance
@@ -551,7 +553,6 @@ class CloneWorkspaceAPI:
             "name": workspace_name,
         }
 
-        # Add optional attributes
         if terraform_version:
             attributes["terraform-version"] = terraform_version
 
@@ -561,16 +562,20 @@ class CloneWorkspaceAPI:
         if auto_apply is not None:
             attributes["auto-apply"] = auto_apply
 
-        # Handle tags separately if provided
         if tags:
             attributes["tag-names"] = tags
 
-        payload = {
+        payload: dict = {
             "data": {
                 "type": "workspaces",
                 "attributes": attributes,
             }
         }
+
+        if agent_pool_id:
+            payload["data"]["relationships"] = {
+                "agent-pool": {"data": {"type": "agent-pools", "id": agent_pool_id}}
+            }
 
         response = self.client.post(path, json_data=payload)
         return Workspace.from_api_response(response["data"])
@@ -661,6 +666,7 @@ class CloneWorkspaceAPI:
                 execution_mode=source_ws.execution_mode,
                 auto_apply=source_ws.auto_apply,
                 tags=source_ws.tag_names if source_ws.tag_names else None,
+                agent_pool_id=source_ws.agent_pool_id,
             )
             target_workspace_id = target_ws.id
             logger.info(

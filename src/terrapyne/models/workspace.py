@@ -45,6 +45,9 @@ class Workspace(BaseModel):
     project_id: str | None = None
     project_name: str | None = None
 
+    # Agent pool (present when execution-mode is "agent")
+    agent_pool_id: str | None = None
+
     # Tags
     tag_names: list[str] = Field(default_factory=list, alias="tag-names")
 
@@ -77,12 +80,15 @@ class Workspace(BaseModel):
         if attrs.get("vcs-repo"):
             vcs_repo = WorkspaceVCS.model_validate(attrs["vcs-repo"])
 
-        # Extract project ID from relationships
+        # Extract relationships
         project_id = None
         project_name = None
+        agent_pool_id = None
         relationships = data.get("relationships", {})
         if relationships.get("project", {}).get("data"):
             project_id = relationships["project"]["data"].get("id")
+        if relationships.get("agent-pool", {}).get("data"):
+            agent_pool_id = relationships["agent-pool"]["data"].get("id")
 
         # Try to find project name in included data
         if included and project_id:
@@ -119,6 +125,7 @@ class Workspace(BaseModel):
             vcs_repo=vcs_repo,
             project_id=project_id,
             project_name=project_name,
+            agent_pool_id=agent_pool_id,
             tag_names=attrs.get("tag-names", []),
             latest_run=latest_run,
             environment=environment,
