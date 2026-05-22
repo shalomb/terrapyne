@@ -29,7 +29,7 @@ For evaluating live TFC behaviour, use:
 | **BUGS (May 2026)** |
 | B7 | `run follow` / `run logs` silent on pre-plan errors — falls back to `"Run failed before generating logs"` with no error text | 🔴 | S | 4.0 | ✅ [#114](https://github.com/shalomb/terrapyne/pull/114) |
 | B8 | `run logs` returns empty for errored runs even when log is available via archivist URL | 🔴 | S | 4.0 | ✅ [#114](https://github.com/shalomb/terrapyne/pull/114) |
-| B9 | `run list` fails by workspace name for some workspaces — requires workspace ID workaround | 🟡 | S | 2.0 | TODO |
+| B9 | `run list` fails by workspace name for some workspaces — requires workspace ID workaround | 🟡 | S | 2.0 | ✅ |
 | B10 | `workspace clone` 422 "Agent pool not found" — drops agent-pool relationship from create payload | 🔴 | S | 4.0 | ✅ |
 | B11 | `workspace create` missing `--project` flag — no way to assign workspace to a project at creation | 🔴 | S | 4.0 | ✅ |
 | B12 | `workspace list` name truncation — no `--no-truncate` or `--max-width` option | 🟡 | S | 2.0 | TODO |
@@ -37,6 +37,7 @@ For evaluating live TFC behaviour, use:
 | B14 | `workspace var-rm` no `--yes`/`-y` flag — always prompts interactively, unusable in scripts | 🟡 | S | 2.0 | TODO |
 | B15 | `--quiet` flag position-sensitive — `terrapyne workspace list --quiet` fails; must be `terrapyne --quiet workspace list` | 🟢 | S | 1.0 | TODO |
 | **NEW FEATURES** |
+| F13 | `workspace set-branch <workspace> <branch>` — switch VCS branch from CLI | 🟡 | S | 2.0 | ✅ |
 | F4 | Workspace notifications (webhook/Slack config) | 🟡 | M | 1.0 | TODO |
 | F5 | Policy sets / Sentinel outcome reporting | 🟡 | M | 1.0 | TODO |
 | F6 | Private registry query (modules + providers) | 🟡 | M | 1.0 | TODO |
