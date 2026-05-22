@@ -659,6 +659,50 @@ def workspace_update(
     console.print(f"  View: {url}")
 
 
+@app.command("set-branch")
+@handle_cli_errors
+def workspace_set_branch(
+    ctx: typer.Context,
+    workspace: str = typer.Argument(..., help="Workspace name"),
+    branch: str = typer.Argument(..., help="VCS branch name to set"),
+    organization: str | None = typer.Option(
+        None,
+        "--organization",
+        "-o",
+        help="TFC organization (auto-detected from context if available)",
+    ),
+):
+    """Set the VCS branch for a workspace.
+
+    Examples:
+        # Switch to a feature branch
+        tfc workspace set-branch my-workspace feature/my-change --organization my-org
+
+        # Switch back to main
+        tfc workspace set-branch my-workspace main --organization my-org
+    """
+    org = resolve_organization(organization)
+    if not org:
+        console.print("[red]Error: Organization not specified and not found in context.[/red]")
+        raise typer.Exit(1)
+
+    with get_client(ctx, organization=org) as client:
+        try:
+            ws = client.workspaces.set_vcs_branch(
+                workspace_name=workspace,
+                branch=branch,
+                organization=org,
+            )
+        except ValueError as e:
+            console.print(f"[red]Error:[/red] {e}")
+            raise typer.Exit(1) from None
+
+    console.print(f"[green]✓[/green] Updated VCS branch for workspace '{workspace}'")
+    console.print(f"  Branch: {ws.vcs_branch or branch}")
+    url = get_workspace_url(org, ws.name)
+    console.print(f"  View: {url}")
+
+
 @app.command("delete")
 @handle_cli_errors
 def workspace_delete(
