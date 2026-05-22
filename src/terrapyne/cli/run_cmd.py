@@ -728,12 +728,27 @@ def run_follow(
             help="TFC organization (auto-detected from context if available)",
         ),
     ] = None,
+    auto_apply: Annotated[
+        bool,
+        typer.Option(
+            "--auto-apply",
+            help="Automatically apply when planning/cost-estimation completes",
+        ),
+    ] = False,
+    comment: Annotated[
+        str | None,
+        typer.Option("--comment", "-m", help="Comment to attach to the apply action"),
+    ] = None,
     max_wait: Annotated[
         int,
         typer.Option("--max-wait", help="Max seconds to wait"),
     ] = 1800,
 ):
-    """Stream logs of an existing run in real-time."""
+    """Stream logs of an existing run in real-time.
+
+    With --auto-apply, automatically confirms the run once planning or cost
+    estimation completes, then waits for the apply to finish.
+    """
     org, _ = validate_context(organization)
 
     with get_client(ctx, organization=org) as client:
@@ -775,6 +790,11 @@ def run_follow(
                     console.print(
                         f"\n[red]Run failed before generating logs: {run.status.value}[/red]"
                     )
+
+            # Auto-apply logic
+            if auto_apply and run.status.is_awaiting_approval:
+                console.print(f"\n[dim]Run reached[/dim] {run.status.value} — applying...")
+                client.runs.apply(run_id, comment=comment)
 
         try:
             final_run = client.runs.poll_until_complete(
