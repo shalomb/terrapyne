@@ -647,6 +647,186 @@ class TestCloneValidation:
 
 
 # ============================================================================
+# B10 — Agent-pool relationship preserved during clone
+# ============================================================================
+
+
+class TestCloneAgentPool:
+    """B10: workspace clone must include agent-pool relationship when source uses agent mode."""
+
+    def test_create_workspace_with_agent_pool_includes_relationship(self, api, mock_client):
+        """Agent-pool relationship is sent in the POST payload when execution-mode is agent."""
+        mock_client.post.return_value = {
+            "data": {
+                "id": "ws-clone-xyz",
+                "type": "workspaces",
+                "attributes": {
+                    "name": "agent-ws-clone",
+                    "execution-mode": "agent",
+                },
+            }
+        }
+
+        api.create_workspace(
+            workspace_name="agent-ws-clone",
+            organization="test-org",
+            execution_mode="agent",
+            agent_pool_id="apool-abc123",
+        )
+
+        payload = mock_client.post.call_args[1]["json_data"]
+        relationships = payload["data"].get("relationships", {})
+        assert "agent-pool" in relationships, "agent-pool relationship missing from payload"
+        assert relationships["agent-pool"]["data"]["id"] == "apool-abc123"
+        assert relationships["agent-pool"]["data"]["type"] == "agent-pools"
+
+    def test_create_workspace_without_agent_pool_omits_relationship(self, api, mock_client):
+        """No agent-pool relationship is sent when execution-mode is not agent."""
+        mock_client.post.return_value = {
+            "data": {
+                "id": "ws-remote-clone",
+                "type": "workspaces",
+                "attributes": {"name": "remote-ws-clone", "execution-mode": "remote"},
+            }
+        }
+
+        api.create_workspace(
+            workspace_name="remote-ws-clone",
+            organization="test-org",
+            execution_mode="remote",
+        )
+
+        payload = mock_client.post.call_args[1]["json_data"]
+        relationships = payload["data"].get("relationships", {})
+        assert "agent-pool" not in relationships
+
+    def test_full_clone_propagates_agent_pool_from_source(self, api, mock_client):
+        """End-to-end: cloning an agent workspace forwards the agent-pool to the create call."""
+        source_ws_data = {
+            "id": "ws-agent-source",
+            "type": "workspaces",
+            "attributes": {
+                "name": "agent-ws",
+                "terraform-version": "1.7.0",
+                "execution-mode": "agent",
+                "auto-apply": False,
+                "tag-names": [],
+            },
+            "relationships": {
+                "agent-pool": {"data": {"type": "agent-pools", "id": "apool-abc123"}}
+            },
+        }
+        target_ws_data = {
+            "id": "ws-agent-clone",
+            "type": "workspaces",
+            "attributes": {"name": "agent-ws-clone", "execution-mode": "agent"},
+        }
+
+        mock_client.get.side_effect = [
+            {"data": source_ws_data},
+            Exception("404 not found"),  # target does not exist
+        ]
+        mock_client.post.return_value = {"data": target_ws_data}
+
+        result = api.clone(
+            source_workspace_name="agent-ws",
+            target_workspace_name="agent-ws-clone",
+            organization="test-org",
+        )
+
+        assert result["status"] == "success"
+        payload = mock_client.post.call_args[1]["json_data"]
+        relationships = payload["data"].get("relationships", {})
+        assert "agent-pool" in relationships, "agent-pool dropped from clone create payload"
+        assert relationships["agent-pool"]["data"]["id"] == "apool-abc123"
+
+
+# ============================================================================
+# B11 — project-id override on workspace clone
+# ============================================================================
+
+
+_REMOTE_SOURCE_WS = {
+    "id": "ws-source",
+    "type": "workspaces",
+    "attributes": {
+        "name": "source-ws",
+        "terraform-version": "1.7.0",
+        "execution-mode": "remote",
+        "auto-apply": False,
+        "tag-names": [],
+    },
+    "relationships": {"project": {"data": {"type": "projects", "id": "prj-old123"}}},
+}
+
+_BLANK_TARGET_WS = {
+    "id": "ws-target",
+    "type": "workspaces",
+    "attributes": {"name": "target-ws"},
+}
+
+
+class TestCloneProjectOverride:
+    """B11: workspace clone --project-id should assign the clone to a different project."""
+
+    def test_clone_with_project_id_override_sends_relationship(self, api, mock_client):
+        """When project_id is supplied, it appears in the create payload relationships."""
+        mock_client.get.side_effect = [{"data": _REMOTE_SOURCE_WS}, Exception("404 not found")]
+        mock_client.post.return_value = {"data": _BLANK_TARGET_WS}
+
+        result = api.clone(
+            source_workspace_name="source-ws",
+            target_workspace_name="target-ws",
+            organization="test-org",
+            project_id="prj-new456",
+        )
+
+        assert result["status"] == "success"
+        payload = mock_client.post.call_args[1]["json_data"]
+        relationships = payload["data"].get("relationships", {})
+        assert "project" in relationships, "project relationship missing from clone payload"
+        assert relationships["project"]["data"]["id"] == "prj-new456"
+
+    def test_clone_without_project_id_inherits_source_project(self, api, mock_client):
+        """Without project_id override, the source project is inherited."""
+        mock_client.get.side_effect = [{"data": _REMOTE_SOURCE_WS}, Exception("404 not found")]
+        mock_client.post.return_value = {"data": _BLANK_TARGET_WS}
+
+        result = api.clone(
+            source_workspace_name="source-ws",
+            target_workspace_name="target-ws",
+            organization="test-org",
+        )
+
+        assert result["status"] == "success"
+        payload = mock_client.post.call_args[1]["json_data"]
+        relationships = payload["data"].get("relationships", {})
+        assert "project" in relationships, "source project should be inherited"
+        assert relationships["project"]["data"]["id"] == "prj-old123"
+
+    def test_create_workspace_with_project_id(self, api, mock_client):
+        """create_workspace passes project_id as a relationship."""
+        mock_client.post.return_value = {
+            "data": {
+                "id": "ws-new",
+                "type": "workspaces",
+                "attributes": {"name": "new-ws"},
+            }
+        }
+
+        api.create_workspace(
+            workspace_name="new-ws",
+            organization="test-org",
+            project_id="prj-new456",
+        )
+
+        payload = mock_client.post.call_args[1]["json_data"]
+        relationships = payload["data"].get("relationships", {})
+        assert "project" in relationships
+        assert relationships["project"]["data"]["id"] == "prj-new456"
+
+
+# ============================================================================
 # Fixtures
 # ============================================================================
 

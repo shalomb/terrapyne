@@ -208,6 +208,35 @@ Feature: Workspace Operations
     Then I should see error message containing "already exists"
     And exit code should be 1
 
+  # B10 — workspace clone agent-pool relationship
+
+  Scenario: Clone preserves agent-pool assignment when source uses agent execution mode
+    Given workspace "agent-ws" uses execution mode "agent" with agent pool "apool-abc123"
+    When I clone workspace "agent-ws" to "agent-ws-clone"
+    Then the create payload should include the agent-pool relationship "apool-abc123"
+    And the cloned workspace should have execution mode "agent"
+    And exit code should be 0
+
+  Scenario: Clone without agent pool succeeds for remote execution mode
+    Given workspace "remote-ws" uses execution mode "remote" with no agent pool
+    When I clone workspace "remote-ws" to "remote-ws-clone"
+    Then the create payload should not include an agent-pool relationship
+    And exit code should be 0
+
+  # B11 — workspace clone project override
+
+  Scenario: Clone assigns cloned workspace to a different project
+    Given workspace "source-ws" is in project "prj-old123"
+    When I clone workspace "source-ws" to "target-ws" with project "prj-new456"
+    Then the cloned workspace should be in project "prj-new456"
+    And exit code should be 0
+
+  Scenario: Clone without --project-id inherits source project
+    Given workspace "source-ws" is in project "prj-old123"
+    When I clone workspace "source-ws" to "target-ws"
+    Then the cloned workspace should be in project "prj-old123"
+    And exit code should be 0
+
   # Workspace Delete Feature Scenarios
 
   Scenario: Delete a workspace with confirmation
