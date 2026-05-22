@@ -34,12 +34,13 @@ Run management and monitoring.
 - `show`: Show detailed information for a specific run.
 - `plan`: Create a new plan (run) for a workspace.
 - `logs`: Fetch and print the logs for a specific run.
-- `apply`: Apply a plan or trigger a new auto-apply run.
+- `apply`: Apply infrastructure changes.
 - `errors`: Find errored runs across workspaces.
-- `trigger`: Trigger a new run with advanced queue management. Use `--auto-apply` to apply if plan succeeds. Use `--speculative` for read-only plans.
+- `trigger`: Trigger a new run with optional targeting or replacement.
 - `watch`: Watch run progress until complete. Use `--auto-apply` to automatically confirm the run once planning or cost-estimation completes and wait for the apply to finish; use `--comment`/`-m` to attach a comment to the apply action.
-- `follow`: Follow a run's logs in real-time. Use `--auto-apply` to automatically apply when planning/cost-estimation completes.
+- `follow`: Follow a run's logs in real-time.
 - `discard`: Discard a run that is in a non-terminal state.
+- `cancel`: Cancel a run that is currently planning or applying.
 - `parse-plan`: Parse plain text terraform plan output.
 
 ---

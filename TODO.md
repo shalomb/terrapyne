@@ -26,14 +26,24 @@ For evaluating live TFC behaviour, use:
 
 | # | Finding | Impact | Effort | WSJF | Status |
 |---|---|---|---|---|---|
+| **BUGS (May 2026)** |
+| B7 | `run follow` / `run logs` silent on pre-plan errors — falls back to `"Run failed before generating logs"` with no error text | 🔴 | S | 4.0 | ✅ |
+| B8 | `run logs` returns empty for errored runs even when log is available via archivist URL | 🔴 | S | 4.0 | ✅ |
+| B9 | `run list` fails by workspace name for some workspaces — requires workspace ID workaround | 🟡 | S | 2.0 | TODO |
+| B10 | `workspace clone` 422 "Agent pool not found" — drops agent-pool relationship from create payload | 🔴 | S | 4.0 | TODO |
+| B11 | `workspace create` missing `--project` flag — no way to assign workspace to a project at creation | 🔴 | S | 4.0 | TODO |
+| B12 | `workspace list` name truncation — no `--no-truncate` or `--max-width` option | 🟡 | S | 2.0 | TODO |
+| B13 | `run trigger` exits non-zero on success — breaks `&&` chains and scripting | 🟡 | S | 2.0 | TODO |
+| B14 | `workspace var-rm` no `--yes`/`-y` flag — always prompts interactively, unusable in scripts | 🟡 | S | 2.0 | TODO |
+| B15 | `--quiet` flag position-sensitive — `terrapyne workspace list --quiet` fails; must be `terrapyne --quiet workspace list` | 🟢 | S | 1.0 | TODO |
 | **NEW FEATURES** |
 | F4 | Workspace notifications (webhook/Slack config) | 🟡 | M | 1.0 | TODO |
 | F5 | Policy sets / Sentinel outcome reporting | 🟡 | M | 1.0 | TODO |
 | F6 | Private registry query (modules + providers) | 🟡 | M | 1.0 | TODO |
 | F7 | Agent pools — list and show self-hosted agents | 🟡 | M | 1.0 | TODO |
 | F8 | SSH keys / VCS OAuth token management | 🟢 | L | 0.33 | TODO |
-| F9 | `workspace update` command and API update method | 🔴 | M | 2.0 | ✅ |
 | **COMPLETED** |
+| F9 | `workspace update` command and API update method | 🔴 | M | 2.0 | ✅ |
 | B3 | `paginate_with_meta` `included` leaks only last page | 🟡 | S | 2.0 | ✅ |
 | B4 | `project.list()` wildcard search strips `*` but doesn't post-filter | 🟢 | S | 1.0 | ✅ |
 | B5 | `runs.get()` never passes `include=plans` — `plan_status` always `None` | 🔴 | S | 4.0 | ✅ |
@@ -348,12 +358,272 @@ terraform {
 | **ARCH** |
 | A12 | `run_cmd.py` decomposition (852 lines) | 🟢 | L | 0.3 | TODO |
 | A13 | `paginate()` and `paginate_with_meta()` divergent | 🟢 | M | 0.5 | TODO |
-| A14 | Domain errors defined in API layer | 🟢 | S | 1.0 | ✅ |
-| A15 | `utils/` is an unconstrained catch-all | 🟢 | L | 0.3 | TODO |
-| A17 | Export all SDK models in package root | 🟡 | S | 2.0 | ✅ |
+| A14 | Domain errors defined in API layer | 🟢 | S | 1.0 | TODO |
 | **COMPLETED** |
+| A15 | `utils/` is an unconstrained catch-all | 🟢 | L | 0.3 | ✅ |
+| A17 | Export all SDK models in package root | 🟡 | S | 2.0 | ✅ |
 | A16 | `sensitive=True` variables may leak values in `--debug` log output | 🟡 | S | 2.0 | ✅ |
 | A8 | Three uncoordinated `Console()` instances | 🟡 | M | 1.33 | ✅ |
+| D1 | Fix broken docs links in AGENTS.md & deprecate GEMINI.md | 🔴 | S | 4.0 | ✅ |
+| D2 | CLI reference lists non-existent `workspace health` | 🟡 | S | 2.0 | ✅ |
+| D3 | SDK reference missing managers (state_versions, vcs) | 🟡 | S | 2.0 | ✅ |
+| D8 | How-to SDK example: clarify Iterator and nullable total | 🟢 | S | 1.0 | ✅ |
+| A6 | `model_construct()` skips validation across all models | 🟡 | M | 1.33 | ✅ |
+| A3 | `emit_json` imports `unittest.mock.Mock` in prod | 🟡 | S | 2.0 | ✅ |
+| A4 | `parse-plan` CLI spawns local Terraform binary | 🟡 | S | 2.0 | ✅ |
+| A7 | `Workspace.latest_run` Any type (circular ref) | 🟡 | S | 2.0 | ✅ |
+| A9 | `Terraform` and `TFCClient` conflated in top-level | 🟡 | M | 1.0 | ✅ |
+| A10| `RunStatus.get_active_statuses()` returns `list[str]` | 🟢 | S | 1.0 | ✅ |
+| A11| Inline `RunStatus` import in `workspace_show` | 🟢 | S | 1.0 | ✅ |
+| D7 | Promote `workspace health` to real CLI command | 🟡 | M | 1.33 | ✅ |
+
+### Task Details (Audit)
+
+#### D1 — Fix AGENTS.md links & GEMINI.md deprecation
+- **Context**: Guide paths moved in Diataxis restructure but AGENTS.md was not updated. GEMINI.md has duplicate/divergent agent instructions.
+- **Action**: Update links to `docs/how-to/` and `docs/explanation/`. Merge unique Ralph/Bart/ACP rules from GEMINI.md into AGENTS.md. Delete GEMINI.md.
+
+#### A4 — parse-plan binary dependency
+- **Context**: `tfc run parse-plan` currently creates a `Terraform` object which fails if the binary is missing, even though the parser is pure Python.
+- **Action**: Call `PlanParser` directly from `terrapyne.sdk.plan_parser`.
+
+#### A6 — model_validate instead of model_construct
+- **Context**: Performance "optimization" that bypasses Pydantic validation on API ingestion.
+- **Action**: Re-enable validation to catch malformed TFC responses early.
+
+#### A7 — Workspace.latest_run type hint
+- **Context**: Uses `Any` to avoid circular import.
+- **Action**: Use `from __future__ import annotations` and `if TYPE_CHECKING: from ...run import Run`.
+
+#### A16 — Sensitive variable values may leak in `--debug` output
+
+**Context**: Variables with `sensitive=True` are masked in normal CLI output, but the `--debug` flag traces all API payloads. If a variable's value appears in a request/response body during debug logging, it is exposed in plaintext even though the user marked it sensitive.
+
+**Action**: Filter or redact `value` fields for sensitive variables in debug-mode API response logging. Add a `__repr__` override on `Variable` that masks the value when `sensitive=True`.
+
+---
+
+#### A12 — run_cmd.py decomposition
+- **Context**: 850 lines mixing CLI glue with complex log streaming and polling state machines.
+- **Action**: Extract `RunMonitor` or move polling logic to `RunsAPI`.
+
+---
+
+#### F9 — `workspace update` command and API update method
+
+**Intent**: Complete the workspace CRUD operations (F3) by supporting update/patch operations on workspace configurations.
+
+**Success Criteria**:
+- `tfc workspace update <name> [--tf-version <v>] [--execution-mode <m>] [--working-dir <d>] [--project-id <p>] [--project-name <pn>]`
+- API support: `client.workspaces.update(workspace_id, ...)`
+- Standard TDD/BDD tests verifying the modifications are propagated correctly.
+
+---
+
+#### A17 — Export all SDK models in package root
+
+**Intent**: Export standard models like `VariableSet`, `RunTrigger`, `Apply`, `StateVersion`, `StateVersionOutput`, and `RunStatus` directly from the `terrapyne` package root.
+
+**Success Criteria**:
+- Package imports: `from terrapyne import VariableSet, RunTrigger, Apply, StateVersion, StateVersionOutput, RunStatus` work seamlessly.
+- Models are added to `__all__` in `src/terrapyne/__init__.py`.
+
+---
+
+#### D9 — Update reference docs for missing models
+
+**Intent**: Add documentation for missing models (`VariableSet`, `VariableSetVariable`, `RunTrigger`) to `docs/reference/sdk.md`.
+
+**Success Criteria**:
+- Import example and model lists in `docs/reference/sdk.md` contain references to `VariableSet`, `VariableSetVariable`, and `RunTrigger`.
+
+
+
+---
+
+### B7 — `run follow` / `run logs` silent on pre-plan errors
+
+**Context**: During vault dynamic credentials debugging (May 2026), runs were failing in TFC's pre-init phase (before `terraform plan` runs). `terrapyne run follow <run-id>` reported:
+
+```
+Run failed before generating logs: errored
+```
+
+with no error text. The actual error (`failed authenticating to Vault: role not found`) was only accessible by manually fetching the archivist log URL via raw TFC API calls:
+
+```bash
+PLAN_ID=$(curl ... "$BASE/runs/$RUN_ID" | jq -r '.data.relationships.plan.data.id')
+LOG_URL=$(curl ... "$BASE/plans/$PLAN_ID" | jq -r '.data.attributes["log-read-url"]')
+curl -sk "$LOG_URL"
+```
+
+**Root cause**: `run follow` likely checks for a non-empty log via the streaming endpoint before the archivist URL is populated, and bails early when nothing is streamed. Pre-init failures write logs to the archivist URL (same as normal plan logs) but may not trigger the streaming path.
+
+**Fix**: When a run errors and no streamed log is available, fall back to fetching the plan log via the archivist URL (`plans/{id}.log-read-url`) and print it. This is the same path used for normal plan log retrieval.
+
+**Success Criteria**:
+- `run follow <run-id>` prints the full plan log (including pre-init Vault auth errors) for errored runs
+- `run logs <run-id>` also works for runs that errored before the plan phase
+- Existing streaming behaviour for in-progress runs is unchanged
+
+---
+
+### B8 — `run logs` returns empty for errored runs
+
+**Context**: Same debugging session. After a run had already errored and `run follow` failed, `run logs <run-id>` was tried:
+
+```
+Logs for plan stage are empty or not yet ready.
+```
+
+The logs were neither empty nor unready — they were available at the archivist URL. The command appears to be polling a streaming/live endpoint that is already closed for a completed (errored) run.
+
+**Root cause**: `run logs` likely uses a log streaming endpoint that only serves data while a run is active. For terminal runs (errored, applied, cancelled), logs must be fetched from the archivist URL instead.
+
+**Fix**: For terminal run states, skip the streaming endpoint and fetch directly from `plans/{id}.log-read-url` (plan stage) or `applies/{id}.log-read-url` (apply stage).
+
+**Success Criteria**:
+- `run logs <run-id>` returns the plan log for any errored run regardless of when it is called
+- Works for both pre-init failures and mid-plan failures
+- `--stage plan|apply` flag respected
+
+---
+
+### B10 — `workspace clone` 422 "Agent pool not found"
+
+**Context**: During provisioning of `tec-man-dad-dev-10803-appstream` (an agent-pool workspace in the `10803-MAN` project), `terrapyne workspace clone` returned HTTP 422 with `"Agent pool not found"`.
+
+**Root cause**: `workspace clone` reads the source workspace's attributes (including `execution-mode: agent`) but does not copy the `agent-pool-assignment` relationship into the `POST /workspaces` create payload. TFC rejects the request because execution mode `agent` requires an explicit agent-pool relationship.
+
+**Workaround used**: Raw API call including the relationship:
+```bash
+curl -s -X POST \
+  -H "Authorization: Bearer $TFC_TOKEN" \
+  -H "Content-Type: application/vnd.api+json" \
+  "$BASE/organizations/Takeda/workspaces" \
+  -d '{
+    "data": {
+      "type": "workspaces",
+      "attributes": { "name": "...", "execution-mode": "agent", ... },
+      "relationships": {
+        "agent-pool": { "data": { "type": "agent-pools", "id": "<pool-id>" } }
+      }
+    }
+  }'
+```
+
+**Fix**: When the source workspace has `execution-mode: agent`, include the `agent-pool` relationship (from `source.relationships["agent-pool"].data.id`) in the create payload.
+
+**Success Criteria**:
+- `workspace clone <source> <dest>` succeeds when source is an agent-pool workspace
+- Cloned workspace has the same agent-pool assignment as the source
+- Non-agent workspaces unaffected
+
+---
+
+### B11 — `workspace create` missing `--project` flag
+
+**Context**: There is no `--project` flag on `workspace create` (nor on `workspace clone`). Workspaces created without a project assignment land in the organisation's default project, requiring a separate patch to move them.
+
+**Workaround used**: Raw API `POST /workspaces` with `"relationships": { "project": { "data": { "type": "projects", "id": "<proj-id>" } } }`.
+
+**Fix**: Add `--project-id` and/or `--project-name` to `workspace create`. When `--project-name` is given, resolve to ID via `projects.find()`.
+
+**Success Criteria**:
+- `tfc workspace create <name> --project 10803-MAN` assigns workspace to that project at creation
+- `workspace clone <src> <dest> --project <p>` overrides source project with target project
+- Help text documents that omitting the flag places the workspace in the default project
+
+---
+
+### B12 — `workspace list` name truncation
+
+**Context**: `workspace list` truncates workspace names in tabular output, making it impossible to distinguish long names (e.g. `tec-man-dad-dev-10803-appstream` vs `tec-man-dad-dev-10803-appstream-2`). There is no `--no-truncate` or `--max-width` option.
+
+**Fix**: Add a `--no-truncate` flag (or `--max-width 0` for unlimited) that disables column truncation. When output is piped (non-TTY), disable truncation by default.
+
+**Success Criteria**:
+- `tfc workspace list --no-truncate` shows full names in all columns
+- Piped output (`tfc workspace list | grep ...`) is never truncated
+- Default TTY output is unchanged
+
+---
+
+### B13 — `run trigger` exits non-zero on success
+
+**Context**: `terrapyne run trigger <workspace>` exits with a non-zero exit code even when the run is successfully queued. This breaks `&&` chains in scripts:
+```bash
+terrapyne run trigger tec-dce-inn-dev-93400-shalombhooshi && echo "triggered"
+# "triggered" never printed despite run being queued
+```
+
+**Fix**: Audit exit code logic in `run trigger`. Return 0 when a run ID is returned from the API. Non-zero only on API error or missing workspace.
+
+**Success Criteria**:
+- `terrapyne run trigger <ws>; echo $?` prints `0` after a successful queue
+- `terrapyne run trigger <nonexistent>; echo $?` prints non-zero
+
+---
+
+### B14 — `workspace var-rm` no `--yes`/`-y` flag
+
+**Context**: `workspace var-rm` always prompts interactively for confirmation. This makes it unusable in scripts or automated workflows without PTY allocation.
+
+**Fix**: Add `--yes`/`-y` flag to skip confirmation. Follow the pattern established by `workspace delete --force`.
+
+**Success Criteria**:
+- `tfc workspace var-rm <ws> <var> --yes` removes without prompting
+- Without `--yes`, interactive prompt behaviour is preserved
+
+---
+
+### B15 — `--quiet` flag is position-sensitive
+
+**Context**: `terrapyne workspace list --quiet` fails or is ignored. The flag must be placed before the subcommand: `terrapyne --quiet workspace list`. This is non-obvious and differs from CLI conventions where global flags are accepted anywhere.
+
+**Fix**: Register `--quiet` as a Typer global option that is accepted in any position (before or after the subcommand group). Or document the required position clearly in help text.
+
+**Success Criteria**:
+- Both `terrapyne --quiet workspace list` and `terrapyne workspace list --quiet` suppress progress output
+- `--help` output makes the global-flag requirement clear if position restriction is intentional
+
+---
+
+### B9 — `run list` fails by workspace name for some workspaces
+
+**Context**: `list-runs.sh` (tfc-api skill) returned `"Workspace not found"` for `tec-dce-inn-dev-93400-shalombhooshi` despite the workspace existing. The `terrapyne run list` command may have the same issue.
+
+**Likely cause**: Workspace name lookup uses an exact-match search that is case-sensitive or encoding-sensitive, or the underlying `workspaces.get_by_name()` call uses a filter that doesn't match workspace names containing multiple hyphens or digits correctly.
+
+**Fix**: Verify that `workspaces.get_by_name()` uses `filter[names]` or exact-name endpoint (`/organizations/{org}/workspaces/{name}`) rather than a fuzzy search. Add a test covering workspace names with digits and multiple hyphens.
+
+**Success Criteria**:
+- `run list tec-dce-inn-dev-93400-shalombhooshi` returns runs without error
+- Workspace name lookup is consistent with `workspace show` (which works correctly)
+
+---
+
+## Documentation & Architecture Audit (April 2026)
+
+### Priority Matrix Additions
+
+| # | Finding | Impact | Effort | WSJF | Status |
+|---|---|---|---|---|---|
+| **DOCS** |
+| D10| `cli-reference.md` missing several commands (`varset`, `workspace create`) | 🟡 | S | 2.0 | TODO |
+| D4 | SDK models table incomplete | 🟡 | S | 2.0 | ✅ |
+| D5 | `plan-parser.md` is a planning artifact, not explanation | 🟡 | S | 2.0 | ✅ |
+| D6 | ADR-004 Gherkin examples diverged from feature file | 🟡 | S | 2.0 | ✅ |
+| D9 | Update reference docs for missing models | 🟢 | S | 1.0 | ✅ |
+| **ARCH** |
+| A18 | Fragmented `workspace var-*` commands instead of noun-verb | 🟡 | S | 2.0 | TODO |
+| A16 | `sensitive=True` variables may leak values in `--debug` log output | 🟡 | S | 2.0 | TODO |
+| A8 | Three uncoordinated `Console()` instances | 🟡 | M | 1.33 | TODO |
+| A12 | `run_cmd.py` decomposition (852 lines) | 🟢 | L | 0.3 | TODO |
+| A13 | `paginate()` and `paginate_with_meta()` divergent | 🟢 | M | 0.5 | TODO |
+| A14 | Domain errors defined in API layer | 🟢 | S | 1.0 | ✅ |
+| A15 | `utils/` is an unconstrained catch-all | 🟢 | L | 0.3 | TODO |
+| A17 | Export all SDK models in package root | 🟡 | S | 2.0 | TODO |
 | **COMPLETED** |
 | D1 | Fix broken docs links in AGENTS.md & deprecate GEMINI.md | 🔴 | S | 4.0 | ✅ |
 | D2 | CLI reference lists non-existent `workspace health` | 🟡 | S | 2.0 | ✅ |
@@ -427,5 +697,30 @@ terraform {
 
 **Success Criteria**:
 - Import example and model lists in `docs/reference/sdk.md` contain references to `VariableSet`, `VariableSetVariable`, and `RunTrigger`.
+
+---
+
+#### D10 — `cli-reference.md` missing several commands
+
+**Intent**: Document all available CLI commands to ensure users can discover them.
+
+**Context**: `tfc varset`, `tfc workspace create`, `tfc workspace delete`, `tfc workspace triggers`, and `tfc vcs list` are completely missing from the CLI reference document. Additionally, `tfc vcs update-branch` is documented but doesn't exist.
+
+**Success Criteria**:
+- Add missing commands to `docs/reference/cli-reference.md` with accurate help text.
+- Remove `vcs update-branch` or implement it.
+
+---
+
+#### A18 — Fragmented `workspace var-*` commands
+
+**Intent**: Standardize variable management under a consistent `workspace var` subcommand group.
+
+**Context**: Workspace variables currently use hyphenated verbs (`var-set`, `var-rm`, `var-copy`, `variables`) instead of a cleaner noun-verb subgroup (e.g., `workspace var set`). This fragments the CLI surface and is inconsistent with top-level variable sets (`varset`).
+
+**Success Criteria**:
+- Refactor `var-set`, `var-rm`, `var-copy`, and `variables` into a new `workspace var` subcommand group.
+- Example: `tfc workspace var list`, `tfc workspace var set`.
+
 
 
