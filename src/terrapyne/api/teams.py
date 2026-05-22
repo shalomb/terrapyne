@@ -65,7 +65,7 @@ class TeamsAPI:
             # filter[names] accepts comma-separated exact names; returns any matching
             params["filter[names]"] = ",".join(names)
 
-        items_iterator, total_count = self.client.paginate_with_meta(path, params=params)
+        items_iterator, total_count = self.client.paginate(path, params=params)
 
         def team_iterator() -> Iterator[Team]:
             for item in items_iterator:
@@ -190,7 +190,7 @@ class TeamsAPI:
         """
         path = f"/teams/{team_id}/relationships/users"
 
-        items_iterator, total_count = self.client.paginate_with_meta(path)
+        items_iterator, total_count = self.client.paginate(path)
         members = list(items_iterator)
 
         return members, total_count
@@ -260,7 +260,8 @@ class TeamsAPI:
         path = "/team-projects"
         params = {"filter[project][id]": project_id}
 
-        for item in self.client.paginate(path, params=params):
+        items, _ = self.client.paginate(path, params=params)
+        for item in items:
             access = TeamProjectAccess.from_api_response(item)
             if access.team_id == team_id:
                 return access

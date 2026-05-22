@@ -17,7 +17,8 @@ from terrapyne.cli import (
     vcs_cmd,
     workspace_cmd,
 )
-from terrapyne.cli.utils import console, set_quiet_mode
+from terrapyne.cli.output_helpers import set_quiet_mode
+from terrapyne.rendering.logging import console
 
 # Use the invocation name (e.g., "tfc" or "terrapyne") instead of hardcoded name
 _prog = Path(sys.argv[0]).name
@@ -86,7 +87,7 @@ def main(
     ),
 ) -> None:
     """Terraform Cloud CLI orchestrator for DevOps engineers."""
-    from terrapyne.cli.utils import setup_logging
+    from terrapyne.cli.output_helpers import setup_logging
 
     set_quiet_mode(quiet)
     setup_logging(debug)

@@ -2,7 +2,9 @@
 
 import typer
 
-from terrapyne.cli.utils import console, get_client, handle_cli_errors, validate_context
+from terrapyne.cli.context_helpers import get_client, validate_context
+from terrapyne.cli.error_handlers import handle_cli_errors
+from terrapyne.rendering.logging import console
 
 app = typer.Typer(help="VCS configuration and repository discovery")
 

@@ -7,13 +7,9 @@ import sys
 
 import typer
 
-from terrapyne.cli.utils import (
-    console,
-    get_client,
-    handle_cli_errors,
-    resolve_project_context,
-    validate_context,
-)
+from terrapyne.cli.context_helpers import get_client, resolve_project_context, validate_context
+from terrapyne.cli.error_handlers import handle_cli_errors
+from terrapyne.rendering.logging import console
 from terrapyne.rendering.rich_tables import (
     render_project_detail,
     render_project_team_access,
@@ -51,7 +47,7 @@ def project_list(
 
         if not projects:
             if output_format == "json":
-                from terrapyne.cli.utils import emit_json
+                from terrapyne.cli.output_helpers import emit_json
 
                 emit_json([])
                 return
@@ -59,7 +55,7 @@ def project_list(
             return
 
         if output_format == "json":
-            from terrapyne.cli.utils import emit_json
+            from terrapyne.cli.output_helpers import emit_json
 
             emit_json([p.model_dump() for p in projects])
             return
@@ -155,7 +151,7 @@ def show_project(
                 active_runs_count += 1
 
         if output_format == "json":
-            from terrapyne.cli.utils import emit_json
+            from terrapyne.cli.output_helpers import emit_json
 
             emit_json(
                 {

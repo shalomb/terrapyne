@@ -36,7 +36,7 @@ def _make_var(id="var-abc123", key="AWS_REGION", value="eu-west-1", sensitive=Fa
 class TestVarsetListCommand:
     def _invoke(self, mock_client):
         with (
-            patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+            patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
             patch("terrapyne.api.client.TFCClient") as mock_tfc,
         ):
             mock_org.return_value = "test-org"
@@ -61,7 +61,7 @@ class TestVarsetListCommand:
         mock_client = MagicMock()
         mock_client.varsets.list.return_value = ([_make_varset()], 1)
         with (
-            patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+            patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
             patch("terrapyne.api.client.TFCClient") as mock_tfc,
         ):
             mock_org.return_value = "test-org"
@@ -76,7 +76,7 @@ class TestVarsetListCommand:
 class TestVarsetShowCommand:
     def _invoke(self, mock_client, name="shared-aws-creds"):
         with (
-            patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+            patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
             patch("terrapyne.api.client.TFCClient") as mock_tfc,
         ):
             mock_org.return_value = "test-org"
@@ -117,7 +117,7 @@ class TestVarsetShowCommand:
 class TestVarsetApplyCommand:
     def _invoke(self, mock_client, varset="shared-aws-creds", workspace="my-ws"):
         with (
-            patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+            patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
             patch("terrapyne.api.client.TFCClient") as mock_tfc,
         ):
             mock_org.return_value = "test-org"
@@ -147,7 +147,7 @@ class TestVarsetApplyCommand:
 class TestVarsetRemoveCommand:
     def _invoke(self, mock_client, varset="shared-aws-creds", workspace="my-ws"):
         with (
-            patch("terrapyne.cli.utils.resolve_organization") as mock_org,
+            patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
             patch("terrapyne.api.client.TFCClient") as mock_tfc,
         ):
             mock_org.return_value = "test-org"

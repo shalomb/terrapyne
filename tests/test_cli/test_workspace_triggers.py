@@ -47,8 +47,11 @@ def when_list_triggers(ctx):
     trigger.created_at = None
 
     with (
-        patch("terrapyne.cli.utils.resolve_organization", return_value="test-org"),
-        patch("terrapyne.cli.utils.validate_context", return_value=("test-org", "ws-downstream")),
+        patch("terrapyne.cli.context_helpers.resolve_organization", return_value="test-org"),
+        patch(
+            "terrapyne.cli.workspace_cmd.validate_context",
+            return_value=("test-org", "ws-downstream"),
+        ),
         patch("terrapyne.api.client.TFCClient") as mock_cls,
     ):
         mock_instance = MagicMock()
@@ -89,8 +92,11 @@ def when_add_trigger(ctx):
     trigger.source_workspace_name = "upstream-workspace"
 
     with (
-        patch("terrapyne.cli.utils.resolve_organization", return_value="test-org"),
-        patch("terrapyne.cli.utils.validate_context", return_value=("test-org", "ws-downstream")),
+        patch("terrapyne.cli.context_helpers.resolve_organization", return_value="test-org"),
+        patch(
+            "terrapyne.cli.workspace_cmd.validate_context",
+            return_value=("test-org", "ws-downstream"),
+        ),
         patch("terrapyne.api.client.TFCClient") as mock_cls,
     ):
         mock_instance = MagicMock()
@@ -144,7 +150,7 @@ def given_existing_trigger(ctx):
 @when('I remove trigger "rt-abc123"')
 def when_remove_trigger(ctx):
     with (
-        patch("terrapyne.cli.utils.resolve_organization", return_value="test-org"),
+        patch("terrapyne.cli.context_helpers.resolve_organization", return_value="test-org"),
         patch("terrapyne.api.client.TFCClient") as mock_cls,
     ):
         mock_instance = MagicMock()
@@ -189,8 +195,11 @@ def test_list_triggers_empty():
 @when("I list triggers for a workspace with no triggers")
 def when_list_no_triggers(ctx):
     with (
-        patch("terrapyne.cli.utils.resolve_organization", return_value="test-org"),
-        patch("terrapyne.cli.utils.validate_context", return_value=("test-org", "ws-downstream")),
+        patch("terrapyne.cli.context_helpers.resolve_organization", return_value="test-org"),
+        patch(
+            "terrapyne.cli.workspace_cmd.validate_context",
+            return_value=("test-org", "ws-downstream"),
+        ),
         patch("terrapyne.api.client.TFCClient") as mock_cls,
     ):
         mock_instance = MagicMock()

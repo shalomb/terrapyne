@@ -32,7 +32,7 @@ For evaluating live TFC behaviour, use:
 | F6 | Private registry query (modules + providers) | 🟡 | M | 1.0 | TODO |
 | F7 | Agent pools — list and show self-hosted agents | 🟡 | M | 1.0 | TODO |
 | F8 | SSH keys / VCS OAuth token management | 🟢 | L | 0.33 | TODO |
-| F9 | `workspace update` command and API update method | 🔴 | M | 2.0 | TODO |
+| F9 | `workspace update` command and API update method | 🔴 | M | 2.0 | ✅ |
 | **COMPLETED** |
 | B3 | `paginate_with_meta` `included` leaks only last page | 🟡 | S | 2.0 | ✅ |
 | B4 | `project.list()` wildcard search strips `*` but doesn't post-filter | 🟢 | S | 1.0 | ✅ |
@@ -346,13 +346,14 @@ terraform {
 | D6 | ADR-004 Gherkin examples diverged from feature file | 🟡 | S | 2.0 | ✅ |
 | D9 | Update reference docs for missing models | 🟢 | S | 1.0 | ✅ |
 | **ARCH** |
-| A16 | `sensitive=True` variables may leak values in `--debug` log output | 🟡 | S | 2.0 | TODO |
-| A8 | Three uncoordinated `Console()` instances | 🟡 | M | 1.33 | TODO |
 | A12 | `run_cmd.py` decomposition (852 lines) | 🟢 | L | 0.3 | TODO |
 | A13 | `paginate()` and `paginate_with_meta()` divergent | 🟢 | M | 0.5 | TODO |
 | A14 | Domain errors defined in API layer | 🟢 | S | 1.0 | ✅ |
 | A15 | `utils/` is an unconstrained catch-all | 🟢 | L | 0.3 | TODO |
-| A17 | Export all SDK models in package root | 🟡 | S | 2.0 | TODO |
+| A17 | Export all SDK models in package root | 🟡 | S | 2.0 | ✅ |
+| **COMPLETED** |
+| A16 | `sensitive=True` variables may leak values in `--debug` log output | 🟡 | S | 2.0 | ✅ |
+| A8 | Three uncoordinated `Console()` instances | 🟡 | M | 1.33 | ✅ |
 | **COMPLETED** |
 | D1 | Fix broken docs links in AGENTS.md & deprecate GEMINI.md | 🔴 | S | 4.0 | ✅ |
 | D2 | CLI reference lists non-existent `workspace health` | 🟡 | S | 2.0 | ✅ |

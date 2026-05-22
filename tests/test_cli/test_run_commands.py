@@ -496,7 +496,7 @@ def check_not_found_msg(try_examine_missing):
 )
 def trigger_plan(workspace, message=None):
     with (
-        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
         patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", workspace)
@@ -531,7 +531,7 @@ def check_initial_status(cli_result, status):
 @when(parsers.parse('I trigger a total destruction of "{workspace}"'), target_fixture="cli_result")
 def trigger_destroy(workspace):
     with (
-        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
         patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", workspace)
@@ -586,7 +586,7 @@ def run_awaiting_conf(run_id):
 @when("I authorize the execution to proceed", target_fixture="cli_result")
 def authorize_proceed(mock_client):
     with (
-        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
         patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", None)
@@ -624,7 +624,7 @@ def execution_in_state(run_id, status):
 @when("I discard the execution", target_fixture="cli_result")
 def discard_execution(mock_client):
     with (
-        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
         patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", None)
@@ -660,7 +660,7 @@ def check_tracking_id(cli_result):
 @when(parsers.parse('I trigger a plan for "{workspace}" targeting:'), target_fixture="cli_result")
 def trigger_targeted(workspace, datatable):
     with (
-        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
         patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", workspace)
@@ -693,7 +693,7 @@ def check_targeted_eval(cli_result):
 )
 def trigger_debug(workspace):
     with (
-        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
         patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", workspace)
@@ -741,7 +741,7 @@ def change_in_progress(run_id):
 @when(parsers.parse('I start monitoring the progress of "{run_id}"'), target_fixture="cli_result")
 def start_monitoring(mock_client, run_id):
     with (
-        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
         patch("terrapyne.api.client.TFCClient") as c,
         patch("time.sleep"),
     ):
@@ -787,7 +787,7 @@ def change_with_logs(run_id):
 @when(parsers.parse('I follow the logs of "{run_id}"'), target_fixture="cli_result")
 def follow_logs(mock_client, run_id):
     with (
-        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
         patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", None)
@@ -1004,7 +1004,7 @@ def many_runs_history(count):
 )
 def trigger_speculative(workspace):
     with (
-        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
         patch("terrapyne.api.client.TFCClient") as c,
     ):
         v.return_value = ("test-org", workspace)
@@ -1087,7 +1087,7 @@ def external_run_errored(run_id):
 )
 def watch_with_auto_apply(mock_client, run_id):
     with (
-        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
         patch("terrapyne.api.client.TFCClient") as c,
         patch("time.sleep"),
     ):
@@ -1102,7 +1102,7 @@ def watch_with_auto_apply(mock_client, run_id):
 )
 def watch_without_auto_apply(mock_client, run_id):
     with (
-        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
         patch("terrapyne.api.client.TFCClient") as c,
         patch("time.sleep"),
     ):

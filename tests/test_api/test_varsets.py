@@ -49,13 +49,13 @@ class TestVarSetAPIList:
         return VarSetAPI(mock_client)
 
     def test_list_calls_correct_path(self, api, mock_client):
-        mock_client.paginate_with_meta.return_value = (
+        mock_client.paginate.return_value = (
             MagicMock(items=[_varset_item()], included=[]),
             1,
         )
         _varsets, _count = api.list()
-        mock_client.paginate_with_meta.assert_called_once()
-        path = mock_client.paginate_with_meta.call_args[0][0]
+        mock_client.paginate.assert_called_once()
+        path = mock_client.paginate.call_args[0][0]
         assert "/organizations/my-org/varsets" in path
 
     def test_list_returns_varset_instances(self, api, mock_client):
@@ -63,7 +63,7 @@ class TestVarSetAPIList:
         result = MagicMock()
         result.__iter__ = MagicMock(return_value=iter([item]))
         result.included = []
-        mock_client.paginate_with_meta.return_value = (result, 1)
+        mock_client.paginate.return_value = (result, 1)
         varsets, _count = api.list()
         vs_list = list(varsets)
         assert len(vs_list) == 1
@@ -74,7 +74,7 @@ class TestVarSetAPIList:
         result = MagicMock()
         result.__iter__ = MagicMock(return_value=iter([]))
         result.included = []
-        mock_client.paginate_with_meta.return_value = (result, 42)
+        mock_client.paginate.return_value = (result, 42)
         _, count = api.list()
         assert count == 42
 
@@ -95,7 +95,7 @@ class TestVarSetAPIGet:
         result = MagicMock()
         result.__iter__ = MagicMock(return_value=iter([item]))
         result.included = []
-        mock_client.paginate_with_meta.return_value = (result, 1)
+        mock_client.paginate.return_value = (result, 1)
         vs = api.get_by_name("shared-aws-creds")
         assert vs.name == "shared-aws-creds"
 
@@ -103,7 +103,7 @@ class TestVarSetAPIGet:
         result = MagicMock()
         result.__iter__ = MagicMock(return_value=iter([]))
         result.included = []
-        mock_client.paginate_with_meta.return_value = (result, 0)
+        mock_client.paginate.return_value = (result, 0)
         with pytest.raises(ValueError, match="not found"):
             api.get_by_name("nonexistent")
 
@@ -111,17 +111,17 @@ class TestVarSetAPIGet:
         result = MagicMock()
         result.__iter__ = MagicMock(return_value=iter([_var_item()]))
         result.included = []
-        mock_client.paginate_with_meta.return_value = (result, 1)
+        mock_client.paginate.return_value = (result, 1)
         list(api.get_variables("varset-xyz789"))
-        mock_client.paginate_with_meta.assert_called_once()
-        path = mock_client.paginate_with_meta.call_args[0][0]
+        mock_client.paginate.assert_called_once()
+        path = mock_client.paginate.call_args[0][0]
         assert "/varsets/varset-xyz789/relationships/vars" in path
 
     def test_get_variables_returns_varsetvariable_instances(self, api, mock_client):
         result = MagicMock()
         result.__iter__ = MagicMock(return_value=iter([_var_item()]))
         result.included = []
-        mock_client.paginate_with_meta.return_value = (result, 1)
+        mock_client.paginate.return_value = (result, 1)
         variables = list(api.get_variables("varset-xyz789"))
         assert len(variables) == 1
         assert isinstance(variables[0], VariableSetVariable)

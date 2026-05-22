@@ -419,7 +419,7 @@ class TestWorkspaceVariableIntegration:
         assert created_var.id == "var-new123"
 
         # Mock get_variables to include the newly created variable
-        mock_client.paginate.return_value = iter([create_response])
+        mock_client.paginate.return_value = (iter([create_response]), 1)
 
         # Get variables
         variables = api.get_variables(workspace_id)
@@ -427,3 +427,114 @@ class TestWorkspaceVariableIntegration:
         assert len(variables) == 1
         assert variables[0].key == "environment"
         assert variables[0].id == "var-new123"
+
+
+class TestWorkspaceUpdate:
+    """Test workspace update operations."""
+
+    @pytest.fixture
+    def mock_client(self):
+        """Create a mock TFC client."""
+        client = MagicMock()
+
+        def mock_get_org(org=None):
+            organization = org or client.organization
+            if not organization:
+                raise ValueError(
+                    "Organization not specified. Pass --organization or set it in client initialization."
+                )
+            return organization
+
+        client.get_organization.side_effect = mock_get_org
+        return client
+
+    @pytest.fixture
+    def api(self, mock_client):
+        """Create WorkspaceAPI instance with mock client."""
+        return WorkspaceAPI(mock_client)
+
+    @pytest.fixture
+    def sample_workspace_response(self):
+        """Sample TFC API response for a workspace update."""
+        return {
+            "id": "ws-abc123",
+            "type": "workspaces",
+            "attributes": {
+                "name": "my-app-dev",
+                "terraform-version": "1.4.0",
+                "execution-mode": "local",
+                "working-directory": "/infra",
+            },
+        }
+
+    def test_update_sends_patch_request(self, api, mock_client, sample_workspace_response):
+        """Test that update sends PATCH request."""
+        mock_client.patch.return_value = {"data": sample_workspace_response}
+
+        api.update(
+            workspace_name="my-app-dev",
+            organization="test-org",
+            terraform_version="1.4.0",
+            execution_mode="local",
+            working_directory="/infra",
+            name="new-app-name",
+        )
+
+        mock_client.patch.assert_called_once()
+        call_args = mock_client.patch.call_args
+        assert call_args[0][0] == "/organizations/test-org/workspaces/my-app-dev"
+
+    def test_update_payload_structure(self, api, mock_client, sample_workspace_response):
+        """Test that update constructs correct payload structure."""
+        mock_client.patch.return_value = {"data": sample_workspace_response}
+
+        api.update(
+            workspace_name="my-app-dev",
+            organization="test-org",
+            terraform_version="1.4.0",
+            execution_mode="local",
+            working_directory="/infra",
+            name="new-app-name",
+            project_id="prj-456",
+        )
+
+        payload = mock_client.patch.call_args[1]["json_data"]
+        assert payload["data"]["type"] == "workspaces"
+        assert payload["data"]["attributes"]["name"] == "new-app-name"
+        assert payload["data"]["attributes"]["terraform-version"] == "1.4.0"
+        assert payload["data"]["attributes"]["execution-mode"] == "local"
+        assert payload["data"]["attributes"]["working-directory"] == "/infra"
+        assert payload["data"]["relationships"]["project"]["data"]["id"] == "prj-456"
+
+    def test_update_returns_workspace_object(self, api, mock_client, sample_workspace_response):
+        """Test that update returns Workspace instance."""
+        mock_client.patch.return_value = {"data": sample_workspace_response}
+
+        from terrapyne.models.workspace import Workspace
+
+        workspace = api.update(
+            workspace_name="my-app-dev", organization="test-org", execution_mode="local"
+        )
+
+        assert isinstance(workspace, Workspace)
+        assert workspace.name == "my-app-dev"
+        assert workspace.terraform_version == "1.4.0"
+        assert workspace.execution_mode == "local"
+
+    def test_update_raises_error_no_org(self, api, mock_client):
+        """Test that update raises ValueError if no org provided."""
+        mock_client.organization = None
+
+        with pytest.raises(ValueError, match="Organization not specified"):
+            api.update(workspace_name="my-app-dev", execution_mode="local")
+
+    def test_update_uses_client_org(self, api, mock_client, sample_workspace_response):
+        """Test that update uses client's default org if not provided."""
+        mock_client.patch.return_value = {"data": sample_workspace_response}
+        mock_client.organization = "default-org"
+
+        api.update(workspace_name="my-app-dev", execution_mode="local")
+
+        mock_client.patch.assert_called_once()
+        call_args = mock_client.patch.call_args
+        assert call_args[0][0] == "/organizations/default-org/workspaces/my-app-dev"

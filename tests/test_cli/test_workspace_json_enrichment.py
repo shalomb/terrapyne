@@ -90,7 +90,7 @@ class TestWorkspaceShowJSONEnrichment:
     def _invoke_with_mocks(self, mock_client):
         """Invoke CLI with mocked TFCClient."""
         with (
-            patch("terrapyne.cli.utils.validate_context") as v,
+            patch("terrapyne.cli.workspace_cmd.validate_context") as v,
             patch("terrapyne.api.client.TFCClient") as c,
         ):
             v.return_value = ("test-org", "my-app-dev")

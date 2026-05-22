@@ -43,7 +43,7 @@ def make_api_request(debug_context, mock_httpx, mock_creds):
         "data": {"id": "ws-123", "attributes": {"name": "my-ws"}}
     }
 
-    with patch("terrapyne.cli.utils.validate_context") as v:
+    with patch("terrapyne.cli.context_helpers.validate_context") as v:
         v.return_value = ("test-org", "my-ws")
 
         # Run the command. Typer will call main() which calls setup_logging()
@@ -56,7 +56,7 @@ def make_api_request(debug_context, mock_httpx, mock_creds):
 @when("I execute the command", target_fixture="cli_result")
 def execute_command(debug_context, mock_httpx, mock_creds):
     # httpx mock should already be configured by 'given' step
-    with patch("terrapyne.cli.utils.validate_context") as v:
+    with patch("terrapyne.cli.context_helpers.validate_context") as v:
         v.return_value = ("test-org", "my-ws")
 
         return runner.invoke(

@@ -84,7 +84,7 @@ class TestTeamRetrieval:
             },
         ]
 
-        mock_client.paginate_with_meta.return_value = (iter(response_items), 2)
+        mock_client.paginate.return_value = (iter(response_items), 2)
 
         teams_iter, total_count = api.list_teams(organization=org)
         teams = list(teams_iter)
@@ -93,8 +93,8 @@ class TestTeamRetrieval:
         mock_client.get_organization.assert_called_once_with(org)
 
         # Verify pagination call
-        mock_client.paginate_with_meta.assert_called_once()
-        call_args = mock_client.paginate_with_meta.call_args
+        mock_client.paginate.assert_called_once()
+        call_args = mock_client.paginate.call_args
         assert call_args[0][0] == f"/organizations/{org}/teams"
 
         # Verify returned teams
@@ -348,13 +348,13 @@ class TestTeamMembers:
             },
         ]
 
-        mock_client.paginate_with_meta.return_value = (iter(members_data), 2)
+        mock_client.paginate.return_value = (iter(members_data), 2)
 
         members, total_count = api.list_members(team_id)
 
         # Verify pagination call
-        mock_client.paginate_with_meta.assert_called_once()
-        call_args = mock_client.paginate_with_meta.call_args
+        mock_client.paginate.assert_called_once()
+        call_args = mock_client.paginate.call_args
         assert call_args[0][0] == f"/teams/{team_id}/relationships/users"
 
         # Verify returned members
@@ -469,7 +469,7 @@ class TestTeamIntegration:
                 },
             },
         ]
-        mock_client.paginate_with_meta.return_value = (iter(list_items), 1)
+        mock_client.paginate.return_value = (iter(list_items), 1)
 
         # List teams
         teams_iter, _total = api.list_teams(organization=org)

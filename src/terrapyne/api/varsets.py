@@ -25,7 +25,7 @@ class VarSetAPI:
         """
         org = self.client.get_organization(organization)
         path = f"/organizations/{org}/varsets"
-        items_iterator, total_count = self.client.paginate_with_meta(path)
+        items_iterator, total_count = self.client.paginate(path)
 
         def varset_iterator() -> Iterator[VariableSet]:
             for item in items_iterator:
@@ -62,7 +62,7 @@ class VarSetAPI:
             VariableSetVariable instances
         """
         path = f"/varsets/{varset_id}/relationships/vars"
-        items_iterator, _ = self.client.paginate_with_meta(path)
+        items_iterator, _ = self.client.paginate(path)
         for item in items_iterator:
             yield VariableSetVariable.from_api_response(item)
 

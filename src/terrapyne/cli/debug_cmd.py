@@ -2,7 +2,7 @@
 
 import typer
 
-from terrapyne.cli.utils import console
+from terrapyne.rendering.logging import console
 
 app = typer.Typer(help="Troubleshooting and debugging commands")
 

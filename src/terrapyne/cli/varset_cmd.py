@@ -2,13 +2,11 @@
 
 import typer
 
-from terrapyne.cli.utils import (
-    console,
-    emit_json,
-    get_client,
-    handle_cli_errors,
-    resolve_organization,
-)
+from terrapyne.cli.context_helpers import get_client
+from terrapyne.cli.error_handlers import handle_cli_errors
+from terrapyne.cli.output_helpers import emit_json
+from terrapyne.core.context import resolve_organization
+from terrapyne.rendering.logging import console
 
 app = typer.Typer(help="Variable set management commands")
 

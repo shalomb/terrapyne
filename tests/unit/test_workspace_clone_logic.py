@@ -331,7 +331,7 @@ class TestVariableMapping:
         from terrapyne.api.workspace_clone import CloneWorkspaceAPI
 
         # GIVEN: paginate returns variables
-        mock_client.paginate_with_meta.return_value = (iter(sample_variables), 3)
+        mock_client.paginate.return_value = (iter(sample_variables), 3)
 
         clone_api = CloneWorkspaceAPI(mock_client)
 
@@ -414,7 +414,7 @@ class TestVariableMapping:
         """Clone should handle source workspace with no variables."""
         from terrapyne.api.workspace_clone import CloneWorkspaceAPI
 
-        mock_client.paginate_with_meta.return_value = (iter([]), None)
+        mock_client.paginate.return_value = (iter([]), None)
 
         clone_api = CloneWorkspaceAPI(mock_client)
 
@@ -432,7 +432,7 @@ class TestVariableMapping:
         """Variable cloning should preserve all metadata."""
         from terrapyne.api.workspace_clone import CloneWorkspaceAPI
 
-        mock_client.paginate_with_meta.return_value = (iter(sample_variables), 3)
+        mock_client.paginate.return_value = (iter(sample_variables), 3)
 
         # Mock the post response for each variable
         def mock_post_response(path, json_data):

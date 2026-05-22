@@ -36,7 +36,7 @@ def request_twice(cache_context, mock_httpx, mock_creds, tmp_path):
     cache_dir.mkdir()
 
     with (
-        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.cli.workspace_cmd.validate_context") as v,
         patch("terrapyne.api.client.Path") as mock_path,
     ):
         v.return_value = ("test-org", "my-ws")

@@ -11,15 +11,11 @@ from typing import Annotated, Any
 import typer
 
 from terrapyne.api.org_errors import get_errored_workspaces
-from terrapyne.cli.utils import (
-    console,
-    emit_json,
-    get_client,
-    handle_cli_errors,
-    resolve_project_context,
-    validate_context,
-)
+from terrapyne.cli.context_helpers import get_client, resolve_project_context, validate_context
+from terrapyne.cli.error_handlers import handle_cli_errors
+from terrapyne.cli.output_helpers import emit_json
 from terrapyne.models.run import Run
+from terrapyne.rendering.logging import console
 from terrapyne.rendering.rich_tables import render_run_detail, render_runs
 
 app = typer.Typer(help="Run management commands")
