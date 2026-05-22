@@ -27,8 +27,8 @@ For evaluating live TFC behaviour, use:
 | # | Finding | Impact | Effort | WSJF | Status |
 |---|---|---|---|---|---|
 | **BUGS (May 2026)** |
-| B7 | `run follow` / `run logs` silent on pre-plan errors — falls back to `"Run failed before generating logs"` with no error text | 🔴 | S | 4.0 | ✅ |
-| B8 | `run logs` returns empty for errored runs even when log is available via archivist URL | 🔴 | S | 4.0 | ✅ |
+| B7 | `run follow` / `run logs` silent on pre-plan errors — falls back to `"Run failed before generating logs"` with no error text | 🔴 | S | 4.0 | ✅ [#114](https://github.com/shalomb/terrapyne/pull/114) |
+| B8 | `run logs` returns empty for errored runs even when log is available via archivist URL | 🔴 | S | 4.0 | ✅ [#114](https://github.com/shalomb/terrapyne/pull/114) |
 | B9 | `run list` fails by workspace name for some workspaces — requires workspace ID workaround | 🟡 | S | 2.0 | TODO |
 | B10 | `workspace clone` 422 "Agent pool not found" — drops agent-pool relationship from create payload | 🔴 | S | 4.0 | ✅ |
 | B11 | `workspace create` missing `--project` flag — no way to assign workspace to a project at creation | 🔴 | S | 4.0 | ✅ |

@@ -1138,3 +1138,165 @@ def watch_exit_zero(cli_result):
 @then("the command should exit with code 1")
 def watch_exit_one(cli_result):
     assert cli_result.exit_code == 1
+
+
+@when(
+    parsers.parse('I follow "{run_id}" with --auto-apply'),
+    target_fixture="cli_result",
+)
+def follow_with_auto_apply(mock_client, run_id):
+    with (
+        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.api.client.TFCClient") as c,
+        patch("time.sleep"),
+    ):
+        v.return_value = ("test-org", None)
+        c.return_value.__enter__.return_value = mock_client
+        return runner.invoke(app, ["run", "follow", run_id, "--auto-apply", "-o", "test-org"])
+
+
+# ============================================================================
+# B7/B8 — Pre-plan failure: archivist log fallback
+# ============================================================================
+
+_ARCHIVIST_ERROR = "Error: Invalid provider configuration"
+_ARCHIVIST_URL = "https://archivist.terraform.io/v1/object/prefail"
+
+
+@scenario(
+    "../features/run_lifecycle.feature",
+    "Following a run that fails before producing plan output shows archivist error text",
+)
+def test_follow_pre_plan_failure_shows_archivist_logs():
+    pass
+
+
+@scenario(
+    "../features/run_details.feature",
+    "Viewing logs for a run that failed before generating plan output",
+)
+def test_run_logs_pre_plan_failure_shows_archivist_content():
+    pass
+
+
+@given(
+    parsers.parse('an externally triggered run "{run_id}" errored before generating plan logs'),
+    target_fixture="mock_client",
+)
+def pre_plan_failure_run(run_id):
+    from terrapyne.models.plan import Plan
+
+    m = MagicMock()
+    errored_run = Run.model_construct(
+        id=run_id,
+        status=RunStatus.ERRORED,
+        plan_id="plan-prefail",
+        apply_id=None,
+    )
+    plan_obj = Plan.model_construct(
+        id="plan-prefail",
+        status="errored",
+        log_read_url=_ARCHIVIST_URL,
+    )
+    m.runs.get.return_value = errored_run
+    m.runs.get_plan.return_value = plan_obj
+    m.runs.get_plan_logs.return_value = _ARCHIVIST_ERROR
+    m.runs.poll_until_complete.return_value = errored_run
+    return m
+
+
+@when(
+    parsers.parse('I follow "{run_id}"'),
+    target_fixture="cli_result",
+)
+def follow_run(mock_client, run_id):
+    with (
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
+        patch("terrapyne.api.client.TFCClient") as c,
+    ):
+        v.return_value = ("test-org", None)
+        c.return_value.__enter__.return_value = mock_client
+
+        def mock_poll(run_id, callback, max_wait):
+            errored = Run.model_construct(
+                id=run_id,
+                status=RunStatus.ERRORED,
+                plan_id="plan-prefail",
+            )
+            callback(errored)
+            return errored
+
+        mock_client.runs.poll_until_complete.side_effect = mock_poll
+        result = runner.invoke(app, ["run", "follow", run_id, "-o", "test-org"])
+        result.mock_client = mock_client
+        return result
+
+
+@then(parsers.parse('the output should contain "{text}"'))
+def output_contains(cli_result, text):
+    assert text in cli_result.stdout
+
+
+@then(parsers.parse('the output should not show "{text}"'))
+def output_does_not_contain(cli_result, text):
+    assert text not in cli_result.stdout
+    call_kwargs = cli_result.mock_client.runs.get_plan_logs.call_args
+    assert call_kwargs is not None, "get_plan_logs was never called"
+    assert call_kwargs.kwargs.get("log_read_url") == _ARCHIVIST_URL, (
+        f"get_plan_logs not called with log_read_url={_ARCHIVIST_URL!r}"
+    )
+
+
+# ============================================================================
+# B7/B8 — run logs: pre-plan failure shows archivist content
+# ============================================================================
+
+
+@given(
+    parsers.parse('the run "{run_id}" errored before the plan stage produced output'),
+    target_fixture="pre_plan_logs_client",
+)
+def run_errored_pre_plan(run_id):
+    from terrapyne.models.plan import Plan
+
+    m = MagicMock()
+    errored_run = Run.model_construct(
+        id=run_id,
+        status=RunStatus.ERRORED,
+        plan_id="plan-prefail-logs",
+    )
+    plan_obj = Plan.model_construct(
+        id="plan-prefail-logs",
+        status="errored",
+        log_read_url=_ARCHIVIST_URL,
+    )
+    m.runs.get.return_value = errored_run
+    m.runs.get_plan.return_value = plan_obj
+    m.runs.get_plan_logs.return_value = _ARCHIVIST_ERROR + "\n"
+    return m
+
+
+@when(
+    parsers.parse('I retrieve the logs for run "{run_id}"'),
+    target_fixture="cli_result",
+)
+def retrieve_run_logs(pre_plan_logs_client, run_id):
+    with (
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
+        patch("terrapyne.api.client.TFCClient") as c,
+    ):
+        v.return_value = ("test-org", None)
+        c.return_value.__enter__.return_value = pre_plan_logs_client
+        result = runner.invoke(app, ["run", "logs", run_id, "-o", "test-org"])
+        result.mock_client = pre_plan_logs_client
+        return result
+
+
+@then(parsers.parse('the output should not say "{text}"'))
+def output_not_say(cli_result, text):
+    assert text not in cli_result.stdout
+    call_kwargs = cli_result.mock_client.runs.get_plan_logs.call_args
+    assert call_kwargs is not None, "get_plan_logs was never called"
+    assert call_kwargs.kwargs.get("log_read_url") == _ARCHIVIST_URL, (
+        "get_plan_logs not called with the plan's log_read_url"
+    )
