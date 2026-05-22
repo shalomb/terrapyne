@@ -291,7 +291,11 @@ def run_apply(
         typer.Option("--wait/--no-wait", help="Wait for completion"),
     ] = True,
 ):
-    """Apply a plan or trigger a new auto-apply run."""
+    """Apply a plan or trigger a new auto-apply run.
+
+    If a RUN_ID is provided, applies that existing run.
+    If omitted, triggers a completely new run on the workspace with auto-apply enabled.
+    """
     org, ws_context_name = validate_context(organization, workspace)
 
     with get_client(ctx, organization=org) as client:
@@ -508,7 +512,14 @@ def run_trigger(
         ),
     ] = False,
 ):
-    """Trigger a new run with advanced queue management."""
+    """Trigger a new run with advanced queue management.
+
+    Supports advanced behaviors:
+    * `--auto-apply`: Automatically apply if the plan succeeds.
+    * `--speculative`: Create a true speculative plan (read-only, cannot be applied).
+    * `--wait-queue`: Wait for active runs to finish before triggering.
+    * `--discard-older`: Discard any active runs before triggering.
+    """
     # Resolve organization and workspace
     org, workspace_name = validate_context(organization, workspace, require_workspace=True)
 
