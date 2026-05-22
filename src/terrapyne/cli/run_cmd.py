@@ -237,12 +237,22 @@ def run_logs(
             if not run.plan_id:
                 console.print("[yellow]No plan logs available for this run.[/yellow]")
                 return
-            logs = client.runs.get_plan_logs(run.plan_id)
+            plan = None
+            with suppress(Exception):
+                plan = client.runs.get_plan(run.plan_id)
+            logs = client.runs.get_plan_logs(
+                run.plan_id, log_read_url=plan.log_read_url if plan else None
+            )
         elif stage == "apply":
             if not run.apply_id:
                 console.print("[yellow]No apply logs available for this run.[/yellow]")
                 return
-            logs = client.runs.get_apply_logs(run.apply_id)
+            apply_obj = None
+            with suppress(Exception):
+                apply_obj = client.runs.get_apply(run.apply_id)
+            logs = client.runs.get_apply_logs(
+                run.apply_id, log_read_url=apply_obj.log_read_url if apply_obj else None
+            )
         else:
             console.print(f"[red]Error: Invalid stage '{stage}'. Use 'plan' or 'apply'.[/red]")
             raise typer.Exit(1)
@@ -764,9 +774,13 @@ def run_follow(
         last_plan_pos = 0
         last_apply_pos = 0
         current_stage = None
+        _UNFETCHED = object()
+        plan_log_read_url: object = _UNFETCHED
+        apply_log_read_url: object = _UNFETCHED
 
         def stream_logs(run: Run) -> None:
             nonlocal last_plan_pos, last_apply_pos, current_stage
+            nonlocal plan_log_read_url, apply_log_read_url
 
             # 1. Plan Stage
             if run.plan_id:
@@ -774,7 +788,12 @@ def run_follow(
                     current_stage = "plan"
                     console.print("[dim]📋 Plan:[/dim]")
                 try:
-                    plan_log = client.runs.get_plan_logs(run.plan_id)
+                    if plan_log_read_url is _UNFETCHED:
+                        plan_log_read_url = client.runs.get_plan(run.plan_id).log_read_url
+                    plan_log = client.runs.get_plan_logs(
+                        run.plan_id,
+                        log_read_url=plan_log_read_url,  # type: ignore[arg-type]
+                    )
                     last_plan_pos = _print_log_delta(plan_log, last_plan_pos)
                 except Exception:
                     pass
@@ -785,7 +804,12 @@ def run_follow(
                     current_stage = "apply"
                     console.print("\n[dim]⚙️  Apply:[/dim]")
                 try:
-                    apply_log = client.runs.get_apply_logs(run.apply_id)
+                    if apply_log_read_url is _UNFETCHED:
+                        apply_log_read_url = client.runs.get_apply(run.apply_id).log_read_url
+                    apply_log = client.runs.get_apply_logs(
+                        run.apply_id,
+                        log_read_url=apply_log_read_url,  # type: ignore[arg-type]
+                    )
                     last_apply_pos = _print_log_delta(apply_log, last_apply_pos)
                 except Exception:
                     pass

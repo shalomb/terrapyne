@@ -311,43 +311,61 @@ class RunsAPI:
         response = self.client.get(path)
         return Plan.from_api_response(response["data"])
 
-    def get_plan_logs(self, plan_id: str) -> str:
+    def get_plan_logs(self, plan_id: str, log_read_url: str | None = None) -> str:
         """Get plan logs.
+
+        Fetches the streaming endpoint first. If that returns empty and a
+        ``log_read_url`` (archivist URL) is provided, falls back to it.
+        This covers B7/B8 where runs that fail pre-plan produce no streaming
+        output but do have an archivist log blob.
 
         Args:
             plan_id: Plan ID
+            log_read_url: Optional archivist URL from Plan.log_read_url
 
         Returns:
             Plan log content as string
-
-        Raises:
-            TFCAPIError: If logs not available (other than 404/403)
         """
         path = f"/plans/{plan_id}/logs"
         try:
-            return self.client._request("GET", path).text
+            content = self.client._request("GET", path).text
         except (TFCNotFoundError, TFCAuthenticationError):
-            # Logs might not be ready yet
-            return ""
+            content = ""
 
-    def get_apply_logs(self, apply_id: str) -> str:
+        if not content and log_read_url:
+            try:
+                content = self.client._request("GET", log_read_url).text
+            except (TFCNotFoundError, TFCAuthenticationError):
+                content = ""
+
+        return content
+
+    def get_apply_logs(self, apply_id: str, log_read_url: str | None = None) -> str:
         """Get apply logs.
+
+        Fetches the streaming endpoint first. If that returns empty and a
+        ``log_read_url`` (archivist URL) is provided, falls back to it.
 
         Args:
             apply_id: Apply ID
+            log_read_url: Optional archivist URL from Apply.log_read_url
 
         Returns:
             Apply log content as string
-
-        Raises:
-            TFCAPIError: If logs not available (other than 404/403)
         """
         path = f"/applies/{apply_id}/logs"
         try:
-            return self.client._request("GET", path).text
+            content = self.client._request("GET", path).text
         except (TFCNotFoundError, TFCAuthenticationError):
-            # Logs might not be ready yet
-            return ""
+            content = ""
+
+        if not content and log_read_url:
+            try:
+                content = self.client._request("GET", log_read_url).text
+            except (TFCNotFoundError, TFCAuthenticationError):
+                content = ""
+
+        return content
 
     def get_error_summary(self, run: Run) -> str:
         """Extract the Terraform error text from an errored run.
