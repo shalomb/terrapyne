@@ -528,6 +528,12 @@ def workspace_clone(
     force: bool = typer.Option(
         False, "--force", "-f", help="Force clone even if target workspace exists"
     ),
+    project_id: str | None = typer.Option(
+        None,
+        "--project-id",
+        "-p",
+        help="Project ID to assign the cloned workspace to (overrides source project)",
+    ),
 ):
     """Clone a workspace (configuration and variables).
 
@@ -562,6 +568,7 @@ def workspace_clone(
                 with_vcs=with_vcs,
                 vcs_oauth_token_id=vcs_token,
                 force=force,
+                project_id=project_id,
             )
 
             console.print(f"\n[green]✓[/green] {result.get('message', 'Successfully cloned')}")

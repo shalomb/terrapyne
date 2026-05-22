@@ -223,6 +223,20 @@ Feature: Workspace Operations
     Then the create payload should not include an agent-pool relationship
     And exit code should be 0
 
+  # B11 — workspace clone project override
+
+  Scenario: Clone assigns cloned workspace to a different project
+    Given workspace "source-ws" is in project "prj-old123"
+    When I clone workspace "source-ws" to "target-ws" with project "prj-new456"
+    Then the cloned workspace should be in project "prj-new456"
+    And exit code should be 0
+
+  Scenario: Clone without --project-id inherits source project
+    Given workspace "source-ws" is in project "prj-old123"
+    When I clone workspace "source-ws" to "target-ws"
+    Then the cloned workspace should be in project "prj-old123"
+    And exit code should be 0
+
   # Workspace Delete Feature Scenarios
 
   Scenario: Delete a workspace with confirmation

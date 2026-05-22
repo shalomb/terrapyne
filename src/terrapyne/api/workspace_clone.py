@@ -532,6 +532,7 @@ class CloneWorkspaceAPI:
         auto_apply: bool | None = None,
         tags: list[str] | None = None,
         agent_pool_id: str | None = None,
+        project_id: str | None = None,
     ) -> Workspace:
         """Create a new workspace.
 
@@ -543,6 +544,7 @@ class CloneWorkspaceAPI:
             auto_apply: Whether to auto-apply
             tags: Tags to apply to workspace
             agent_pool_id: Agent pool ID (required when execution_mode is "agent")
+            project_id: Project ID to assign the workspace to
 
         Returns:
             Created Workspace instance
@@ -572,10 +574,13 @@ class CloneWorkspaceAPI:
             }
         }
 
+        relationships: dict = {}
         if agent_pool_id:
-            payload["data"]["relationships"] = {
-                "agent-pool": {"data": {"type": "agent-pools", "id": agent_pool_id}}
-            }
+            relationships["agent-pool"] = {"data": {"type": "agent-pools", "id": agent_pool_id}}
+        if project_id:
+            relationships["project"] = {"data": {"type": "projects", "id": project_id}}
+        if relationships:
+            payload["data"]["relationships"] = relationships
 
         response = self.client.post(path, json_data=payload)
         return Workspace.from_api_response(response["data"])
@@ -592,6 +597,7 @@ class CloneWorkspaceAPI:
         vcs_oauth_token_id: str | None = None,
         force: bool = False,
         async_mode: bool = False,
+        project_id: str | None = None,
     ) -> dict:
         """Clone a workspace with specified configuration.
 
@@ -667,6 +673,7 @@ class CloneWorkspaceAPI:
                 auto_apply=source_ws.auto_apply,
                 tags=source_ws.tag_names if source_ws.tag_names else None,
                 agent_pool_id=source_ws.agent_pool_id,
+                project_id=project_id if project_id is not None else source_ws.project_id,
             )
             target_workspace_id = target_ws.id
             logger.info(
