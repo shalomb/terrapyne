@@ -322,3 +322,53 @@ class WorkspaceAPI:
         """
         path = f"/workspaces/{workspace_id}"
         self.client.delete(path)
+
+    def update(
+        self,
+        workspace_name: str,
+        organization: str | None = None,
+        project_id: str | None = None,
+        terraform_version: str | None = None,
+        execution_mode: str | None = None,
+        working_directory: str | None = None,
+        name: str | None = None,
+    ) -> Workspace:
+        """Update an existing workspace.
+
+        Args:
+            workspace_name: Current workspace name
+            organization: Organization name (uses client default if not specified)
+            project_id: Project ID to move workspace to
+            terraform_version: Terraform version to use
+            execution_mode: Execution mode (remote, local, agent)
+            working_directory: Working directory within VCS repo
+            name: New workspace name
+
+        Returns:
+            Updated Workspace instance
+
+        Raises:
+            TFCAPIError: If update fails
+        """
+        org = self.client.get_organization(organization)
+        path = f"/organizations/{org}/workspaces/{workspace_name}"
+
+        attributes: dict[str, Any] = {}
+        if name:
+            attributes["name"] = name
+        if terraform_version:
+            attributes["terraform-version"] = terraform_version
+        if execution_mode:
+            attributes["execution-mode"] = execution_mode
+        if working_directory is not None:  # allow setting to empty string to clear it
+            attributes["working-directory"] = working_directory
+
+        payload: dict[str, Any] = {"data": {"type": "workspaces", "attributes": attributes}}
+
+        if project_id:
+            payload["data"]["relationships"] = {
+                "project": {"data": {"type": "projects", "id": project_id}}
+            }
+
+        response = self.client.patch(path, json_data=payload)
+        return Workspace.from_api_response(response["data"])
