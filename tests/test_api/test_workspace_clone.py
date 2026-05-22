@@ -746,34 +746,33 @@ class TestCloneAgentPool:
 # ============================================================================
 
 
+_REMOTE_SOURCE_WS = {
+    "id": "ws-source",
+    "type": "workspaces",
+    "attributes": {
+        "name": "source-ws",
+        "terraform-version": "1.7.0",
+        "execution-mode": "remote",
+        "auto-apply": False,
+        "tag-names": [],
+    },
+    "relationships": {"project": {"data": {"type": "projects", "id": "prj-old123"}}},
+}
+
+_BLANK_TARGET_WS = {
+    "id": "ws-target",
+    "type": "workspaces",
+    "attributes": {"name": "target-ws"},
+}
+
+
 class TestCloneProjectOverride:
     """B11: workspace clone --project-id should assign the clone to a different project."""
 
     def test_clone_with_project_id_override_sends_relationship(self, api, mock_client):
         """When project_id is supplied, it appears in the create payload relationships."""
-        source_ws_data = {
-            "id": "ws-source",
-            "type": "workspaces",
-            "attributes": {
-                "name": "source-ws",
-                "terraform-version": "1.7.0",
-                "execution-mode": "remote",
-                "auto-apply": False,
-                "tag-names": [],
-            },
-            "relationships": {"project": {"data": {"type": "projects", "id": "prj-old123"}}},
-        }
-        target_ws_data = {
-            "id": "ws-target",
-            "type": "workspaces",
-            "attributes": {"name": "target-ws"},
-        }
-
-        mock_client.get.side_effect = [
-            {"data": source_ws_data},
-            Exception("404 not found"),
-        ]
-        mock_client.post.return_value = {"data": target_ws_data}
+        mock_client.get.side_effect = [{"data": _REMOTE_SOURCE_WS}, Exception("404 not found")]
+        mock_client.post.return_value = {"data": _BLANK_TARGET_WS}
 
         result = api.clone(
             source_workspace_name="source-ws",
@@ -790,29 +789,8 @@ class TestCloneProjectOverride:
 
     def test_clone_without_project_id_inherits_source_project(self, api, mock_client):
         """Without project_id override, the source project is inherited."""
-        source_ws_data = {
-            "id": "ws-source",
-            "type": "workspaces",
-            "attributes": {
-                "name": "source-ws",
-                "terraform-version": "1.7.0",
-                "execution-mode": "remote",
-                "auto-apply": False,
-                "tag-names": [],
-            },
-            "relationships": {"project": {"data": {"type": "projects", "id": "prj-old123"}}},
-        }
-        target_ws_data = {
-            "id": "ws-target",
-            "type": "workspaces",
-            "attributes": {"name": "target-ws"},
-        }
-
-        mock_client.get.side_effect = [
-            {"data": source_ws_data},
-            Exception("404 not found"),
-        ]
-        mock_client.post.return_value = {"data": target_ws_data}
+        mock_client.get.side_effect = [{"data": _REMOTE_SOURCE_WS}, Exception("404 not found")]
+        mock_client.post.return_value = {"data": _BLANK_TARGET_WS}
 
         result = api.clone(
             source_workspace_name="source-ws",

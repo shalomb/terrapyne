@@ -673,7 +673,7 @@ class CloneWorkspaceAPI:
                 auto_apply=source_ws.auto_apply,
                 tags=source_ws.tag_names if source_ws.tag_names else None,
                 agent_pool_id=source_ws.agent_pool_id,
-                project_id=project_id if project_id is not None else source_ws.project_id,
+                project_id=project_id or source_ws.project_id,
             )
             target_workspace_id = target_ws.id
             logger.info(
