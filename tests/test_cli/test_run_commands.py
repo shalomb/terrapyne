@@ -138,6 +138,7 @@ def test_trigger_speculative_plan():
 @scenario(
     "../features/run_lifecycle.feature",
     "Watching an externally triggered run and auto-applying after planning",
+    "Following an externally triggered run and auto-applying after planning",
 )
 def test_watch_auto_apply():
     pass
@@ -1138,3 +1139,18 @@ def watch_exit_zero(cli_result):
 @then("the command should exit with code 1")
 def watch_exit_one(cli_result):
     assert cli_result.exit_code == 1
+
+
+@when(
+    parsers.parse('I follow "{run_id}" with --auto-apply'),
+    target_fixture="cli_result",
+)
+def follow_with_auto_apply(mock_client, run_id):
+    with (
+        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.api.client.TFCClient") as c,
+        patch("time.sleep"),
+    ):
+        v.return_value = ("test-org", None)
+        c.return_value.__enter__.return_value = mock_client
+        return runner.invoke(app, ["run", "follow", run_id, "--auto-apply", "-o", "test-org"])

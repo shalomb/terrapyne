@@ -83,3 +83,10 @@ Feature: Infrastructure Change Lifecycle
     When I watch "run-ext-789" with --auto-apply
     Then the run should not be applied
     And the command should exit with code 1
+
+  Scenario: Following an externally triggered run and auto-applying after planning
+    Given an externally triggered run "run-ext-999" has reached "planned" status
+    When I follow "run-ext-999" with --auto-apply
+    Then the run should be applied automatically
+    And the command should wait for the apply to complete
+    And the command should exit with code 0
