@@ -24,6 +24,15 @@ from terrapyne.rendering.rich_tables import (
 app = typer.Typer(help="Workspace management commands")
 app.add_typer(triggers_cmd.app, name="triggers")
 
+var_app = typer.Typer(help="Workspace variable management")
+app.add_typer(var_app, name="var")
+
+
+@var_app.callback(invoke_without_command=True)
+def _var_show_help(ctx: typer.Context):
+    if ctx.invoked_subcommand is None:
+        console.print(ctx.get_help())
+
 
 @app.callback(invoke_without_command=True)
 def _show_help(ctx: typer.Context):
@@ -855,3 +864,209 @@ def workspace_costs(
 
         console.print(f"Estimated monthly cost: ${monthly_val:,.2f}")
         console.print(f"Cost delta: {delta_prefix}{delta_val:,.2f}")
+
+
+# ---------------------------------------------------------------------------
+# workspace var subgroup — delegates to existing workspace_variable* logic
+# ---------------------------------------------------------------------------
+
+
+@var_app.command("list")
+@handle_cli_errors
+def var_list(
+    ctx: typer.Context,
+    workspace: str | None = typer.Argument(
+        None, help="Workspace name (auto-detected from terraform.tf if in terraform directory)"
+    ),
+    organization: str | None = typer.Option(
+        None,
+        "--organization",
+        "-o",
+        help="TFC organization (auto-detected from context if available)",
+    ),
+):
+    """List variables for a workspace."""
+    org, ws_name = validate_context(organization, workspace, require_workspace=True)
+
+    with get_client(ctx, organization=org) as client:
+        ws = client.workspaces.get(cast(str, ws_name), org)
+        variables = client.workspaces.get_variables(ws.id)
+
+        if not variables:
+            console.print("[yellow]No variables configured in this workspace.[/yellow]")
+            return
+
+        render_workspace_variables(variables)
+
+
+@var_app.command("set")
+@handle_cli_errors
+def var_set(
+    ctx: typer.Context,
+    workspace: Annotated[
+        str | None,
+        typer.Argument(
+            help="Workspace name (auto-detected from terraform.tf if in terraform directory)"
+        ),
+    ] = None,
+    key: Annotated[str | None, typer.Option("--key", "-k", help="Variable key")] = None,
+    value: Annotated[str | None, typer.Option("--value", "-v", help="Variable value")] = None,
+    category: Annotated[
+        str, typer.Option("--category", "-c", help="Category: terraform, env")
+    ] = "terraform",
+    hcl: Annotated[bool, typer.Option("--hcl", help="Parse value as HCL")] = False,
+    sensitive: Annotated[bool, typer.Option("--sensitive", "-s", help="Mark as sensitive")] = False,
+    description: Annotated[
+        str | None, typer.Option("--description", "-d", help="Variable description")
+    ] = None,
+    organization: Annotated[
+        str | None,
+        typer.Option(
+            "--organization",
+            "-o",
+            help="TFC organization (auto-detected from context if available)",
+        ),
+    ] = None,
+):
+    """Set a workspace variable (create or update)."""
+    if key is None or value is None:
+        console.print("[red]Error: Both --key and --value are required.[/red]")
+        raise typer.Exit(1)
+
+    org, ws_name = validate_context(organization, workspace, require_workspace=True)
+
+    with get_client(ctx, organization=org) as client:
+        ws = client.workspaces.get(cast(str, ws_name), org)
+        variables: list[WorkspaceVariable] = client.workspaces.get_variables(ws.id) or []
+        existing_var = next((v for v in variables if v.key == key), None)
+
+        if existing_var:
+            console.print(f"[dim]Updating existing variable:[/dim] {key}")
+            client.workspaces.update_variable(
+                variable_id=existing_var.id,
+                value=value,
+                hcl=hcl,
+                sensitive=sensitive,
+                description=description,
+            )
+            console.print(f"[green]✓[/green] Updated variable: {key}")
+        else:
+            console.print(f"[dim]Creating new variable:[/dim] {key}")
+            client.workspaces.create_variable(
+                workspace_id=ws.id,
+                key=key,
+                value=value,
+                category=category,
+                hcl=hcl,
+                sensitive=sensitive,
+                description=description,
+            )
+            console.print(f"[green]✓[/green] Created variable: {key}")
+
+
+@var_app.command("remove")
+@handle_cli_errors
+def var_remove(
+    ctx: typer.Context,
+    workspace: Annotated[
+        str | None,
+        typer.Argument(
+            help="Workspace name (auto-detected from terraform.tf if in terraform directory)"
+        ),
+    ] = None,
+    key: Annotated[str | None, typer.Argument(help="Variable key to remove")] = None,
+    organization: Annotated[
+        str | None,
+        typer.Option(
+            "--organization",
+            "-o",
+            help="TFC organization (auto-detected from context if available)",
+        ),
+    ] = None,
+    force: Annotated[bool, typer.Option("--force", "-f", help="Skip confirmation")] = False,
+):
+    """Remove a workspace variable."""
+    if key is None:
+        console.print("[red]Error: Variable key is required.[/red]")
+        raise typer.Exit(1)
+
+    org, ws_name = validate_context(organization, workspace, require_workspace=True)
+
+    with get_client(ctx, organization=org) as client:
+        ws = client.workspaces.get(cast(str, ws_name), org)
+        variables: list[WorkspaceVariable] = client.workspaces.get_variables(ws.id) or []
+        existing_var = next((v for v in variables if v.key == key), None)
+
+        if not existing_var:
+            console.print(f"[yellow]Variable '{key}' not found in workspace '{ws_name}'[/yellow]")
+            raise typer.Exit(1)
+
+        if not force and not typer.confirm(f"Remove variable '{key}' from workspace '{ws_name}'?"):
+            console.print("[yellow]Aborted.[/yellow]")
+            raise typer.Exit(0)
+
+        client.workspaces.delete_variable(workspace_id=ws.id, variable_id=existing_var.id)
+        console.print(f"[green]✓[/green] Removed variable: {key}")
+
+
+@var_app.command("copy")
+@handle_cli_errors
+def var_copy(
+    ctx: typer.Context,
+    source: str = typer.Argument(..., help="Source workspace name"),
+    target: str = typer.Argument(..., help="Target workspace name"),
+    organization: str | None = typer.Option(None, "--organization", "-o", help="TFC organization"),
+    overwrite: bool = typer.Option(False, "--overwrite", help="Overwrite existing variables"),
+):
+    """Copy all variables from one workspace to another."""
+    org, _ = validate_context(organization)
+
+    with get_client(ctx, organization=org) as client:
+        ws_source = client.workspaces.get(source, org)
+        ws_target = client.workspaces.get(target, org)
+
+        source_variables: list[WorkspaceVariable] = (
+            client.workspaces.get_variables(ws_source.id) or []
+        )
+        target_variables: list[WorkspaceVariable] = (
+            client.workspaces.get_variables(ws_target.id) or []
+        )
+
+        target_keys = {v.key for v in target_variables}
+
+        console.print(f"[dim]Copying {len(source_variables)} variables: {source} → {target}[/dim]")
+
+        copied = 0
+        skipped = 0
+        updated = 0
+
+        for var in source_variables:
+            if var.key in target_keys:
+                if overwrite:
+                    t_v = next(v for v in target_variables if v.key == var.key)
+                    client.workspaces.update_variable(
+                        variable_id=t_v.id,
+                        value=var.value,
+                        hcl=var.hcl,
+                        sensitive=var.sensitive,
+                        description=var.description,
+                    )
+                    updated += 1
+                else:
+                    skipped += 1
+                    continue
+            else:
+                client.workspaces.create_variable(
+                    workspace_id=ws_target.id,
+                    key=var.key,
+                    value=var.value or "",
+                    category=var.category,
+                    hcl=var.hcl,
+                    sensitive=var.sensitive,
+                    description=var.description,
+                )
+                copied += 1
+
+        console.print(
+            f"[green]✓[/green] Done! {copied} created, {updated} updated, {skipped} skipped."
+        )
