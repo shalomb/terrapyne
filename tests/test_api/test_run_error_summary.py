@@ -224,3 +224,123 @@ class TestGetErrorSummary:
         assert apply_idx is not None, "Apply log was never fetched"
         assert plan_idx is not None, "Plan log was never fetched"
         assert apply_idx < plan_idx, "Apply log must be tried before plan log"
+
+    def test_pre_plan_failure_uses_archivist_url_via_get_plan(self, api, mock_client):
+        """Pre-plan failure: get_error_summary fetches the Plan to get log_read_url (B7/B8)."""
+        run = _make_run("run-pre-plan", plan_status="errored", apply_id=None)
+        archivist_url = "https://archivist.terraform.io/v1/object/pre-plan"
+
+        mock_client.get.return_value = {
+            "data": {
+                "id": "plan-abc",
+                "type": "plans",
+                "attributes": {
+                    "status": "errored",
+                    "log-read-url": archivist_url,
+                    "has-changes": False,
+                    "resource-additions": 0,
+                    "resource-changes": 0,
+                    "resource-destructions": 0,
+                    "resource-imports": 0,
+                    "action-invocations": 0,
+                },
+            }
+        }
+
+        def fake_request(method, path, **_kwargs):
+            m = MagicMock()
+            m.text = "Error: Invalid provider configuration\n" if path == archivist_url else ""
+            return m
+
+        mock_client._request.side_effect = fake_request
+
+        summary = api.get_error_summary(run)
+
+        assert "Invalid provider configuration" in summary
+        called_paths = [c.args[1] for c in mock_client._request.call_args_list]
+        assert any(p == archivist_url for p in called_paths)
+
+
+class TestLogReadUrlFallback:
+    """B7/B8: get_plan_logs and get_apply_logs fall back to log_read_url when streaming is empty."""
+
+    @pytest.fixture
+    def mock_client(self):
+        return MagicMock()
+
+    @pytest.fixture
+    def api(self, mock_client):
+        return RunsAPI(mock_client)
+
+    def test_get_plan_logs_falls_back_to_log_read_url_when_streaming_empty(self, api, mock_client):
+        """When /plans/{id}/logs returns empty, fetch log_read_url instead (B7/B8)."""
+        archivist_url = "https://archivist.terraform.io/v1/object/abc"
+        archivist_content = "Error: Invalid provider configuration\n"
+
+        def fake_request(method, path, **_kwargs):
+            m = MagicMock()
+            m.text = archivist_content if path == archivist_url else ""
+            return m
+
+        mock_client._request.side_effect = fake_request
+
+        result = api.get_plan_logs("plan-abc", log_read_url=archivist_url)
+
+        assert result == archivist_content
+        called_paths = [c.args[1] for c in mock_client._request.call_args_list]
+        assert any("plans" in p and "logs" in p for p in called_paths), "streaming endpoint called"
+        assert any(p == archivist_url for p in called_paths), "archivist fallback called"
+
+    def test_get_plan_logs_no_fallback_when_streaming_has_content(self, api, mock_client):
+        """When /plans/{id}/logs returns content, log_read_url is not fetched."""
+        streaming_content = "Terraform will perform the following actions...\n"
+        mock_client._request.return_value.text = streaming_content
+
+        result = api.get_plan_logs(
+            "plan-abc", log_read_url="https://archivist.terraform.io/v1/object/abc"
+        )
+
+        assert result == streaming_content
+        assert mock_client._request.call_count == 1
+        called_path = mock_client._request.call_args.args[1]
+        assert "plans" in called_path and "logs" in called_path
+
+    def test_get_plan_logs_no_fallback_when_no_log_read_url(self, api, mock_client):
+        """When log_read_url is not provided and streaming is empty, return empty."""
+        mock_client._request.return_value.text = ""
+
+        result = api.get_plan_logs("plan-abc")
+
+        assert result == ""
+        assert mock_client._request.call_count == 1
+
+    def test_get_apply_logs_falls_back_to_log_read_url_when_streaming_empty(self, api, mock_client):
+        """When /applies/{id}/logs returns empty, fetch log_read_url instead (B7/B8)."""
+        archivist_url = "https://archivist.terraform.io/v1/object/xyz"
+        archivist_content = "Error: apply failed\n"
+
+        def fake_request(method, path, **_kwargs):
+            m = MagicMock()
+            m.text = archivist_content if path == archivist_url else ""
+            return m
+
+        mock_client._request.side_effect = fake_request
+
+        result = api.get_apply_logs("apply-abc", log_read_url=archivist_url)
+
+        assert result == archivist_content
+        called_paths = [c.args[1] for c in mock_client._request.call_args_list]
+        assert any("applies" in p and "logs" in p for p in called_paths)
+        assert any(p == archivist_url for p in called_paths)
+
+    def test_get_apply_logs_no_fallback_when_streaming_has_content(self, api, mock_client):
+        """When /applies/{id}/logs returns content, log_read_url is not fetched."""
+        streaming_content = "Apply complete! Resources: 2 added.\n"
+        mock_client._request.return_value.text = streaming_content
+
+        result = api.get_apply_logs(
+            "apply-abc", log_read_url="https://archivist.terraform.io/v1/object/xyz"
+        )
+
+        assert result == streaming_content
+        assert mock_client._request.call_count == 1

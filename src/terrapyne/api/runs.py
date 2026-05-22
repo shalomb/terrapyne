@@ -311,43 +311,61 @@ class RunsAPI:
         response = self.client.get(path)
         return Plan.from_api_response(response["data"])
 
-    def get_plan_logs(self, plan_id: str) -> str:
+    def get_plan_logs(self, plan_id: str, log_read_url: str | None = None) -> str:
         """Get plan logs.
+
+        Fetches the streaming endpoint first. If that returns empty and a
+        ``log_read_url`` (archivist URL) is provided, falls back to it.
+        This covers B7/B8 where runs that fail pre-plan produce no streaming
+        output but do have an archivist log blob.
 
         Args:
             plan_id: Plan ID
+            log_read_url: Optional archivist URL from Plan.log_read_url
 
         Returns:
             Plan log content as string
-
-        Raises:
-            TFCAPIError: If logs not available (other than 404/403)
         """
         path = f"/plans/{plan_id}/logs"
         try:
-            return self.client._request("GET", path).text
+            content = self.client._request("GET", path).text
         except (TFCNotFoundError, TFCAuthenticationError):
-            # Logs might not be ready yet
-            return ""
+            content = ""
 
-    def get_apply_logs(self, apply_id: str) -> str:
+        if not content and log_read_url:
+            try:
+                content = self.client._request("GET", log_read_url).text
+            except (TFCNotFoundError, TFCAuthenticationError):
+                content = ""
+
+        return content
+
+    def get_apply_logs(self, apply_id: str, log_read_url: str | None = None) -> str:
         """Get apply logs.
+
+        Fetches the streaming endpoint first. If that returns empty and a
+        ``log_read_url`` (archivist URL) is provided, falls back to it.
 
         Args:
             apply_id: Apply ID
+            log_read_url: Optional archivist URL from Apply.log_read_url
 
         Returns:
             Apply log content as string
-
-        Raises:
-            TFCAPIError: If logs not available (other than 404/403)
         """
         path = f"/applies/{apply_id}/logs"
         try:
-            return self.client._request("GET", path).text
+            content = self.client._request("GET", path).text
         except (TFCNotFoundError, TFCAuthenticationError):
-            # Logs might not be ready yet
-            return ""
+            content = ""
+
+        if not content and log_read_url:
+            try:
+                content = self.client._request("GET", log_read_url).text
+            except (TFCNotFoundError, TFCAuthenticationError):
+                content = ""
+
+        return content
 
     def get_error_summary(self, run: Run) -> str:
         """Extract the Terraform error text from an errored run.
@@ -371,14 +389,29 @@ class RunsAPI:
         if not run.plan_id:
             return fallback
 
+        plan_log_read_url: str | None = None
+        apply_log_read_url: str | None = None
+        try:
+            plan_log_read_url = self.get_plan(run.plan_id).log_read_url
+        except Exception:
+            pass
+
         if run.plan_status == "finished" or (run.plan_status is None and run.apply_id):
             # Plan succeeded (or status unknown but apply exists) — try apply log first
-            raw = self.get_apply_logs(run.apply_id) if run.apply_id else ""
+            if run.apply_id:
+                try:
+                    apply_log_read_url = self.get_apply(run.apply_id).log_read_url
+                except Exception:
+                    pass
+            raw = (
+                self.get_apply_logs(run.apply_id, log_read_url=apply_log_read_url)
+                if run.apply_id
+                else ""
+            )
             if not raw:
-                # Apply log empty; error may still be in the plan log
-                raw = self.get_plan_logs(run.plan_id)
+                raw = self.get_plan_logs(run.plan_id, log_read_url=plan_log_read_url)
         else:
-            raw = self.get_plan_logs(run.plan_id)
+            raw = self.get_plan_logs(run.plan_id, log_read_url=plan_log_read_url)
 
         clean = _ANSI_ESCAPE.sub("", raw)
         error_lines = [

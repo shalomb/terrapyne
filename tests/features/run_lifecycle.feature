@@ -83,3 +83,9 @@ Feature: Infrastructure Change Lifecycle
     When I watch "run-ext-789" with --auto-apply
     Then the run should not be applied
     And the command should exit with code 1
+
+  Scenario: Following a run that fails before producing plan output shows archivist error text
+    Given an externally triggered run "run-prefail-001" errored before generating plan logs
+    When I follow "run-prefail-001"
+    Then the output should contain "Error: Invalid provider configuration"
+    And the output should not show "Run failed before generating logs"
