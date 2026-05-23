@@ -18,12 +18,31 @@ Workspace management and inspection.
 - `show`: Show detailed workspace information.
 - `health`: Show workspace health snapshot (status, active runs, latest commit).
 - `vcs`: Show VCS configuration for a workspace.
-- `variables`: List variables in a workspace.
-- `var-set`: Create or update workspace variables (supports bulk setting).
-- `var-copy`: Copy all variables from one workspace to another.
+- `variables`: List variables in a workspace. *(Legacy — prefer `workspace var list`)*
+- `var-set`: Create or update workspace variables. *(Legacy — prefer `workspace var set`)*
+- `var-rm`: Remove a workspace variable. *(Legacy — prefer `workspace var remove`)*
+- `var-copy`: Copy all variables from one workspace to another. *(Legacy — prefer `workspace var copy`)*
 - `open`: Open workspace in browser.
 - `clone`: Clone a workspace with optional variables and VCS configuration.
+- `create`: Create a new workspace.
+- `update`: Update workspace configuration (name, Terraform version, execution mode, project).
+- `delete`: Delete a workspace.
 - `costs`: Show workspace TCO — total monthly cost from the latest cost estimate.
+
+### `tfc workspace var`
+Unified variable management subgroup.
+
+- `list`: List variables for a workspace.
+- `set`: Create or update a variable (`--key`, `--value`, `--category`, `--sensitive`).
+- `remove`: Remove a variable by key (`--force` to skip confirmation).
+- `copy`: Copy all variables from one workspace to another (`--overwrite` to replace existing).
+
+### `tfc workspace triggers`
+Run trigger relationship management.
+
+- `list`: List upstream run trigger sources for a workspace.
+- `add`: Add an upstream workspace as a run trigger source (`--source`).
+- `remove`: Remove a run trigger by its ID (`--trigger-id`, `--force`).
 
 ---
 
@@ -80,12 +99,22 @@ Team and membership management.
 
 ---
 
+## `tfc varset`
+Variable set management.
+
+- `list`: List variable sets in an organization.
+- `show`: Show variables in a variable set.
+- `apply`: Apply a variable set to a workspace (`--workspace`).
+- `remove`: Remove a variable set from a workspace (`--workspace`).
+
+---
+
 ## `tfc vcs`
 VCS connection and repository management.
 
-- `show`: Show VCS configuration for workspace.
-- `update-branch`: Update VCS branch for workspace.
-- `repos`: List GitHub repositories connected to TFC workspaces.
+- `list`: List VCS connections in an organization.
+- `show`: Show VCS configuration for a workspace.
+- `repos`: List available repositories for all VCS connections.
 
 ---
 

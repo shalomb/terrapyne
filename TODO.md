@@ -722,5 +722,46 @@ terrapyne run trigger tec-dce-inn-dev-93400-shalombhooshi && echo "triggered"
 - Refactor `var-set`, `var-rm`, `var-copy`, and `variables` into a new `workspace var` subcommand group.
 - Example: `tfc workspace var list`, `tfc workspace var set`.
 
+---
 
+## Agent Experience (AX) Epic
+
+These features are specifically designed to reduce the "glue logic" (bash pipes, `jq`, `grep`, `while` loops) that AI coding agents must write to orchestrate complex TFC workflows.
+
+### AX1 — Universal ID Resolver Utility
+**Context**: When agents need to fallback to raw `curl` for unsupported API endpoints, they need the exact TFC ID (e.g. `ws-*`, `prj-*`, `team-*`). Currently they must run `list` or `show --format json` and pipe to `jq`.
+**Fix**: Add an `id` command to all entity subgroups that prints ONLY the raw ID string to stdout.
+**Success Criteria**:
+- `terrapyne workspace id my-ws` outputs `ws-xyz123`
+- `terrapyne project id my-project` outputs `prj-xyz123`
+
+### AX2 — The "Latest Run" Lookups
+**Context**: Triggering an action on the most recent run requires listing runs, parsing JSON, extracting the first element's ID, and passing it to the next command.
+**Fix**: Add a `--latest` flag to run read commands (`run show`, `run logs`).
+**Success Criteria**:
+- `terrapyne run logs --workspace my-ws --latest` works without needing a run ID.
+
+### AX3 — The "Trigger and Wait" Loop
+**Context**: CI/CD automation and agents hate writing `while` loops to poll run status. `run follow` exists but streams verbose logs which bloats context windows.
+**Fix**: Add a `--wait` flag to `run trigger` that blocks until the run hits a terminal state, returning a non-zero exit code if it errored, without streaming logs.
+**Success Criteria**:
+- `terrapyne run trigger my-ws --wait` pauses execution silently and exits 0 on applied, or >0 on errored/canceled.
+
+### AX4 — State Output Extraction
+**Context**: Passing outputs from one workspace to another requires parsing the full state JSON payload.
+**Fix**: Add a dedicated `state output` command to extract a single raw output value.
+**Success Criteria**:
+- `terrapyne state output my-ws vpc_id` prints the raw string value of the output.
+
+### AX5 — Structured & Parseable Output for Mutations
+**Context**: While read commands support `--format json`, mutation commands (create, clone, trigger) only print rich console text. Agents need JSON to reliably capture newly created IDs without parsing ANSI text.
+**Fix**: Add a `--format json` flag (or ensure `--json` works globally) to all mutation commands (`workspace create`, `workspace clone`, `run trigger`).
+**Success Criteria**:
+- `terrapyne workspace create my-ws --format json` prints a JSON object with the new workspace ID.
+
+### AX6 — Idempotence and Safe Retries
+**Context**: If an agent runs `workspace create` and gets interrupted, running it again fails with a 409 Conflict. Agents often retry on error, creating a loop.
+**Fix**: Add idempotency flags to mutation commands, such as `--ignore-exists` for `workspace create`.
+**Success Criteria**:
+- `terrapyne workspace create my-ws --ignore-exists` succeeds (or exits gracefully without a fatal error) if the workspace is already provisioned.
 
