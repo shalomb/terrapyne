@@ -106,3 +106,12 @@ class TestSetVcsBranch:
 
         # get_organization(None) must be in the call list (first call from set_vcs_branch)
         mock_client.get_organization.assert_any_call(None)
+
+    @pytest.mark.parametrize("bad_branch", ["", "   ", "\t"])
+    def test_set_vcs_branch_rejects_empty_branch(self, api, bad_branch):
+        """Empty or whitespace-only branch must raise ValueError before any API call."""
+        with pytest.raises(ValueError, match="branch must not be empty"):
+            api.set_vcs_branch("my-app-dev", bad_branch, organization="test-org")
+
+        api.client.get.assert_not_called()
+        api.client.patch.assert_not_called()

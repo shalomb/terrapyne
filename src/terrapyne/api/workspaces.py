@@ -343,6 +343,9 @@ class WorkspaceAPI:
             TFCAPIError: If update fails
             ValueError: If workspace has no VCS repo connected
         """
+        if not branch.strip():
+            raise ValueError("branch must not be empty")
+
         org = self.client.get_organization(organization)
 
         # Verify workspace has VCS before patching

@@ -687,15 +687,11 @@ def workspace_set_branch(
         raise typer.Exit(1)
 
     with get_client(ctx, organization=org) as client:
-        try:
-            ws = client.workspaces.set_vcs_branch(
-                workspace_name=workspace,
-                branch=branch,
-                organization=org,
-            )
-        except ValueError as e:
-            console.print(f"[red]Error:[/red] {e}")
-            raise typer.Exit(1) from None
+        ws = client.workspaces.set_vcs_branch(
+            workspace_name=workspace,
+            branch=branch,
+            organization=org,
+        )
 
     console.print(f"[green]✓[/green] Updated VCS branch for workspace '{workspace}'")
     console.print(f"  Branch: {ws.vcs_branch or branch}")
