@@ -13,6 +13,11 @@ Feature: Infrastructure Change Lifecycle
     And its initial status should be "pending"
     And I should receive the new execution ID
 
+  Scenario: run trigger exits zero immediately after queuing a run
+    When I trigger a run for "my-app-dev" without --wait
+    Then the run should be queued
+    And the command should exit with code 0
+
   Scenario: Triggering a destruction of environment
     When I trigger a total destruction of "my-app-dev"
     Then I should be required to confirm this destructive action

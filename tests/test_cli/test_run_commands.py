@@ -137,6 +137,14 @@ def test_trigger_speculative_plan():
 
 @scenario(
     "../features/run_lifecycle.feature",
+    "run trigger exits zero immediately after queuing a run",
+)
+def test_trigger_run_exits_zero():
+    pass
+
+
+@scenario(
+    "../features/run_lifecycle.feature",
     "Watching an externally triggered run and auto-applying after planning",
 )
 def test_watch_auto_apply():
@@ -483,6 +491,35 @@ def check_not_found_msg(try_examine_missing):
 # ============================================================================
 # Lifecycle & Diagnostics
 # ============================================================================
+
+
+@when(
+    parsers.parse('I trigger a run for "{workspace}" without --wait'),
+    target_fixture="cli_result",
+)
+def trigger_run_no_wait(workspace):
+    with (
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
+        patch("terrapyne.api.client.TFCClient") as c,
+    ):
+        v.return_value = ("test-org", workspace)
+        mock_instance = MagicMock()
+        c.return_value.__enter__.return_value = mock_instance
+
+        ws = Workspace.model_construct(id="ws-123", name=workspace)
+        mock_instance.workspaces.get.return_value = ws
+        mock_instance.runs.get_active_runs.return_value = []
+
+        run = Run.model_construct(id="run-b13", status=RunStatus.PENDING)
+        mock_instance.runs.create.return_value = run
+
+        # No --wait flag: default should be --no-wait (B13 fix)
+        return runner.invoke(app, ["run", "trigger", workspace, "-o", "test-org"])
+
+
+@then("the run should be queued")
+def check_run_queued(cli_result):
+    assert "run-b13" in cli_result.stdout
 
 
 @when(
