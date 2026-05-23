@@ -197,6 +197,23 @@ def remove_var_with_force(mock_client):
         )
 
 
+@when(
+    'I remove variable "old-var" from workspace "my-app-dev" with --yes',
+    target_fixture="cli_result",
+)
+def remove_var_with_yes(mock_client):
+    with (
+        patch("terrapyne.api.client.TFCClient") as c,
+        patch("terrapyne.cli.context_helpers.validate_context") as v,
+    ):
+        v.return_value = ("test-org", "my-app-dev")
+        c.return_value.__enter__.return_value = mock_client
+        return runner.invoke(
+            app,
+            ["workspace", "var", "remove", "my-app-dev", "old-var", "-o", "test-org", "--yes"],
+        )
+
+
 @when('I copy variables from "prod-app" to "staging-app"', target_fixture="cli_result")
 def copy_vars(mock_client):
     with (

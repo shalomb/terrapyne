@@ -380,7 +380,9 @@ def workspace_var_rm(
             help="TFC organization (auto-detected from context if available)",
         ),
     ] = None,
-    force: Annotated[bool, typer.Option("--force", "-f", help="Skip confirmation")] = False,
+    force: Annotated[
+        bool, typer.Option("--force", "-f", "--yes", "-y", help="Skip confirmation")
+    ] = False,
 ):
     """Remove a workspace variable. (Legacy alias for 'workspace var remove')"""
     var_remove(ctx, workspace=workspace, key=key, organization=organization, force=force)
@@ -949,7 +951,9 @@ def var_remove(
             help="TFC organization (auto-detected from context if available)",
         ),
     ] = None,
-    force: Annotated[bool, typer.Option("--force", "-f", help="Skip confirmation")] = False,
+    force: Annotated[
+        bool, typer.Option("--force", "-f", "--yes", "-y", help="Skip confirmation")
+    ] = False,
 ):
     """Remove a workspace variable."""
     if key is None:
