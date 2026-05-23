@@ -721,6 +721,7 @@ class CloneWorkspaceAPI:
         # Return comprehensive result
         return {
             "status": "success",
+            "workspace": target_ws,
             "source_workspace_id": source_ws.id,
             "source_workspace_name": source_workspace_name,
             "target_workspace_id": target_workspace_id,

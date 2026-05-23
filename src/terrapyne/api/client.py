@@ -203,7 +203,7 @@ class TFCClient:
                 ) from e
             if status_code == 404:
                 raise TFCNotFoundError(message, status_code=status_code, response=response) from e
-            if status_code == 409:
+            if status_code in (409, 422):
                 raise TFCConflictError(message, status_code=status_code, response=response) from e
             if status_code == 429:
                 raise TFCRateLimitError(message, status_code=status_code, response=response) from e
