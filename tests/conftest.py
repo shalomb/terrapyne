@@ -181,12 +181,52 @@ def pytest_configure(config):
 
 @pytest.fixture(autouse=True)
 def setup_console():
-    """Ensure Rich console uses a clean instance for every test."""
+    """Snapshot and restore the shared Rich console singletons around every test.
+
+    The singletons ``terrapyne.rendering.logging.console`` and ``error_console``
+    carry mutable state (``quiet``, ``_force_terminal``, ``no_color``, ``_width``)
+    that production code and other tests legitimately mutate via ``set_console``,
+    ``set_quiet_mode``, and ``configure_for_agent_context``.
+
+    Without restoration, mutations leak across tests and produce order-dependent
+    failures (one test sets ``console.quiet = True``; the next test sees a quiet
+    console and fails an output assertion). See EPIC-001 in PLAN.md.
+
+    This fixture:
+    1. Snapshots the six relevant attributes on both consoles.
+    2. Configures a fresh forced-terminal console for the test (matches the
+       behaviour the previous version of this fixture provided).
+    3. Restores the snapshot after the test, regardless of pass/fail.
+
+    The ``setup_console`` name is preserved for backwards compatibility with
+    tests that depend on it as a fixture.
+    """
     from rich.console import Console
 
     from terrapyne.cli.output_helpers import set_console
+    from terrapyne.rendering.logging import console, error_console
 
-    # Create a fresh console for each test
+    _MUTABLE_ATTRS = ("quiet", "_force_terminal", "no_color", "_width", "legacy_windows")
+
+    def _snapshot(c):
+        return {attr: getattr(c, attr, None) for attr in _MUTABLE_ATTRS}
+
+    def _restore(c, snap):
+        for attr, value in snap.items():
+            try:
+                setattr(c, attr, value)
+            except AttributeError:
+                # Some attributes are read-only on Rich's Console; skip silently.
+                pass
+
+    snap_console = _snapshot(console)
+    snap_error = _snapshot(error_console)
+
     new_console = Console(force_terminal=True, width=100)
     set_console(new_console)
-    return new_console
+
+    try:
+        yield new_console
+    finally:
+        _restore(console, snap_console)
+        _restore(error_console, snap_error)
