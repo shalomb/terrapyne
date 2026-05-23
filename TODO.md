@@ -18,6 +18,24 @@ For evaluating live TFC behaviour, use:
 
 ---
 
+## Iteration Plan (May 2026)
+
+Based on recent Agent-Native CLI design research, the backlog is currently structured into the following upcoming PR Batches:
+
+- **PR Batch 3: The Agent Experience (AX) Core**
+  Focus: Eliminating agent "glue logic" (bash pipes, jq, polling loops).
+  Includes: AX5 (JSON output for mutations), AX6 (Idempotence flags), AX3 (Trigger & Wait), AX1 (Universal ID Resolver).
+
+- **PR Batch 4: Scripting & Automation Polish**
+  Focus: Fixing bugs that break non-interactive shell scripting and automation pipelines.
+  Includes: B13 (exit code), B14 (missing --yes), B12 (truncation), B9 (name lookup bug), B15 (flag position).
+
+- **PR Batch 5: CLI Surface Refactoring & Security**
+  Focus: Paying down technical debt, improving consistency, and patching data leaks.
+  Includes: A18 (var command refactor), A16 (sensitive leak), D10 (docs).
+
+---
+
 ## Priority Matrix (WSJF)
 
 **Impact**: 🔴 High (4), 🟡 Medium (2), 🟢 Low (1)
