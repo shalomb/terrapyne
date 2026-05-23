@@ -26,9 +26,9 @@ For evaluating live TFC behaviour, use:
 
 Based on recent Agent-Native CLI design research, the backlog is currently structured into the following upcoming PR Batches:
 
-- **PR Batch 3: The Agent Experience (AX) Core**
+- **PR Batch 3: The Agent Experience (AX) Core** *(In Progress — feat/ax-core)*
   Focus: Eliminating agent "glue logic" (bash pipes, jq, polling loops).
-  Includes: AX5 (JSON output for mutations), AX6 (Idempotence flags), AX3 (Trigger & Wait), AX1 (Universal ID Resolver).
+  Includes: AX1 ✅, AX2 ✅, AX3 ✅, AX4 ✅, AX5 ✅, AX6 ✅.
 
 - **PR Batch 4: Scripting & Automation Polish**
   Focus: Fixing bugs that break non-interactive shell scripting and automation pipelines.
