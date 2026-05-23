@@ -8,7 +8,7 @@ import typer
 from terrapyne.cli import triggers_cmd
 from terrapyne.cli.context_helpers import get_client, validate_context
 from terrapyne.cli.error_handlers import handle_cli_errors
-from terrapyne.cli.output_helpers import emit_json
+from terrapyne.cli.output_helpers import emit_json, set_quiet_mode
 from terrapyne.core.browser import get_workspace_url, open_url_in_browser
 from terrapyne.core.context import resolve_organization
 from terrapyne.core.exceptions import TFCAPIError, WorkspaceNotFoundError
@@ -40,8 +40,6 @@ def _show_help(
     ctx: typer.Context,
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress UI output (data only)"),
 ):
-    from terrapyne.cli.output_helpers import set_quiet_mode
-
     if quiet:
         set_quiet_mode(True)
     if ctx.invoked_subcommand is None:
