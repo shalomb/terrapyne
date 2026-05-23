@@ -255,3 +255,44 @@ def state_outputs(
         table.add_row(o.name, o.type, val)
 
     console.print(table)
+
+
+@app.command("output")
+def state_output(
+    ctx: typer.Context,
+    workspace: str = typer.Argument(..., help="Workspace name or ID (ws-*)"),
+    name: str = typer.Argument(..., help="Output name to extract"),
+    organization: str | None = typer.Option(None, "-o", "--organization"),
+) -> None:
+    """Print a single state output value — raw, no formatting.
+
+    Equivalent to: tfc state outputs <workspace> <name> --raw
+
+    Example:
+        VPC_ID=$(tfc state output my-workspace vpc_id)
+    """
+    org, _ = validate_context(organization)
+
+    with get_client(ctx, organization=org) as client:
+        if workspace.startswith("ws-"):
+            ws = client.workspaces.get_by_id(workspace)
+        else:
+            ws = client.workspaces.get(workspace, org)
+        sv = client.state_versions.get_current(ws.id)
+        outputs = client.state_versions.list_outputs(sv.id)
+
+    output = next((o for o in outputs if o.name == name), None)
+    if not output:
+        error_console.print(f"[red]Error: Output '{name}' not found.[/red]")
+        raise typer.Exit(1)
+
+    if output.sensitive:
+        error_console.print(
+            "[yellow]Error: Output is sensitive — use 'state outputs' with appropriate access[/yellow]"
+        )
+        raise typer.Exit(1)
+
+    if isinstance(output.value, (dict, list)):
+        print(json.dumps(output.value))
+    else:
+        print(str(output.value))
