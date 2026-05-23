@@ -300,19 +300,8 @@ def workspace_variables(
         help="TFC organization (auto-detected from context if available)",
     ),
 ):
-    """List variables for a workspace."""
-    org, ws_name = validate_context(organization, workspace, require_workspace=True)
-
-    with get_client(ctx, organization=org) as client:
-        ws = client.workspaces.get(cast(str, ws_name), org)
-
-        variables = client.workspaces.get_variables(ws.id)
-
-        if not variables:
-            console.print("[yellow]No variables configured in this workspace.[/yellow]")
-            return
-
-        render_workspace_variables(variables)
+    """List variables for a workspace. (Legacy alias for 'workspace var list')"""
+    var_list(ctx, workspace=workspace, organization=organization)
 
 
 @app.command("var-set")
@@ -344,45 +333,18 @@ def workspace_var_set(
         ),
     ] = None,
 ):
-    """Set a workspace variable (create or update)."""
-    if key is None or value is None:
-        console.print("[red]Error: Both --key and --value are required.[/red]")
-        raise typer.Exit(1)
-
-    org, ws_name = validate_context(organization, workspace, require_workspace=True)
-
-    with get_client(ctx, organization=org) as client:
-        ws = client.workspaces.get(cast(str, ws_name), org)
-
-        # Check if variable already exists
-        variables: list[WorkspaceVariable] = client.workspaces.get_variables(ws.id)
-        if variables is None:
-            variables = []
-
-        existing_var = next((v for v in variables if v.key == key), None)
-
-        if existing_var:
-            console.print(f"[dim]Updating existing variable:[/dim] {key}")
-            client.workspaces.update_variable(
-                variable_id=existing_var.id,
-                value=value,
-                hcl=hcl,
-                sensitive=sensitive,
-                description=description,
-            )
-            console.print(f"[green]✓[/green] Updated variable: {key}")
-        else:
-            console.print(f"[dim]Creating new variable:[/dim] {key}")
-            client.workspaces.create_variable(
-                workspace_id=ws.id,
-                key=key,
-                value=value,
-                category=category,
-                hcl=hcl,
-                sensitive=sensitive,
-                description=description,
-            )
-            console.print(f"[green]✓[/green] Created variable: {key}")
+    """Set a workspace variable (create or update). (Legacy alias for 'workspace var set')"""
+    var_set(
+        ctx,
+        workspace=workspace,
+        key=key,
+        value=value,
+        category=category,
+        hcl=hcl,
+        sensitive=sensitive,
+        description=description,
+        organization=organization,
+    )
 
 
 @app.command("var-rm")
@@ -406,33 +368,8 @@ def workspace_var_rm(
     ] = None,
     force: Annotated[bool, typer.Option("--force", "-f", help="Skip confirmation")] = False,
 ):
-    """Remove a workspace variable."""
-    if key is None:
-        console.print("[red]Error: Variable key is required.[/red]")
-        raise typer.Exit(1)
-
-    org, ws_name = validate_context(organization, workspace, require_workspace=True)
-
-    with get_client(ctx, organization=org) as client:
-        ws = client.workspaces.get(cast(str, ws_name), org)
-
-        # Find variable by key
-        variables: list[WorkspaceVariable] = client.workspaces.get_variables(ws.id)
-        if variables is None:
-            variables = []
-
-        existing_var = next((v for v in variables if v.key == key), None)
-
-        if not existing_var:
-            console.print(f"[yellow]Variable '{key}' not found in workspace '{ws_name}'[/yellow]")
-            raise typer.Exit(1)
-
-        if not force and not typer.confirm(f"Remove variable '{key}' from workspace '{ws_name}'?"):
-            console.print("[yellow]Aborted.[/yellow]")
-            raise typer.Exit(0)
-
-        client.workspaces.delete_variable(workspace_id=ws.id, variable_id=existing_var.id)
-        console.print(f"[green]✓[/green] Removed variable: {key}")
+    """Remove a workspace variable. (Legacy alias for 'workspace var remove')"""
+    var_remove(ctx, workspace=workspace, key=key, organization=organization, force=force)
 
 
 @app.command("var-copy")
@@ -444,60 +381,8 @@ def workspace_var_copy(
     organization: str | None = typer.Option(None, "--organization", "-o", help="TFC organization"),
     overwrite: bool = typer.Option(False, "--overwrite", help="Overwrite existing variables"),
 ):
-    """Copy all variables from one workspace to another."""
-    org, _ = validate_context(organization)
-
-    with get_client(ctx, organization=org) as client:
-        ws_source = client.workspaces.get(source, org)
-        ws_target = client.workspaces.get(target, org)
-
-        source_variables: list[WorkspaceVariable] = client.workspaces.get_variables(ws_source.id)
-        target_variables: list[WorkspaceVariable] = client.workspaces.get_variables(ws_target.id)
-
-        if source_variables is None:
-            source_variables = []
-        if target_variables is None:
-            target_variables = []
-
-        target_keys = {v.key for v in target_variables}
-
-        console.print(f"[dim]Copying {len(source_variables)} variables: {source} → {target}[/dim]")
-
-        copied = 0
-        skipped = 0
-        updated = 0
-
-        for var in source_variables:
-            if var.key in target_keys:
-                if overwrite:
-                    # Find target var ID
-                    t_v = next(v for v in target_variables if v.key == var.key)
-                    client.workspaces.update_variable(
-                        variable_id=t_v.id,
-                        value=var.value,
-                        hcl=var.hcl,
-                        sensitive=var.sensitive,
-                        description=var.description,
-                    )
-                    updated += 1
-                else:
-                    skipped += 1
-                    continue
-            else:
-                client.workspaces.create_variable(
-                    workspace_id=ws_target.id,
-                    key=var.key,
-                    value=var.value or "",
-                    category=var.category,
-                    hcl=var.hcl,
-                    sensitive=var.sensitive,
-                    description=var.description,
-                )
-                copied += 1
-
-        console.print(
-            f"[green]✓[/green] Done! {copied} created, {updated} updated, {skipped} skipped."
-        )
+    """Copy all variables from one workspace to another. (Legacy alias for 'workspace var copy')"""
+    var_copy(ctx, source=source, target=target, organization=organization, overwrite=overwrite)
 
 
 @app.command("open")

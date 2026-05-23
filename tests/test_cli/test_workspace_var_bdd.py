@@ -104,9 +104,10 @@ def prod_has_two_vars():
     return client
 
 
-@given('workspace "staging-app" has no variables')
-def staging_no_vars():
-    """Already handled in the prod fixture via side_effect."""
+@given('workspace "staging-app" has no variables', target_fixture="mock_client")
+def staging_no_vars(mock_client):
+    """staging-app's empty variables already handled in prod_has_two_vars via side_effect."""
+    return mock_client
 
 
 # ---------------------------------------------------------------------------
@@ -218,6 +219,10 @@ def copy_vars(mock_client):
 @then("I should see the variable listing")
 def check_variable_listing(cli_result):
     assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}: {cli_result.stdout}"
+    assert "region" in cli_result.stdout, (
+        f"Expected variable key 'region' in output: {cli_result.stdout}"
+    )
+    assert "env" in cli_result.stdout, f"Expected variable key 'env' in output: {cli_result.stdout}"
 
 
 @then("the variable should be created")
@@ -241,8 +246,9 @@ def check_updated_output(cli_result):
 
 
 @then("the variable should be deleted")
-def check_var_deleted(cli_result):
+def check_var_deleted(cli_result, mock_client):
     assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}: {cli_result.stdout}"
+    mock_client.workspaces.delete_variable.assert_called_once()
 
 
 @then('output should confirm "Removed variable: old-var"')
