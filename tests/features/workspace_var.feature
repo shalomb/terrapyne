@@ -30,6 +30,13 @@ Feature: Workspace Variable Subgroup
     And output should confirm "Removed variable: old-var"
     And exit code should be 0
 
+  Scenario: Remove a variable without interactive prompt using --yes flag
+    Given workspace "my-app-dev" has variable "old-var" configured
+    When I remove variable "old-var" from workspace "my-app-dev" with --yes
+    Then the variable should be deleted
+    And output should confirm "Removed variable: old-var"
+    And exit code should be 0
+
   Scenario: Copy variables between workspaces
     Given workspace "prod-app" has 2 variables
     And workspace "staging-app" has no variables

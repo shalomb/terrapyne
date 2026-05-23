@@ -62,10 +62,107 @@ def test_list_all_workspaces():
     """Scenario: List all workspaces in organization."""
 
 
+@scenario(
+    "../features/workspace.feature",
+    "workspace list --no-truncate shows full workspace names",
+)
+def test_list_workspaces_no_truncate():
+    pass
+
+
+@scenario(
+    "../features/workspace.feature",
+    "--quiet flag accepted at workspace subgroup level suppresses UI output",
+)
+def test_quiet_at_workspace_group_level():
+    pass
+
+
 @given('I have organization "test-org" set up')
 def _(org_setup):
     """Set up test organization context."""
     return org_setup
+
+
+@given(
+    'I have organization "test-org" with a workspace with a long name',
+    target_fixture="long_name_workspace",
+)
+def ws_with_long_name():
+    return Workspace.from_api_response(
+        {
+            "id": "ws-long",
+            "type": "workspaces",
+            "attributes": {
+                "name": "tec-man-dad-dev-10803-appstream-very-long-name-that-gets-truncated",
+                "environment": "default",
+                "terraform-version": "1.9.0",
+                "locked": False,
+                "auto-apply": False,
+                "execution-mode": "remote",
+            },
+            "relationships": {},
+        }
+    )
+
+
+@when(
+    "I list workspaces with --quiet at the workspace group level",
+    target_fixture="quiet_list_result",
+)
+def list_workspaces_quiet(org_setup, workspace_list_response):
+    with (
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
+    ):
+        mock_org.return_value = "test-org"
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+        workspaces = [Workspace.from_api_response(data) for data in workspace_list_response["data"]]
+        mock_instance.workspaces.list.return_value = (iter(workspaces), 2)
+        # --quiet placed at the workspace subgroup level (before the leaf command)
+        return runner.invoke(app, ["workspace", "--quiet", "list", "--organization", "test-org"])
+
+
+@then("workspace list output should contain only data")
+def check_quiet_output(quiet_list_result):
+    # In quiet mode there should be no Rich table decorations (no "Workspaces" title)
+    assert "Workspaces" not in quiet_list_result.stdout
+
+
+@then("workspace list result should exit with code 0")
+def check_quiet_exit(quiet_list_result):
+    assert quiet_list_result.exit_code == 0, (
+        f"Exit {quiet_list_result.exit_code}: {quiet_list_result.stdout}"
+    )
+
+
+@when("I list workspaces with --no-truncate", target_fixture="no_truncate_result")
+def list_workspaces_no_truncate(long_name_workspace):
+    with (
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
+        # Simulate a narrow piped terminal so truncation would apply without --no-truncate
+        patch("sys.stdout.isatty", return_value=False),
+    ):
+        mock_org.return_value = "test-org"
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+        mock_instance.workspaces.list.return_value = (iter([long_name_workspace]), 1)
+        return runner.invoke(
+            app, ["workspace", "list", "--organization", "test-org", "--no-truncate"]
+        )
+
+
+@then("the full workspace name should appear in the output without truncation")
+def check_full_name(no_truncate_result):
+    assert no_truncate_result.exit_code == 0, (
+        f"Exit {no_truncate_result.exit_code}: {no_truncate_result.stdout}"
+    )
+    assert (
+        "tec-man-dad-dev-10803-appstream-very-long-name-that-gets-truncated"
+        in no_truncate_result.stdout
+    ), f"Full name missing in: {no_truncate_result.stdout}"
 
 
 @pytest.fixture

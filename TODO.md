@@ -30,7 +30,7 @@ Based on recent Agent-Native CLI design research, the backlog is currently struc
   Focus: Eliminating agent "glue logic" (bash pipes, jq, polling loops).
   Includes: AX1 ✅, AX2 ✅, AX3 ✅, AX4 ✅, AX5 ✅, AX6 ✅.
 
-- **PR Batch 4: Scripting & Automation Polish**
+- **PR Batch 4: Scripting & Automation Polish** *(In Progress — fix/scripting-polish)*
   Focus: Fixing bugs that break non-interactive shell scripting and automation pipelines.
   Includes: B13 (exit code), B14 (missing --yes), B12 (truncation), B9 (name lookup bug), B15 (flag position).
 
@@ -54,10 +54,10 @@ Based on recent Agent-Native CLI design research, the backlog is currently struc
 | B9 | `run list` fails by workspace name for some workspaces — requires workspace ID workaround | 🟡 | S | 2.0 | ✅ |
 | B10 | `workspace clone` 422 "Agent pool not found" — drops agent-pool relationship from create payload | 🔴 | S | 4.0 | ✅ |
 | B11 | `workspace create` missing `--project` flag — no way to assign workspace to a project at creation | 🔴 | S | 4.0 | ✅ |
-| B12 | `workspace list` name truncation — no `--no-truncate` or `--max-width` option | 🟡 | S | 2.0 | TODO |
-| B13 | `run trigger` exits non-zero on success — breaks `&&` chains and scripting | 🟡 | S | 2.0 | TODO |
-| B14 | `workspace var-rm` no `--yes`/`-y` flag — always prompts interactively, unusable in scripts | 🟡 | S | 2.0 | TODO |
-| B15 | `--quiet` flag position-sensitive — `terrapyne workspace list --quiet` fails; must be `terrapyne --quiet workspace list` | 🟢 | S | 1.0 | TODO |
+| B12 | `workspace list` name truncation — no `--no-truncate` or `--max-width` option | 🟡 | S | 2.0 | 🔄 fix/scripting-polish |
+| B13 | `run trigger` exits non-zero on success — breaks `&&` chains and scripting | 🟡 | S | 2.0 | 🔄 fix/scripting-polish |
+| B14 | `workspace var-rm` no `--yes`/`-y` flag — always prompts interactively, unusable in scripts | 🟡 | S | 2.0 | 🔄 fix/scripting-polish |
+| B15 | `--quiet` flag position-sensitive — `terrapyne workspace list --quiet` fails; must be `terrapyne --quiet workspace list` | 🟢 | S | 1.0 | 🔄 fix/scripting-polish (partial: `workspace --quiet list` now works) |
 | **NEW FEATURES** |
 | F13 | `workspace set-branch <workspace> <branch>` — switch VCS branch from CLI | 🟡 | S | 2.0 | ✅ |
 | F4 | Workspace notifications (webhook/Slack config) | 🟡 | M | 1.0 | TODO |

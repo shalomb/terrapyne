@@ -39,3 +39,8 @@ Feature: Run Listing and Monitoring
     When I attempt to list recent runs
     Then I should receive guidance on how to specify a workspace
     And the request should not proceed
+
+  Scenario: run list accepts workspace name as positional argument
+    Given the workspace "tec-dce-inn-dev-93400-shalombhooshi" has recent runs
+    When I run "run list tec-dce-inn-dev-93400-shalombhooshi"
+    Then the runs should be listed without error

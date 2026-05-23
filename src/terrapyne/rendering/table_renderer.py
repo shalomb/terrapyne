@@ -131,11 +131,21 @@ class DetailRenderer(ABC, Generic[T]):
 class WorkspaceTableRenderer(TableRenderer["Workspace"]):  # type: ignore
     """Render workspace list as a table."""
 
+    def __init__(self, no_truncate: bool = False) -> None:
+        self.no_truncate = no_truncate
+
     def get_title(self, count: int | None = None) -> str:
         return "Workspaces"
 
     def get_columns(self) -> list[str]:
         return ["Workspace", "Environment", "TF Version", "VCS Branch", "Locked"]
+
+    def add_columns(self, table: Table) -> None:  # type: ignore[override]
+        table.add_column("Workspace", style="cyan", no_wrap=self.no_truncate)
+        table.add_column("Environment", style="cyan", no_wrap=False)
+        table.add_column("TF Version", style="cyan", no_wrap=False)
+        table.add_column("VCS Branch", style="cyan", no_wrap=False)
+        table.add_column("Locked", style="cyan", no_wrap=False)
 
     def get_row(self, entity: Workspace) -> list[str]:  # type: ignore
         from terrapyne.models.workspace import Workspace

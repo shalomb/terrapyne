@@ -43,6 +43,14 @@ def test_handle_missing_workspace():
     pass
 
 
+@scenario(
+    "../features/run_listing.feature",
+    "run list accepts workspace name as positional argument",
+)
+def test_run_list_positional_workspace():
+    pass
+
+
 # ============================================================================
 # Scenarios - Details
 # ============================================================================
@@ -132,6 +140,14 @@ def test_stream_logs():
 
 @scenario("../features/run_lifecycle.feature", "Triggering a true speculative plan")
 def test_trigger_speculative_plan():
+    pass
+
+
+@scenario(
+    "../features/run_lifecycle.feature",
+    "run trigger exits zero immediately after queuing a run",
+)
+def test_trigger_run_exits_zero():
     pass
 
 
@@ -314,6 +330,37 @@ def no_workspace_specified():
 
 
 @pytest.fixture
+@given(
+    parsers.parse('the workspace "{workspace}" has recent runs'),
+    target_fixture="positional_workspace_setup",
+)
+def workspace_with_runs(workspace, run_list_response, workspace_detail_response):
+    return {"workspace": workspace}
+
+
+@when(
+    parsers.parse('I run "run list {workspace}"'),
+    target_fixture="run_list_positional_result",
+)
+def run_list_positional(workspace, run_list_response, workspace_detail_response):
+    with patch("terrapyne.api.client.TFCClient") as mock_client:
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+        ws = Workspace.from_api_response(workspace_detail_response["data"])
+        runs = [Run.from_api_response(data) for data in run_list_response["data"]]
+        mock_instance.workspaces.get.return_value = ws
+        mock_instance.runs.list.return_value = (runs, len(runs))
+        return runner.invoke(app, ["run", "list", workspace, "--organization", "test-org"])
+
+
+@then("the runs should be listed without error")
+def check_runs_listed(run_list_positional_result):
+    assert run_list_positional_result.exit_code == 0, (
+        f"Exit {run_list_positional_result.exit_code}: {run_list_positional_result.stdout}"
+    )
+
+
+@pytest.fixture
 @when("I attempt to list recent runs")
 def try_list_no_context():
     result = runner.invoke(app, ["run", "list", "--organization", "test-org"])
@@ -483,6 +530,38 @@ def check_not_found_msg(try_examine_missing):
 # ============================================================================
 # Lifecycle & Diagnostics
 # ============================================================================
+
+
+@when(
+    parsers.parse('I trigger a run for "{workspace}" without --wait'),
+    target_fixture="cli_result",
+)
+def trigger_run_no_wait(workspace):
+    with (
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
+        patch("terrapyne.api.client.TFCClient") as c,
+    ):
+        v.return_value = ("test-org", workspace)
+        mock_instance = MagicMock()
+        c.return_value.__enter__.return_value = mock_instance
+
+        ws = Workspace.model_construct(id="ws-123", name=workspace)
+        mock_instance.workspaces.get.return_value = ws
+        mock_instance.runs.get_active_runs.return_value = []
+
+        run = Run.model_construct(id="run-b13", status=RunStatus.PENDING)
+        mock_instance.runs.create.return_value = run
+
+        # No --wait flag: default should be --no-wait (B13 fix)
+        result = runner.invoke(app, ["run", "trigger", workspace, "-o", "test-org"])
+        # Prove polling was never entered — if wait defaulted True this would have been called
+        mock_instance.runs.poll_until_complete.assert_not_called()
+        return result
+
+
+@then("the run should be queued")
+def check_run_queued(cli_result):
+    assert "run-b13" in cli_result.stdout
 
 
 @when(

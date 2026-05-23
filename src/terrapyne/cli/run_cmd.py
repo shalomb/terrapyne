@@ -31,6 +31,10 @@ def _show_help(ctx: typer.Context):
 @handle_cli_errors
 def run_list(
     ctx: typer.Context,
+    workspace_arg: Annotated[
+        str | None,
+        typer.Argument(help="Workspace name (positional shorthand)"),
+    ] = None,
     workspace: Annotated[
         str | None,
         typer.Option(
@@ -59,8 +63,10 @@ def run_list(
     ] = "table",
 ):
     """List runs for a workspace."""
-    # Resolve organization and workspace
-    org, workspace_name = validate_context(organization, workspace, require_workspace=True)
+    # Resolve organization and workspace (positional arg takes precedence over --workspace option)
+    org, workspace_name = validate_context(
+        organization, workspace_arg or workspace, require_workspace=True
+    )
 
     with get_client(ctx, organization=org) as client:
         # Get workspace to retrieve workspace ID
