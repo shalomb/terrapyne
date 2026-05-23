@@ -1225,7 +1225,7 @@ def watch_exit_one(cli_result):
 )
 def follow_with_auto_apply(mock_client, run_id):
     with (
-        patch("terrapyne.cli.utils.validate_context") as v,
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
         patch("terrapyne.api.client.TFCClient") as c,
         patch("time.sleep"),
     ):
