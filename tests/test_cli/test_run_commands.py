@@ -43,6 +43,14 @@ def test_handle_missing_workspace():
     pass
 
 
+@scenario(
+    "../features/run_listing.feature",
+    "run list accepts workspace name as positional argument",
+)
+def test_run_list_positional_workspace():
+    pass
+
+
 # ============================================================================
 # Scenarios - Details
 # ============================================================================
@@ -319,6 +327,37 @@ def check_filtered_count(filter_runs):
 @given("I have not specified a target workspace")
 def no_workspace_specified():
     pass
+
+
+@pytest.fixture
+@given(
+    parsers.parse('the workspace "{workspace}" has recent runs'),
+    target_fixture="positional_workspace_setup",
+)
+def workspace_with_runs(workspace, run_list_response, workspace_detail_response):
+    return {"workspace": workspace}
+
+
+@when(
+    parsers.parse('I run "run list {workspace}"'),
+    target_fixture="run_list_positional_result",
+)
+def run_list_positional(workspace, run_list_response, workspace_detail_response):
+    with patch("terrapyne.api.client.TFCClient") as mock_client:
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+        ws = Workspace.from_api_response(workspace_detail_response["data"])
+        runs = [Run.from_api_response(data) for data in run_list_response["data"]]
+        mock_instance.workspaces.get.return_value = ws
+        mock_instance.runs.list.return_value = (runs, len(runs))
+        return runner.invoke(app, ["run", "list", workspace, "--organization", "test-org"])
+
+
+@then("the runs should be listed without error")
+def check_runs_listed(run_list_positional_result):
+    assert run_list_positional_result.exit_code == 0, (
+        f"Exit {run_list_positional_result.exit_code}: {run_list_positional_result.stdout}"
+    )
 
 
 @pytest.fixture
