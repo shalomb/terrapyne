@@ -1,5 +1,9 @@
 # TODO — Terrapyne Product Backlog
 
+> [!IMPORTANT]
+> **AGENTS**: Before pulling tasks from this backlog or writing any code, you MUST read `AGENTS.md` and strictly follow the TDD/BDD Adzic/Farley rules, ACP commit protocol, and the Adversarial Review (Bart) workflow.
+
+
 Bugs, gaps, and improvements. Sources:
 - Exploratory testing against live TFC
 - Product fitness appraisal against TFC API model (April 2026)
@@ -15,6 +19,24 @@ All new features and fixes must strictly follow:
 
 For evaluating live TFC behaviour, use:
 - `/home/unop/oneTakeda/terraform-dce-developer-ShalomBhooshi/iac/dev`
+
+---
+
+## Iteration Plan (May 2026)
+
+Based on recent Agent-Native CLI design research, the backlog is currently structured into the following upcoming PR Batches:
+
+- **PR Batch 3: The Agent Experience (AX) Core** *(In Progress — feat/ax-core)*
+  Focus: Eliminating agent "glue logic" (bash pipes, jq, polling loops).
+  Includes: AX1 ✅, AX2 ✅, AX3 ✅, AX4 ✅, AX5 ✅, AX6 ✅.
+
+- **PR Batch 4: Scripting & Automation Polish**
+  Focus: Fixing bugs that break non-interactive shell scripting and automation pipelines.
+  Includes: B13 (exit code), B14 (missing --yes), B12 (truncation), B9 (name lookup bug), B15 (flag position).
+
+- **PR Batch 5: CLI Surface Refactoring & Security**
+  Focus: Paying down technical debt, improving consistency, and patching data leaks.
+  Includes: A18 (var command refactor), A16 (sensitive leak), D10 (docs).
 
 ---
 

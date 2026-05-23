@@ -83,6 +83,20 @@ def workspace_list(
             )
 
 
+@app.command("id")
+@handle_cli_errors
+def workspace_id(
+    ctx: typer.Context,
+    workspace: str = typer.Argument(..., help="Workspace name"),
+    organization: str | None = typer.Option(None, "--organization", "-o", help="TFC organization"),
+) -> None:
+    """Print the raw workspace ID (ws-*) to stdout — no formatting."""
+    org = resolve_organization(organization)
+    with get_client(ctx, organization=org) as client:
+        ws = client.workspaces.get(workspace, organization=org)
+    print(ws.id)
+
+
 @app.command("show")
 @handle_cli_errors
 def workspace_show(
@@ -428,6 +442,7 @@ def workspace_clone(
         "-p",
         help="Project ID to assign the cloned workspace to (overrides source project)",
     ),
+    output_format: str = typer.Option("table", "--format", help="Output format: table, json"),
 ):
     """Clone a workspace (configuration and variables).
 
@@ -443,7 +458,8 @@ def workspace_clone(
     """
     org, _ = validate_context(organization)
 
-    console.print(f"\n[dim]Cloning workspace:[/dim] {source} → {target}")
+    if output_format != "json":
+        console.print(f"\n[dim]Cloning workspace:[/dim] {source} → {target}")
 
     with get_client(ctx, organization=org) as client:
         from terrapyne.api.workspace_clone import (
@@ -465,11 +481,16 @@ def workspace_clone(
                 project_id=project_id,
             )
 
-            console.print(f"\n[green]✓[/green] {result.get('message', 'Successfully cloned')}")
-
             if result.get("status") == "error":
                 console.print(f"[red]Error:[/red] {result.get('error', 'Unknown error')}")
                 raise typer.Exit(1)
+
+            new_ws = result.get("workspace")
+            if output_format == "json" and new_ws is not None:
+                emit_json(new_ws.model_dump())
+                return
+
+            console.print(f"\n[green]✓[/green] {result.get('message', 'Successfully cloned')}")
 
             # Show details of what was cloned
             res = result.get("results", {})
@@ -524,6 +545,10 @@ def workspace_create(
     oauth_token_id: str | None = typer.Option(
         None, "--oauth-token-id", help="OAuth token ID for VCS connection"
     ),
+    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
+    ignore_exists: bool = typer.Option(
+        False, "--ignore-exists", help="Exit 0 if workspace already exists (idempotent)"
+    ),
 ):
     """Create a new workspace.
 
@@ -531,12 +556,14 @@ def workspace_create(
         # Create a basic workspace
         tfc workspace create my-new-workspace --organization my-org
 
-        # Create with specific Terraform version and execution mode
-        tfc workspace create my-new-workspace --tf-version 1.9.0 --execution-mode remote
+        # Capture the new workspace ID in a script
+        WS_ID=$(tfc workspace create my-new-workspace --format json | jq -r .id)
 
-        # Create with VCS connection
-        tfc workspace create my-new-workspace --vcs-repo org/repo --oauth-token-id ot-abc123
+        # Idempotent create — safe to retry
+        tfc workspace create my-new-workspace --ignore-exists
     """
+    from terrapyne.core.exceptions import TFCConflictError
+
     org = resolve_organization(organization)
     if not org:
         console.print("[red]Error: Organization not specified and not found in context.[/red]")
@@ -552,15 +579,29 @@ def workspace_create(
             vcs_repo_config["working-directory"] = working_dir
 
     with get_client(ctx, organization=org) as client:
-        ws = client.workspaces.create(
-            name=name,
-            organization=org,
-            project_id=project,
-            terraform_version=tf_version,
-            execution_mode=execution_mode,
-            working_directory=working_dir if not vcs_repo else None,
-            vcs_repo=vcs_repo_config,
-        )
+        try:
+            ws = client.workspaces.create(
+                name=name,
+                organization=org,
+                project_id=project,
+                terraform_version=tf_version,
+                execution_mode=execution_mode,
+                working_directory=working_dir if not vcs_repo else None,
+                vcs_repo=vcs_repo_config,
+            )
+        except TFCConflictError:
+            if ignore_exists:
+                ws = client.workspaces.get(name, organization=org)
+            else:
+                console.print(
+                    f"[red]Error: Workspace '{name}' already exists. "
+                    "Use --ignore-exists to return the existing workspace.[/red]"
+                )
+                raise typer.Exit(1) from None
+
+    if output_format == "json":
+        emit_json(ws.model_dump())
+        return
 
     console.print(f"[green]✓[/green] Created workspace: {ws.name}")
     if ws.terraform_version:

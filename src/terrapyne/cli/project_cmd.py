@@ -25,6 +25,22 @@ def _show_help(ctx: typer.Context):
         console.print(ctx.get_help())
 
 
+@app.command("id")
+@handle_cli_errors
+def project_id(
+    ctx: typer.Context,
+    project_name: str = typer.Argument(..., help="Project name"),
+    organization: str | None = typer.Option(None, "--organization", "-o", help="TFC organization"),
+) -> None:
+    """Print the raw project ID (prj-*) to stdout — no formatting."""
+    from terrapyne.cli.context_helpers import validate_context
+
+    org, _ = validate_context(organization)
+    with get_client(ctx, organization=org) as client:
+        project = client.projects.get_by_name(project_name, org)
+    print(project.id)
+
+
 @app.command("list")
 @handle_cli_errors
 def project_list(

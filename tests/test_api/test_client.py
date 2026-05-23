@@ -356,6 +356,23 @@ class TestRetryLogic:
             f"POST was retried {call_count} times on 409; expected exactly 1 call"
         )
 
+    def test_post_422_raises_conflict_error(self):
+        """POST on 422 Unprocessable Entity raises TFCConflictError.
+
+        TFC returns 422 (not 409) for duplicate workspace names. Both must
+        map to TFCConflictError so --ignore-exists can catch real TFC errors.
+        """
+        creds = TerraformCredentials(host="app.terraform.io", token="test-token")
+        client = TFCClient(credentials=creds)
+
+        def mock_request(method, path, **kwargs):
+            request = httpx.Request(method, f"https://app.terraform.io/api/v2{path}")
+            return httpx.Response(422, request=request)
+
+        with patch.object(client.client, "request", side_effect=mock_request):
+            with pytest.raises(TFCConflictError):
+                client.post("/workspaces", json_data={"data": {}})
+
     def test_post_500_retries(self):
         """POST on 500 Server Error should retry — transient failure is safe assumption."""
         creds = TerraformCredentials(host="app.terraform.io", token="test-token")

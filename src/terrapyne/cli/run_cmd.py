@@ -87,7 +87,7 @@ def run_list(
 @handle_cli_errors
 def run_show(
     ctx: typer.Context,
-    run_id: Annotated[str, typer.Argument(help="Run ID (e.g., run-xxx)")],
+    run_id: Annotated[str | None, typer.Argument(help="Run ID (e.g., run-xxx)")] = None,
     organization: Annotated[
         str | None,
         typer.Option(
@@ -96,14 +96,37 @@ def run_show(
             help="TFC organization (auto-detected from context if available)",
         ),
     ] = None,
+    workspace: Annotated[
+        str | None,
+        typer.Option("--workspace", "-w", help="Workspace name (required with --latest)"),
+    ] = None,
+    latest: Annotated[
+        bool,
+        typer.Option("--latest", help="Show the most recent run for --workspace"),
+    ] = False,
     output_format: Annotated[
         str, typer.Option("--format", "-f", help="Output format (table, json)")
     ] = "table",
 ):
     """Show details for a specific run."""
-    org, _ = validate_context(organization)
+    org, ws_name = validate_context(organization, workspace)
 
     with get_client(ctx, organization=org) as client:
+        if latest:
+            if not ws_name:
+                console.print("[red]Error: --latest requires --workspace[/red]")
+                raise typer.Exit(1)
+            ws = client.workspaces.get(ws_name, org)
+            runs, _ = client.runs.list(workspace_id=ws.id, limit=1)
+            run = next(iter(runs), None)
+            if not run:
+                console.print("[yellow]No runs found for workspace.[/yellow]")
+                raise typer.Exit(0)
+            run_id = run.id
+        elif not run_id:
+            console.print("[red]Error: Provide a run ID or use --workspace with --latest[/red]")
+            raise typer.Exit(1)
+
         # Fetch run details
         run = client.runs.get(run_id)
 
@@ -213,7 +236,7 @@ def run_plan(
 @handle_cli_errors
 def run_logs(
     ctx: typer.Context,
-    run_id: Annotated[str, typer.Argument(help="Run ID")],
+    run_id: Annotated[str | None, typer.Argument(help="Run ID")] = None,
     organization: Annotated[
         str | None,
         typer.Option(
@@ -222,15 +245,38 @@ def run_logs(
             help="TFC organization (auto-detected from context if available)",
         ),
     ] = None,
+    workspace: Annotated[
+        str | None,
+        typer.Option("--workspace", "-w", help="Workspace name (required with --latest)"),
+    ] = None,
+    latest: Annotated[
+        bool,
+        typer.Option("--latest", help="Show logs for the most recent run of --workspace"),
+    ] = False,
     stage: Annotated[
         str,
         typer.Option("--stage", help="Logs to show: plan, apply"),
     ] = "plan",
 ):
     """Show logs for a specific run stage."""
-    org, _ = validate_context(organization)
+    org, ws_name = validate_context(organization, workspace)
 
     with get_client(ctx, organization=org) as client:
+        if latest:
+            if not ws_name:
+                console.print("[red]Error: --latest requires --workspace[/red]")
+                raise typer.Exit(1)
+            ws = client.workspaces.get(ws_name, org)
+            runs, _ = client.runs.list(workspace_id=ws.id, limit=1)
+            run = next(iter(runs), None)
+            if not run:
+                console.print("[yellow]No runs found for workspace.[/yellow]")
+                raise typer.Exit(0)
+            run_id = run.id
+        elif not run_id:
+            console.print("[red]Error: Provide a run ID or use --workspace with --latest[/red]")
+            raise typer.Exit(1)
+
         run = client.runs.get(run_id)
 
         if stage == "plan":
@@ -480,8 +526,8 @@ def run_trigger(
     ] = None,
     wait: Annotated[
         bool,
-        typer.Option("--wait/--no-wait", help="Wait for completion"),
-    ] = True,
+        typer.Option("--wait/--no-wait", help="Wait for completion (default: no-wait)"),
+    ] = False,
     wait_queue: Annotated[
         bool,
         typer.Option("--wait-queue", help="If another run is active, wait for it to finish"),
@@ -513,6 +559,10 @@ def run_trigger(
             ),
         ),
     ] = False,
+    output_format: Annotated[
+        str,
+        typer.Option("--format", "-f", help="Output format: table, json"),
+    ] = "table",
 ):
     """Trigger a new run with advanced queue management."""
     # Resolve organization and workspace
@@ -564,10 +614,11 @@ def run_trigger(
         if not speculative and replace:
             run_type = f"REPLACE {run_type}"
 
-        console.print(
-            f"[dim]Triggering [bold cyan]{run_type}[/bold cyan] run for workspace:[/dim] "
-            f"{workspace_name}"
-        )
+        if output_format != "json":
+            console.print(
+                f"[dim]Triggering [bold cyan]{run_type}[/bold cyan] run for workspace:[/dim] "
+                f"{workspace_name}"
+            )
 
         # 2. Create run
         if speculative:
@@ -586,6 +637,13 @@ def run_trigger(
                 refresh_only=refresh_only,
                 debug=debug_run,
             )
+
+        if output_format == "json":
+            from terrapyne.cli.output_helpers import emit_json as _emit_json
+
+            _emit_json(run.model_dump())
+            if not wait:
+                return
 
         console.print(f"[green]✓[/green] Created {run_type} run: {run.id}")
         if message:
