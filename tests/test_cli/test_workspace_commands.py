@@ -127,7 +127,7 @@ def list_workspaces_quiet(org_setup, workspace_list_response):
 @then("workspace list output should contain only data")
 def check_quiet_output(quiet_list_result):
     # In quiet mode there should be no Rich table decorations (no "Workspaces" title)
-    assert "Workspaces" not in quiet_list_result.stdout or quiet_list_result.exit_code == 0
+    assert "Workspaces" not in quiet_list_result.stdout
 
 
 @then("workspace list result should exit with code 0")
@@ -142,6 +142,8 @@ def list_workspaces_no_truncate(long_name_workspace):
     with (
         patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
         patch("terrapyne.api.client.TFCClient") as mock_client,
+        # Simulate a narrow piped terminal so truncation would apply without --no-truncate
+        patch("sys.stdout.isatty", return_value=False),
     ):
         mock_org.return_value = "test-org"
         mock_instance = MagicMock()

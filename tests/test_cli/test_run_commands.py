@@ -553,7 +553,10 @@ def trigger_run_no_wait(workspace):
         mock_instance.runs.create.return_value = run
 
         # No --wait flag: default should be --no-wait (B13 fix)
-        return runner.invoke(app, ["run", "trigger", workspace, "-o", "test-org"])
+        result = runner.invoke(app, ["run", "trigger", workspace, "-o", "test-org"])
+        # Prove polling was never entered — if wait defaulted True this would have been called
+        mock_instance.runs.poll_until_complete.assert_not_called()
+        return result
 
 
 @then("the run should be queued")
