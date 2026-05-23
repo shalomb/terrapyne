@@ -323,6 +323,50 @@ class WorkspaceAPI:
         path = f"/workspaces/{workspace_id}"
         self.client.delete(path)
 
+    def set_vcs_branch(
+        self,
+        workspace_name: str,
+        branch: str,
+        organization: str | None = None,
+    ) -> Workspace:
+        """Set the VCS branch for a workspace.
+
+        Args:
+            workspace_name: Workspace name
+            branch: Branch name to set on the VCS repo
+            organization: Organization name (uses client default if not specified)
+
+        Returns:
+            Updated Workspace instance
+
+        Raises:
+            TFCAPIError: If update fails
+            ValueError: If workspace has no VCS repo connected
+        """
+        if not branch.strip():
+            raise ValueError("branch must not be empty")
+
+        org = self.client.get_organization(organization)
+
+        # Verify workspace has VCS before patching
+        ws = self.get(workspace_name, org, include=None)
+        if not ws.vcs_repo:
+            raise ValueError(
+                f"Workspace '{workspace_name}' has no VCS connection. "
+                "Connect a VCS repository before setting a branch."
+            )
+
+        path = f"/organizations/{org}/workspaces/{workspace_name}"
+        payload: dict[str, Any] = {
+            "data": {
+                "type": "workspaces",
+                "attributes": {"vcs-repo": {"branch": branch}},
+            }
+        }
+
+        response = self.client.patch(path, json_data=payload)
+        return Workspace.from_api_response(response["data"])
+
     def update(
         self,
         workspace_name: str,
