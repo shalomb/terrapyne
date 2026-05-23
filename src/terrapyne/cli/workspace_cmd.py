@@ -1,5 +1,6 @@
 """Workspace CLI commands."""
 
+import sys
 from typing import Annotated, cast
 
 import typer
@@ -35,7 +36,14 @@ def _var_show_help(ctx: typer.Context):
 
 
 @app.callback(invoke_without_command=True)
-def _show_help(ctx: typer.Context):
+def _show_help(
+    ctx: typer.Context,
+    quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress UI output (data only)"),
+):
+    from terrapyne.cli.output_helpers import set_quiet_mode
+
+    if quiet:
+        set_quiet_mode(True)
     if ctx.invoked_subcommand is None:
         console.print(ctx.get_help())
 
@@ -57,6 +65,9 @@ def workspace_list(
         False, "--wildcard", help="Treat search pattern as a wildcard pattern"
     ),
     output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
+    no_truncate: bool = typer.Option(
+        False, "--no-truncate", help="Disable column width truncation (auto-enabled when piped)"
+    ),
 ):
     """List workspaces in an organization."""
     org = resolve_organization(organization)
@@ -75,7 +86,14 @@ def workspace_list(
             emit_json([ws.model_dump() for ws in workspaces])
             return
 
-        render_workspaces(workspaces, f"Workspaces in {org}", total_count=total_count)
+        # Auto-disable truncation when output is piped (non-TTY)
+        effective_no_truncate = no_truncate or not sys.stdout.isatty()
+        render_workspaces(
+            workspaces,
+            f"Workspaces in {org}",
+            total_count=total_count,
+            no_truncate=effective_no_truncate,
+        )
 
         if not search and total_count and total_count > 10:
             console.print(

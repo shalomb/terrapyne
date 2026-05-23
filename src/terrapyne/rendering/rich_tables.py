@@ -24,7 +24,10 @@ from terrapyne.rendering.table_renderer import (
 
 
 def render_workspaces(
-    workspaces: Sequence[Workspace], title: str = "Workspaces", total_count: int | None = None
+    workspaces: Sequence[Workspace],
+    title: str = "Workspaces",
+    total_count: int | None = None,
+    no_truncate: bool = False,
 ) -> None:
     """Render workspaces as a Rich table.
 
@@ -32,8 +35,9 @@ def render_workspaces(
         workspaces: List of workspace instances
         title: Table title
         total_count: Optional total count from API metadata
+        no_truncate: Disable column width truncation (always on for piped output)
     """
-    renderer = WorkspaceTableRenderer()
+    renderer = WorkspaceTableRenderer(no_truncate=no_truncate)
     renderer.render(workspaces, title=title, total_count=total_count, console_instance=console)
 
 

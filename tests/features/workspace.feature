@@ -9,6 +9,17 @@ Feature: Workspace Operations
     Then I should see workspace list
     And the list should show workspace count
 
+  Scenario: workspace list --no-truncate shows full workspace names
+    Given I have organization "test-org" with a workspace with a long name
+    When I list workspaces with --no-truncate
+    Then the full workspace name should appear in the output without truncation
+
+  Scenario: --quiet flag accepted at workspace subgroup level suppresses UI output
+    Given I have organization "test-org" set up
+    When I list workspaces with --quiet at the workspace group level
+    Then workspace list output should contain only data
+    And workspace list result should exit with code 0
+
   Scenario: List workspaces with search filter
     Given I have organization "test-org" with workspaces
     When I search for workspaces matching "dev"
