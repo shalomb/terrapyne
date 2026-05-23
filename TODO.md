@@ -1,5 +1,9 @@
 # TODO — Terrapyne Product Backlog
 
+> [!IMPORTANT]
+> **AGENTS**: Before pulling tasks from this backlog or writing any code, you MUST read `AGENTS.md` and strictly follow the TDD/BDD Adzic/Farley rules, ACP commit protocol, and the Adversarial Review (Bart) workflow.
+
+
 Bugs, gaps, and improvements. Sources:
 - Exploratory testing against live TFC
 - Product fitness appraisal against TFC API model (April 2026)
