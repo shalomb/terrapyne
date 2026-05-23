@@ -28,7 +28,7 @@ Based on recent Agent-Native CLI design research, the backlog is currently struc
 
 - **PR Batch 3: The Agent Experience (AX) Core** *(In Progress — feat/ax-core)*
   Focus: Eliminating agent "glue logic" (bash pipes, jq, polling loops).
-  Includes: AX1 ✅, AX2 ✅, AX3 ✅, AX4 ✅, AX5 ✅, AX6 ✅.
+  Includes: AX1 ✅, AX2 ✅, AX3 ✅, AX4 ✅, AX5 ✅, AX6 ✅, AX7 (Deep Error Context Surfacing).
 
 - **PR Batch 4: Scripting & Automation Polish** *(In Progress — fix/scripting-polish)*
   Focus: Fixing bugs that break non-interactive shell scripting and automation pipelines.
@@ -788,3 +788,9 @@ These features are specifically designed to reduce the "glue logic" (bash pipes,
 **Success Criteria**:
 - `terrapyne workspace create my-ws --ignore-exists` succeeds (or exits gracefully without a fatal error) if the workspace is already provisioned.
 
+### AX7 — Deep Error Context Surfacing
+**Context**: When a CLI command fails, it often prints a high-level error (e.g. `Status: ❌ errored` or `API Error (422)`) and exits `1`. For an AI agent, this is a dead end. The agent must re-run the command with `--debug` or issue a new command (`run errors <id>`) to discover why it failed, bloating context windows and risking hallucination.
+**Fix**: Update `@handle_cli_errors` to automatically extract and print the detailed JSON `errors` payload from TFCAPIError responses. Additionally, update `run_trigger` and `run_watch` to automatically fetch and print `get_error_summary()` upon terminal run failure before exiting `1`.
+**Success Criteria**:
+- API failures (e.g. `workspace create` with a duplicate name) explicitly print the `title` and `detail` of the TFC JSON error.
+- Wait loops (`run trigger --wait`) automatically print the Terraform error block if the run hits an errored state.
