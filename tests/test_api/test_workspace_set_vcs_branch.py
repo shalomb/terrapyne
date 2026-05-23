@@ -72,6 +72,8 @@ class TestSetVcsBranch:
         # Must NOT include other attributes (lean patch)
         assert "name" not in payload["data"]["attributes"]
         assert "terraform-version" not in payload["data"]["attributes"]
+        # vcs-repo object must contain ONLY branch — no identifier/oauth-token-id leakage
+        assert list(payload["data"]["attributes"]["vcs-repo"].keys()) == ["branch"]
 
     def test_set_vcs_branch_returns_workspace(self, api, mock_client, ws_with_vcs):
         """set_vcs_branch must return a Workspace instance."""
