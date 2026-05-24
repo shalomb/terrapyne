@@ -17,7 +17,7 @@ from terrapyne.cli import (
     vcs_cmd,
     workspace_cmd,
 )
-from terrapyne.cli.output_helpers import set_quiet_mode
+from terrapyne.cli.output_helpers import configure_for_agent_context, set_quiet_mode
 from terrapyne.rendering.logging import console
 
 # Use the invocation name (e.g., "tfc" or "terrapyne") instead of hardcoded name
@@ -89,6 +89,10 @@ def main(
     """Terraform Cloud CLI orchestrator for DevOps engineers."""
     from terrapyne.cli.output_helpers import setup_logging
 
+    # Detect agent/automation context before anything else so all downstream
+    # commands inherit the right console state and output defaults.
+    agent_ctx = configure_for_agent_context()
+
     set_quiet_mode(quiet)
     setup_logging(debug)
 
@@ -97,6 +101,10 @@ def main(
         ctx.obj = {}
 
     ctx.obj["cache_ttl"] = cache_ttl
+    ctx.obj["agent_context"] = agent_ctx
+
+    if debug and agent_ctx.is_agent:
+        console.print(f"[dim]Agent context detected: {agent_ctx.reason}[/dim]")
 
     if ctx.invoked_subcommand is None and not quiet:
         console.print(ctx.get_help())

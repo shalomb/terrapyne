@@ -9,6 +9,7 @@ import typer
 
 from terrapyne.cli.context_helpers import get_client, resolve_project_context, validate_context
 from terrapyne.cli.error_handlers import handle_cli_errors
+from terrapyne.cli.output_helpers import effective_format
 from terrapyne.rendering.logging import console
 from terrapyne.rendering.rich_tables import (
     render_project_detail,
@@ -60,9 +61,10 @@ def project_list(
     with get_client(ctx, organization=org) as client:
         projects_iter, total_count = client.projects.list(org)
         projects = list(projects_iter)[:limit]
+        fmt = effective_format(ctx, output_format)
 
         if not projects:
-            if output_format == "json":
+            if fmt == "json":
                 from terrapyne.cli.output_helpers import emit_json
 
                 emit_json([])
@@ -70,7 +72,7 @@ def project_list(
             console.print(f"[yellow]No projects found in {org}[/yellow]")
             return
 
-        if output_format == "json":
+        if fmt == "json":
             from terrapyne.cli.output_helpers import emit_json
 
             emit_json([p.model_dump() for p in projects])
@@ -166,7 +168,7 @@ def show_project(
             if ws.latest_run and ws.latest_run.status in active_statuses:
                 active_runs_count += 1
 
-        if output_format == "json":
+        if effective_format(ctx, output_format) == "json":
             from terrapyne.cli.output_helpers import emit_json
 
             emit_json(

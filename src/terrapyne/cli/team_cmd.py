@@ -5,6 +5,7 @@ from rich.table import Table
 
 from terrapyne.cli.context_helpers import get_client, validate_context
 from terrapyne.cli.error_handlers import handle_cli_errors
+from terrapyne.cli.output_helpers import effective_format
 from terrapyne.rendering.logging import console
 
 app = typer.Typer(help="Team management commands")
@@ -56,7 +57,7 @@ def team_list(
             console.print("[yellow]No teams found.[/yellow]")
             return
 
-        if output_format == "json":
+        if effective_format(ctx, output_format) == "json":
             from terrapyne.cli.output_helpers import emit_json
 
             emit_json([{"id": t.id, "name": t.name, "created_at": t.created_at} for t in teams])

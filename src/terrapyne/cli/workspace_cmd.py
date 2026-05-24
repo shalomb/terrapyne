@@ -8,7 +8,7 @@ import typer
 from terrapyne.cli import triggers_cmd
 from terrapyne.cli.context_helpers import get_client, validate_context
 from terrapyne.cli.error_handlers import handle_cli_errors
-from terrapyne.cli.output_helpers import emit_json, set_quiet_mode
+from terrapyne.cli.output_helpers import effective_format, emit_json, set_quiet_mode
 from terrapyne.core.browser import get_workspace_url, open_url_in_browser
 from terrapyne.core.context import resolve_organization
 from terrapyne.core.exceptions import TFCAPIError, WorkspaceNotFoundError
@@ -80,7 +80,7 @@ def workspace_list(
         workspaces_iter, total_count = client.workspaces.list(org, search=search_pattern)
         workspaces = list(workspaces_iter)
 
-        if output_format == "json":
+        if effective_format(ctx, output_format) == "json":
             emit_json([ws.model_dump() for ws in workspaces])
             return
 
@@ -149,6 +149,7 @@ def workspace_show(
 
     if json_output:
         output_format = "json"
+    output_format = effective_format(ctx, output_format)
 
     with get_client(ctx, organization=org) as client:
         # Optimized: Fetch workspace, project, and latest run (with commit info) in ONE call (Task 21)
