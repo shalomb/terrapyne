@@ -16,7 +16,17 @@ Reference documentation is information-oriented. It provides technical specifica
 - **[TFC JSON:API Format](tfc-json-api.md)** *(planned)* — Technical reference for how Terrapyne maps to the HashiCorp TFC JSON:API.
 - **[Terraform State Format](terraform-state-format.md)** *(planned)* — Details on how we parse and represent Terraform state versions.
 
+## 📏 Quality Indices
+
+These are the rubrics agents apply when auditing test and BDD quality. The skills `farley-index` and `adzic-index` score against these documents.
+
+- **[Farley Index](farley-index.md)** — Six properties of good tests: Fast, Maintainable, Repeatable, Atomic, Necessary, Understandable. Target ≥ 7.0 per property.
+- **[Adzic Index](adzic-index.md)** — Six dimensions of BDD quality: Business-Readable, Intention-Revealing, Living, Declarative, Focused, Atomic. Target ≥ 7.0 per dimension.
+
 ## 🛠️ Standards & Compliance
 
+- **[Atomic Commit Protocol](../standards/atomic-commit-protocol.md)** — Rules for what constitutes an atomic, verifiable commit.
+- **[Task Decomposition](../standards/task-decomposition.md)** — INVEST plus named decomposition strategies for breaking epics into tasks.
+- **[Adversarial Review Feedback](../standards/feedback.md)** — The format Bart uses to give feedback to Ralph.
 - **[Versioning Policy](../../CHANGELOG.md)** — How we use Semantic Versioning (SemVer) for the CLI and SDK.
 - **[Engineering Standards](../../AGENTS.md)** — The non-negotiable quality guardrails used to build Terrapyne.

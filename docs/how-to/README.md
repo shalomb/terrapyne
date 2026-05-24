@@ -6,6 +6,8 @@ How-to guides are problem-oriented. They provide recipes and step-by-step instru
 
 Detailed conventions for contributing to the Terrapyne codebase.
 
+- **[Agent Workflow](agent-workflow.md)** — The strict BDD/TDD cycle, ACP, and mandatory adversarial review for agents working in this repo.
+- **[Epic Handoff](epic-handoff.md)** — How epics move from Marge to Lisa to Ralph; the `TODO-{td-id}.md` format.
 - **[Python & Testing](python-and-testing.md)** — Type hints, imports, test structure, and pytest-bdd patterns.
 - **[Commits & Review](commits-and-review.md)** — Atomic commits, conventional formats, and our PR workflow.
 - **[BDD Specifications](../explanation/bdd-specifications.md)** — Writing Adzic-aligned feature files and step definitions.

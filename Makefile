@@ -93,6 +93,51 @@ test-typecheck: ## Rung 0.35: Type check (blocking)
 test-lint: ## Rung 0.5: Full lint (blocking)
 	uv run ruff check src/ tests/
 
+audit-patches: ## Rung 0.4: Fail on patches against deprecated stub modules (blocking)
+	@# tests must not patch terrapyne.cli.utils.* — that module is a deprecated
+	@# stub. The real symbols live in cli/context_helpers.py and the per-command
+	@# files; patching the stub silently no-ops. See PLAN.md EPIC-001.
+	@if grep -RnE 'patch\(\s*"terrapyne\.cli\.utils\.[A-Za-z_]+"' tests/ src/; then \
+		echo ""; \
+		echo "❌ Found patch() calls against terrapyne.cli.utils.*"; \
+		echo "   That module is a deprecated stub. Patch the real import site instead."; \
+		echo "   See docs/how-to/python-and-testing.md and PLAN.md EPIC-001."; \
+		exit 1; \
+	fi
+	@# Tests should use error_console for stderr expectations rather than asserting
+	@# on private console attributes; flag drift early. (Informational, non-blocking.)
+	@echo "✅ audit-patches: no patches against deprecated stubs"
+
+audit-ai-markers: ## Rung 0.4: Fail if AI-attribution markers leak into commits or tree (blocking)
+	@# The PR template, agent personas, and commits-and-review.md all forbid AI
+	@# markers in commits and code. This audits src/, tests/, and the recent
+	@# commit log on this branch for the most common offenders.
+	@#
+	@# docs/ is intentionally excluded: the standards documents describe these
+	@# patterns by name (so contributors know what's forbidden) which would
+	@# otherwise self-trip the audit.
+	@FAIL=0; \
+	if grep -RInE 'Co-Authored-By:[[:space:]]*(Claude|GPT|Gemini|Copilot|Cursor)' src/ tests/ 2>/dev/null; then \
+		echo "❌ AI co-author markers found in working tree"; \
+		FAIL=1; \
+	fi; \
+	if grep -RInE '🤖[[:space:]]*Generated with' src/ tests/ 2>/dev/null; then \
+		echo "❌ '🤖 Generated with' marker found in working tree"; \
+		FAIL=1; \
+	fi; \
+	if [ -d .git ] && git log -n 50 --format='%B' 2>/dev/null | \
+		grep -InE 'Co-Authored-By:[[:space:]]*(Claude|GPT|Gemini|Copilot|Cursor)|🤖[[:space:]]*Generated with' >/dev/null; then \
+		echo "❌ AI marker found in recent commit messages on this branch"; \
+		FAIL=1; \
+	fi; \
+	if [ "$$FAIL" = "1" ]; then \
+		echo ""; \
+		echo "   See docs/how-to/commits-and-review.md and the GenAI section of"; \
+		echo "   .github/PULL_REQUEST_TEMPLATE.md."; \
+		exit 1; \
+	fi
+	@echo "✅ audit-ai-markers: no AI attribution markers found"
+
 test-last-failed: ## Rung 1.0: Regressions (fast)
 	uv run python -m pytest tests/ --lf -x -q --no-header --no-cov || true
 
@@ -102,7 +147,7 @@ test-all: ## Rung 2.0: Logic / Full suite (blocking)
 test-coverage: ## Rung 3.0: Coverage report (informational)
 	uv run python -m pytest tests/ --cov=src --cov-report=term --no-header -q --no-cov-on-fail || true
 
-test-fast: test-structure test-imports test-typecheck test-lint ## Inner Loop: Rungs 0.0 - 0.5 (< 10s)
+test-fast: test-structure test-imports test-typecheck test-lint audit-patches audit-ai-markers ## Inner Loop: Rungs 0.0 - 0.5 (< 10s)
 
 test-ci: test-fast test-last-failed test-all test-coverage ## Outer Loop: Full ladder accordion
 
