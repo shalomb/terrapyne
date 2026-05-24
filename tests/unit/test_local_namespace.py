@@ -2,6 +2,8 @@
 
 Success criteria:
 - `terrapyne.local.Terraform` resolves to the class
+- `terrapyne.local.OpenTofu` resolves to the class
+- Both inherit from `LocalIACRunner`
 - `from terrapyne import Terraform` still works but emits DeprecationWarning
 - `Terraform` is NOT in `terrapyne.__all__`
 """
@@ -19,6 +21,22 @@ class TestLocalNamespace:
         from terrapyne.local import Terraform
 
         assert Terraform is not None
+
+    def test_opentofu_class_importable_from_local(self):
+        from terrapyne.local import OpenTofu
+
+        assert OpenTofu is not None
+
+    def test_both_inherit_from_local_iac_runner(self):
+        from terrapyne.local import LocalIACRunner, OpenTofu, Terraform
+
+        assert issubclass(Terraform, LocalIACRunner)
+        assert issubclass(OpenTofu, LocalIACRunner)
+
+    def test_opentofu_uses_tofu_binary_name(self):
+        from terrapyne.local import OpenTofu
+
+        assert OpenTofu._binary_name == "tofu"
 
     def test_terraform_not_in_top_level_all(self):
         import terrapyne
@@ -49,3 +67,8 @@ class TestLocalNamespace:
             warnings.simplefilter("always")
             cls = terrapyne.Terraform
         assert cls is Terraform
+
+    def test_detect_runner_importable_from_local(self):
+        from terrapyne.local import detect_runner
+
+        assert callable(detect_runner)
