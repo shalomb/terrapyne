@@ -97,11 +97,12 @@ def create_runner(
 class ResolvedRunner:
     """Lightweight result of runner resolution for CLI use."""
 
-    __slots__ = ("binary", "runner_type", "version_constraint")
+    __slots__ = ("binary", "runner_type", "tfc_compatible", "version_constraint")
 
     def __init__(self, runner_type: str, version_constraint: str | None = None) -> None:
         self.runner_type = runner_type
         self.binary = "tofu" if runner_type == "opentofu" else "terraform"
+        self.tfc_compatible = runner_type != "opentofu"
         self.version_constraint = version_constraint
 
 

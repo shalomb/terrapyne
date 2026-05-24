@@ -142,6 +142,22 @@ def test_version_constraint():
     pass
 
 
+@scenario(
+    "../features/opentofu_support.feature",
+    "OpenTofu projects are flagged as TFC-incompatible",
+)
+def test_opentofu_not_tfc_compatible():
+    pass
+
+
+@scenario(
+    "../features/opentofu_support.feature",
+    "Terraform projects are TFC-compatible",
+)
+def test_terraform_tfc_compatible():
+    pass
+
+
 # --- Given steps ---
 
 
@@ -290,3 +306,13 @@ def assert_resolved_type(resolved, expected: str):
 @then(parsers.parse('the resolved version constraint is "{expected}"'))
 def assert_version_constraint(resolved, expected: str):
     assert resolved.version_constraint == expected
+
+
+@then("the resolved runner is not TFC-compatible")
+def assert_not_tfc_compatible(resolved):
+    assert resolved.tfc_compatible is False
+
+
+@then("the resolved runner is TFC-compatible")
+def assert_tfc_compatible(resolved):
+    assert resolved.tfc_compatible is True
