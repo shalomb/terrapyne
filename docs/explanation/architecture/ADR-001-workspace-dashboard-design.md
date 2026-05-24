@@ -119,6 +119,6 @@ def list(self, workspace_id, include="configuration-version,plan", ...):
 - ADR-003: API Include Parameter Design
 
 ## Implementation Notes
-- See plan: /home/unop/.claude/plans/foamy-gathering-ullman.md
+- See plan: *(historical — `foamy-gathering-ullman.md`)*
 - Branch: feat/workspace-dashboard
 - Key files: src/terrapyne/cli/workspace_cmd.py, src/terrapyne/models/run.py, src/terrapyne/utils/rich_tables.py

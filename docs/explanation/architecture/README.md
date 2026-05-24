@@ -76,7 +76,7 @@ When proposing a new ADR:
 
 ## Related Files
 
-- Implementation plan: `/home/unop/.claude/plans/foamy-gathering-ullman.md`
+- Implementation plan: *(historical — `foamy-gathering-ullman.md`)*
 - Feature branch: `feat/workspace-dashboard` (derived from workspace-enrichment)
 - Key source files:
   - `src/terrapyne/models/run.py` — Run model with enrichment fields
