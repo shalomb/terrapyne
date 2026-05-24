@@ -93,6 +93,22 @@ def test_factory_opentofu():
     pass
 
 
+@scenario(
+    "../features/opentofu_support.feature",
+    "TERRAPYNE_RUNNER env var selects runner for new projects",
+)
+def test_env_var_selects_runner():
+    pass
+
+
+@scenario(
+    "../features/opentofu_support.feature",
+    "Heuristic takes precedence over TERRAPYNE_RUNNER",
+)
+def test_heuristic_over_env_var():
+    pass
+
+
 # --- Given steps ---
 
 
@@ -130,6 +146,15 @@ def binary_not_in_path():
 @given("the workspace directory is empty")
 def workspace_is_empty():
     pass
+
+
+@given(
+    parsers.parse('the environment variable "{var}" is set to "{value}"'),
+    target_fixture="env_override",
+)
+def env_var_set(var: str, value: str, monkeypatch) -> tuple[str, str]:
+    monkeypatch.setenv(var, value)
+    return (var, value)
 
 
 # --- When steps ---

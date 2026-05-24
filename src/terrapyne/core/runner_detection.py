@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from shutil import which
 from typing import TYPE_CHECKING
@@ -53,10 +54,18 @@ def detect_runner(
                 "Lockfile exists but cannot determine runner from its contents."
             )
     else:
-        raise AmbiguousRunnerError(
-            "No lockfile or version manager file found. "
-            "Set TERRAPYNE_RUNNER or pass --force-runner."
-        )
+        # 3. Fall back to TERRAPYNE_RUNNER env var
+        env_runner = os.environ.get("TERRAPYNE_RUNNER")
+        if env_runner:
+            if env_runner in ("tofu", "opentofu"):
+                runner = "opentofu"
+            else:
+                runner = "terraform"
+        else:
+            raise AmbiguousRunnerError(
+                "No lockfile or version manager file found. "
+                "Set TERRAPYNE_RUNNER or pass --force-runner."
+            )
 
     # Verify binary exists
     binary = "tofu" if runner == "opentofu" else "terraform"
