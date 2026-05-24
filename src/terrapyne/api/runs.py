@@ -24,45 +24,52 @@ class RunsAPI:
     def list(
         self,
         workspace_id: str,
-        limit: int = 20,
+        limit: int | None = 20,
         status: str | None = None,
         include: str | None = "configuration-version,plan",
     ) -> tuple[builtins.list[Run], int]:
-        """List runs for a workspace.
+        """List runs for a workspace with honest pagination.
 
         Args:
             workspace_id: Workspace ID
-            limit: Maximum number of runs to return
+            limit: Maximum number of runs to return. None means fetch all.
             status: Filter by status (can be comma-separated list)
             include: Resources to include
 
         Returns:
             Tuple of (list of Run instances, total count)
         """
+        page_size = min(limit, 100) if limit is not None else 100
         params: dict[str, Any] = {
-            "page[size]": min(limit, 100),
+            "page[size]": page_size,
         }
         if include:
             params["include"] = include
-
         if status:
             params["filter[status]"] = status
 
         path = f"/workspaces/{workspace_id}/runs"
-        response = self.client.get(path, params=params)
+        runs: builtins.list[Run] = []
+        total_count = 0
+        page = 1
 
-        runs = []
-        data = response.get("data", [])
-        included = response.get("included", [])
-        total_count = response.get("meta", {}).get("pagination", {}).get("total-count", 0)
+        while True:
+            page_params = {**params, "page[number]": page}
+            response = self.client.get(path, params=page_params)
 
-        # Use an iterator if we need to fetch more pages (not implemented here for simplicity)
-        items_iterator = data
+            data = response.get("data", [])
+            included = response.get("included", [])
+            total_count = response.get("meta", {}).get("pagination", {}).get("total-count", 0)
 
-        for item in items_iterator:
-            runs.append(Run.from_api_response(item, included=included))
-            if len(runs) >= limit:
+            for item in data:
+                runs.append(Run.from_api_response(item, included=included))
+                if limit is not None and len(runs) >= limit:
+                    return runs, total_count
+
+            if not response.get("links", {}).get("next"):
                 break
+
+            page += 1
 
         return runs, total_count
 
