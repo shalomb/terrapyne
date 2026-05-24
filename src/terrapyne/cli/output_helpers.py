@@ -7,7 +7,10 @@ from typing import TYPE_CHECKING
 from terrapyne.rendering.logging import console, error_console
 
 if TYPE_CHECKING:
+    import typer
     from rich.console import Console
+
+    from terrapyne.cli.agent_context import AgentContext
 
 
 def set_console(new_console: Console) -> None:
@@ -28,6 +31,31 @@ def set_quiet_mode(quiet: bool) -> None:
     error_console.quiet = quiet
 
 
+def configure_for_agent_context() -> "AgentContext":
+    """Detect agent context and reconfigure the shared console accordingly.
+
+    When running under an agent harness or automation pipeline:
+    - Rich markup and colour are suppressed (no ANSI in piped output)
+    - Progress/spinner output is quieted
+    - The detected context is returned so the CLI callback can store it
+
+    Returns the AgentContext so the caller can log the reason and store it
+    in ctx.obj for commands to read.
+    """
+    from terrapyne.cli.agent_context import detect
+
+    ctx = detect()
+
+    if ctx.is_agent:
+        # Suppress colour and terminal markup — agents consume plain text or JSON
+        console._force_terminal = False
+        console.no_color = True
+        error_console._force_terminal = False
+        error_console.no_color = True
+
+    return ctx
+
+
 def setup_logging(debug: bool = False) -> None:
     if debug:
         import logging
@@ -42,6 +70,26 @@ def setup_logging(debug: bool = False) -> None:
         handler.setFormatter(MultiFormatter())
         handler.setLevel(logging.DEBUG)
         logger.addHandler(handler)
+
+
+def effective_format(ctx: "typer.Context", requested: str) -> str:
+    """Resolve the effective output format for a command.
+
+    If the user explicitly passed --format, that wins.  Otherwise, when running
+    under an agent/automation context the default is "json" so agents get
+    machine-readable output without having to pass --format json every time.
+    """
+    import click
+
+    # If the user supplied --format explicitly, honour it unconditionally.
+    if ctx.get_parameter_source("output_format") == click.core.ParameterSource.COMMANDLINE:
+        return requested
+
+    agent_ctx = (ctx.obj or {}).get("agent_context")
+    if agent_ctx and agent_ctx.is_agent and requested == "table":
+        return "json"
+
+    return requested
 
 
 def emit_json(data):

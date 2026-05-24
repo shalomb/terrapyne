@@ -38,6 +38,10 @@ Based on recent Agent-Native CLI design research, the backlog is currently struc
   Focus: Paying down technical debt, improving consistency, and patching data leaks.
   Includes: A18 (var command refactor), A16 (sensitive leak), D10 (docs).
 
+- **PR Batch 6: Automation & Agent Contract**
+  Focus: Closing the gap between documented CLI design principles and actual implementation.
+  Includes: AX-stdout (stderr separation), AX-json-mutations (structured output for mutations), AX-next-action (IDs + next-step hints), AX-no-interactive (flag bypasses), AX-tty-aware (pipe-safe output).
+
 ---
 
 ## Priority Matrix (WSJF)
@@ -744,6 +748,45 @@ terrapyne run trigger tec-dce-inn-dev-93400-shalombhooshi && echo "triggered"
 **Success Criteria**:
 - Refactor `var-set`, `var-rm`, `var-copy`, and `variables` into a new `workspace var` subcommand group.
 - Example: `tfc workspace var list`, `tfc workspace var set`.
+
+---
+
+## Automation & Agent Contract: Implementation Gaps
+
+These items close the gap between the principles documented in `docs/explanation/design-philosophy.md` and the current implementation. Each maps to a named principle.
+
+| # | Principle | Gap | Impact | Effort | Status |
+|---|---|---|---|---|---|
+| AX-stdout | stdout/stderr separation | `console.print` writes non-data output to stdout; breaks `cmd \| jq` | 🔴 | M | TODO |
+| AX-json-mutations | Structured output contract | `workspace create`, `workspace clone`, `run trigger` lack `--format json` | 🔴 | S | TODO (AX5) |
+| AX-next-action | Output guides next action | Successful mutations don't consistently echo the resource ID and next-step hint | 🟡 | S | TODO |
+| AX-actionable-errors | Actionable errors | API errors lack fix-command hints; only AX7 (title+detail) implemented so far | 🟡 | M | PARTIAL |
+| AX-no-interactive | No interactive requirements | `workspace var-rm` has no `--yes`; `--quiet` is position-sensitive (B14, B15) | 🟡 | S | TODO |
+| AX-tty-aware | TTY-aware output | `workspace list` truncates in pipes; no auto-disable of truncation on non-TTY (B12) | 🟡 | S | TODO |
+
+### AX-stdout — stderr separation
+
+**Intent**: Non-data output (progress, warnings, tables, confirmations) must not contaminate stdout, which is reserved for machine-readable data.
+
+**Context**: `console = Console()` (without `stderr=True`) writes Rich output to stdout. Any command with `--format json` is polluted by progress lines unless the caller redirects explicitly.
+
+**Fix**: Switch the shared `console` to `Console(stderr=True)`, or introduce a separate `console_err` for progress/warnings and use `print()` / `sys.stdout.write()` only for structured data output.
+
+**Success Criteria**:
+- `terrapyne workspace list --format json 2>/dev/null` produces valid JSON with no non-JSON lines
+- `terrapyne run trigger my-ws --format json | jq .id` works without shell gymnastics
+
+### AX-next-action — Output guides the next action
+
+**Intent**: Every successful mutation should print the ID of the created/modified resource on a predictable line, and where relevant, suggest the next command.
+
+**Context**: `workspace create` prints `✓ Workspace created` but buries the ID in a table. An agent parsing stdout for the ID has no reliable target line.
+
+**Fix**: For mutations, always emit the resource ID as the last line of stdout (or as the `id` field in `--format json`). For wait commands, print the concluding `run show <id>` or equivalent on success.
+
+**Success Criteria**:
+- `terrapyne workspace create my-ws | tail -1` reliably outputs just the workspace ID
+- `--format json` output always contains an `id` field for singular resources
 
 ---
 

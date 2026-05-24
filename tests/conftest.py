@@ -230,3 +230,26 @@ def setup_console():
     finally:
         _restore(console, snap_console)
         _restore(error_console, snap_error)
+
+
+@pytest.fixture(autouse=True)
+def default_human_context(request):
+    """Prevent real agent env vars (e.g. CLAUDECODE=1) from affecting tests.
+
+    By default all tests run as if the CLI is invoked by a human at a terminal.
+    Tests that specifically need agent context patch configure_for_agent_context
+    themselves (see test_agent_context_cli_bdd.py).
+    """
+    # Tests in agent_context_cli_bdd manage their own patching — skip there.
+    if "agent_context_cli" in request.module.__name__:
+        yield
+        return
+
+    from unittest.mock import patch
+
+    from terrapyne.cli.agent_context import AgentContext
+
+    human_ctx = AgentContext(is_agent=False, reason=None)
+    # Patch where configure_for_agent_context is *used* (main.py imports it by name)
+    with patch("terrapyne.cli.main.configure_for_agent_context", return_value=human_ctx):
+        yield
