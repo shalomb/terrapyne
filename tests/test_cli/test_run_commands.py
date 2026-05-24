@@ -369,7 +369,7 @@ def try_list_no_context():
 
 @then("I should receive guidance on how to specify a workspace")
 def check_workspace_guidance(try_list_no_context):
-    assert "workspace" in try_list_no_context.stdout.lower()
+    assert "workspace" in (try_list_no_context.stdout + try_list_no_context.stderr).lower()
 
 
 @then("the request should not proceed")
@@ -524,7 +524,7 @@ def try_examine_missing_step():
 
 @then(parsers.parse("I should be notified that the record was not found"))
 def check_not_found_msg(try_examine_missing):
-    assert "not found" in try_examine_missing.stdout.lower()
+    assert "not found" in (try_examine_missing.stdout + try_examine_missing.stderr).lower()
 
 
 # ============================================================================

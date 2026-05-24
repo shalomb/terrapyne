@@ -9,7 +9,7 @@ from typing import Any, TypeVar
 import typer
 
 from terrapyne.core.exceptions import TerrapyneError, TFCAPIError
-from terrapyne.rendering.logging import console
+from terrapyne.rendering.logging import error_console
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -23,7 +23,7 @@ def handle_cli_errors(func: F) -> F:
             raise
         except TFCAPIError as e:
             status = f" ({e.status_code})" if e.status_code else ""
-            console.print(f"[red]API Error{status}:[/red] {e}")
+            error_console.print(f"[red]API Error{status}:[/red] {e}")
             if e.response is not None:
                 errors = None
                 if isinstance(e.response, dict):
@@ -38,15 +38,15 @@ def handle_cli_errors(func: F) -> F:
                         title = err.get("title", "")
                         detail = err.get("detail", "")
                         if title:
-                            console.print(f"  [red]•[/red] [bold]{title}[/bold]")
+                            error_console.print(f"  [red]•[/red] [bold]{title}[/bold]")
                         if detail:
-                            console.print(f"    {detail}")
+                            error_console.print(f"    {detail}")
             raise typer.Exit(code=1) from None
         except (TerrapyneError, ValueError) as e:
-            console.print(f"[red]Error:[/red] {e}")
+            error_console.print(f"[red]Error:[/red] {e}")
             raise typer.Exit(code=1) from None
         except Exception as e:
-            console.print(f"[red]Unexpected error:[/red] {e}")
+            error_console.print(f"[red]Unexpected error:[/red] {e}")
             raise typer.Exit(code=1) from None
 
     return wrapper  # type: ignore

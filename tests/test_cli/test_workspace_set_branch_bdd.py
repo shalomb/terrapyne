@@ -184,7 +184,8 @@ def exit_0(cli_result):
 
 @then('I should see error message containing "no VCS"')
 def error_no_vcs(cli_result):
-    assert "no VCS" in cli_result.stdout or "VCS" in cli_result.stdout, cli_result.stdout
+    output = cli_result.stdout + cli_result.stderr
+    assert "no VCS" in output or "VCS" in output, output
 
 
 @then("exit code should be 1")
