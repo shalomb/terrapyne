@@ -24,6 +24,23 @@ def handle_cli_errors(func: F) -> F:
         except TFCAPIError as e:
             status = f" ({e.status_code})" if e.status_code else ""
             console.print(f"[red]API Error{status}:[/red] {e}")
+            if e.response is not None:
+                errors = None
+                if isinstance(e.response, dict):
+                    errors = e.response.get("errors")
+                else:
+                    try:
+                        errors = e.response.json().get("errors")
+                    except Exception:
+                        pass
+                if errors:
+                    for err in errors:
+                        title = err.get("title", "")
+                        detail = err.get("detail", "")
+                        if title:
+                            console.print(f"  [red]•[/red] [bold]{title}[/bold]")
+                        if detail:
+                            console.print(f"    {detail}")
             raise typer.Exit(code=1) from None
         except (TerrapyneError, ValueError) as e:
             console.print(f"[red]Error:[/red] {e}")

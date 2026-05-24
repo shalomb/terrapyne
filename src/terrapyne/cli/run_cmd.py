@@ -680,6 +680,9 @@ def run_trigger(
                 raise typer.Exit(0)
 
             if not final_run.status.is_successful:
+                error_summary = client.runs.get_error_summary(final_run)
+                if error_summary:
+                    console.print(f"\n[red]Error details:[/red]\n{error_summary}")
                 raise typer.Exit(1)
 
         except TimeoutError as e:
@@ -778,6 +781,9 @@ def run_watch(
                 raise typer.Exit(0)
 
             if not run.status.is_successful:
+                error_summary = client.runs.get_error_summary(run)
+                if error_summary:
+                    console.print(f"\n[red]Error details:[/red]\n{error_summary}")
                 raise typer.Exit(1)
 
         except TimeoutError as e:
