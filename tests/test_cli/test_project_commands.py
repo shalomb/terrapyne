@@ -476,21 +476,23 @@ def check_org_error_exact(try_list_projects_no_org):
     """Verify exact error message about missing organization."""
     result = try_list_projects_no_org["result"]
     assert result.exit_code != 0
-    assert "organization" in result.stdout.lower()
+    assert "organization" in (result.stdout + result.stderr).lower()
 
 
 @then("error should mention how to specify organization")
 def check_org_error_how(try_list_projects_no_org):
     """Verify error tells user how to specify organization."""
     result = try_list_projects_no_org["result"]
-    assert "--organization" in result.stdout or "organization" in result.stdout.lower()
+    output = result.stdout + result.stderr
+    assert "--organization" in output or "organization" in output.lower()
 
 
 @then('error should mention "--organization"')
 def check_org_error_hint(try_list_projects_no_org):
     """Verify error mentions organization option."""
     result = try_list_projects_no_org["result"]
-    assert "--organization" in result.stdout or "ORGANIZATION" in result.stdout
+    output = result.stdout + result.stderr
+    assert "--organization" in output or "ORGANIZATION" in output
 
 
 @then("exit code should be 1")

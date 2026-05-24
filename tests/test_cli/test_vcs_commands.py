@@ -332,13 +332,14 @@ def try_show_vcs_configuration(vcs_context):
 def check_missing_workspace_error(try_show_vcs_configuration):
     result = try_show_vcs_configuration["result"]
     assert result.exit_code != 0
-    assert "workspace" in result.stdout.lower() or "argument" in result.stdout.lower()
+    output = (result.stdout + result.stderr).lower()
+    assert "workspace" in output or "argument" in output
 
 
 @then('error should mention "--workspace"')
 def check_workspace_hint(try_show_vcs_configuration):
     result = try_show_vcs_configuration["result"]
-    assert "workspace" in result.stdout.lower()
+    assert "workspace" in (result.stdout + result.stderr).lower()
 
 
 @then("exit code should be 1")
@@ -351,4 +352,4 @@ def check_exit_code_1(try_show_vcs_configuration):
 def check_missing_org_error(try_show_vcs_configuration):
     result = try_show_vcs_configuration["result"]
     assert result.exit_code != 0
-    assert "organization" in result.stdout.lower()
+    assert "organization" in (result.stdout + result.stderr).lower()

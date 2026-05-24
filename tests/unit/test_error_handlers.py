@@ -16,7 +16,7 @@ def _dummy():
 
 
 class TestHandleCliErrorsDeepContext:
-    """handle_cli_errors surfaces structured TFC API error details."""
+    """handle_cli_errors surfaces structured TFC API error details on stderr."""
 
     def test_dict_response_with_errors(self, capsys):
         _dummy._exc = TFCAPIError(
@@ -26,9 +26,9 @@ class TestHandleCliErrorsDeepContext:
         )
         with pytest.raises(Exit):
             _dummy()
-        out = capsys.readouterr().out
-        assert "Forbidden" in out
-        assert "Team lacks access" in out
+        err = capsys.readouterr().err
+        assert "Forbidden" in err
+        assert "Team lacks access" in err
 
     def test_response_object_with_json_method(self, capsys):
         resp = MagicMock()
@@ -36,9 +36,9 @@ class TestHandleCliErrorsDeepContext:
         _dummy._exc = TFCAPIError("not found", status_code=404, response=resp)
         with pytest.raises(Exit):
             _dummy()
-        out = capsys.readouterr().out
-        assert "Not Found" in out
-        assert "ws gone" in out
+        err = capsys.readouterr().err
+        assert "Not Found" in err
+        assert "ws gone" in err
 
     def test_response_json_raises_does_not_crash(self, capsys):
         resp = MagicMock()
@@ -46,13 +46,13 @@ class TestHandleCliErrorsDeepContext:
         _dummy._exc = TFCAPIError("bad", status_code=500, response=resp)
         with pytest.raises(Exit):
             _dummy()
-        out = capsys.readouterr().out
-        assert "API Error (500)" in out
+        err = capsys.readouterr().err
+        assert "API Error (500)" in err
 
     def test_no_response_still_exits(self, capsys):
         _dummy._exc = TFCAPIError("oops", status_code=422, response=None)
         with pytest.raises(Exit):
             _dummy()
-        out = capsys.readouterr().out
-        assert "API Error (422)" in out
-        assert "oops" in out
+        err = capsys.readouterr().err
+        assert "API Error (422)" in err
+        assert "oops" in err

@@ -114,7 +114,9 @@ class TestWorkspaceSetBranchCommand:
             )
 
         assert result.exit_code == 1
-        assert "no VCS" in result.stdout or "Error" in result.stdout
+        assert "no VCS" in (result.stdout + result.stderr) or "Error" in (
+            result.stdout + result.stderr
+        )
 
     def test_set_branch_requires_organization(self):
         """set-branch exits 1 when no organization is available."""

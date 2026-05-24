@@ -173,8 +173,8 @@ def no_fuzzy_search(api_call_result):
 
 @then('I should see an error message containing "not found"')
 def error_not_found(cli_result):
-    output = cli_result.stdout.lower()
-    assert "not found" in output or "error" in output, f"expected error in: {cli_result.stdout}"
+    output = (cli_result.stdout + cli_result.stderr).lower()
+    assert "not found" in output or "error" in output, "expected error in output"
 
 
 @then("exit code should be 1")
