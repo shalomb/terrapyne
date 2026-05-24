@@ -73,3 +73,15 @@ Feature: OpenTofu Support
     And the environment variable "TERRAPYNE_RUNNER" is set to "tofu"
     When the runner is detected
     Then the detected runner is "terraform"
+
+  # --- Registry URL Detection ---
+
+  Scenario: Lockfile with opentofu registry URL selects opentofu
+    Given the lockfile contains registry "registry.opentofu.org"
+    When the runner is detected
+    Then the detected runner is "opentofu"
+
+  Scenario: Lockfile with terraform registry URL selects terraform
+    Given the lockfile contains registry "registry.terraform.io"
+    When the runner is detected
+    Then the detected runner is "terraform"

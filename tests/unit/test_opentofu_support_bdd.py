@@ -109,6 +109,22 @@ def test_heuristic_over_env_var():
     pass
 
 
+@scenario(
+    "../features/opentofu_support.feature",
+    "Lockfile with opentofu registry URL selects opentofu",
+)
+def test_registry_url_opentofu():
+    pass
+
+
+@scenario(
+    "../features/opentofu_support.feature",
+    "Lockfile with terraform registry URL selects terraform",
+)
+def test_registry_url_terraform():
+    pass
+
+
 # --- Given steps ---
 
 
@@ -155,6 +171,17 @@ def workspace_is_empty():
 def env_var_set(var: str, value: str, monkeypatch) -> tuple[str, str]:
     monkeypatch.setenv(var, value)
     return (var, value)
+
+
+@given(
+    parsers.parse('the lockfile contains registry "{registry}"'),
+    target_fixture="workspace_dir",
+)
+def lockfile_with_registry(workspace_dir: Path, registry: str) -> Path:
+    (workspace_dir / ".terraform.lock.hcl").write_text(
+        f'provider "{registry}/hashicorp/null" {{\n  version = "3.2.0"\n}}\n'
+    )
+    return workspace_dir
 
 
 # --- When steps ---

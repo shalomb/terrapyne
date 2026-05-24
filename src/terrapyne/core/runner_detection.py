@@ -49,6 +49,10 @@ def detect_runner(
             runner = "opentofu"
         elif '"terraform init"' in content:
             runner = "terraform"
+        elif "registry.opentofu.org" in content:
+            runner = "opentofu"
+        elif "registry.terraform.io" in content:
+            runner = "terraform"
         else:
             raise AmbiguousRunnerError(
                 "Lockfile exists but cannot determine runner from its contents."
