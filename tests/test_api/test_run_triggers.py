@@ -71,8 +71,34 @@ class TestRunTriggersAPIList:
         assert triggers[0].source_workspace_name == "up-ws"
 
     def test_list_returns_empty_for_no_triggers(self, api, mock_client):
-        mock_client.get.return_value = {"data": [], "included": []}
+        mock_client.get.return_value = {
+            "data": [],
+            "included": [],
+            "links": {},
+            "meta": {"pagination": {"total-count": 0}},
+        }
         assert api.list("ws-downstream1") == []
+
+    def test_list_paginates_all_pages(self, api, mock_client):
+        """BF3: list must follow pagination links, not silently truncate."""
+        page1 = {
+            "data": [_trigger_response(id="rt-1", source_ws_id="ws-up1")],
+            "included": [_included_workspace(id="ws-up1", name="up1")],
+            "links": {"next": "/workspaces/ws-down/run-triggers?page%5Bnumber%5D=2"},
+            "meta": {"pagination": {"total-count": 2}},
+        }
+        page2 = {
+            "data": [_trigger_response(id="rt-2", source_ws_id="ws-up2")],
+            "included": [_included_workspace(id="ws-up2", name="up2")],
+            "links": {},
+            "meta": {"pagination": {"total-count": 2}},
+        }
+        mock_client.get.side_effect = [page1, page2]
+        triggers = api.list("ws-downstream1")
+        assert len(triggers) == 2
+        assert triggers[0].id == "rt-1"
+        assert triggers[1].id == "rt-2"
+        assert mock_client.get.call_count == 2
 
 
 class TestRunTriggersAPIAdd:

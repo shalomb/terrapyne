@@ -26,15 +26,26 @@ class RunTriggersAPI:
             List of RunTrigger instances
         """
         path = f"/workspaces/{workspace_id}/run-triggers"
-        response = self.client.get(
-            path,
-            params={"filter[run-trigger][type]": "inbound", "include": "source-workspace"},
-        )
-        included = response.get("included", [])
-        return [
-            RunTrigger.from_api_response(item, included=included)
-            for item in response.get("data", [])
-        ]
+        params: dict[str, Any] = {
+            "filter[run-trigger][type]": "inbound",
+            "include": "source-workspace",
+            "page[size]": 100,
+        }
+        triggers: list[RunTrigger] = []
+        page = 1
+
+        while True:
+            page_params = {**params, "page[number]": page}
+            response = self.client.get(path, params=page_params)
+            included = response.get("included", [])
+            for item in response.get("data", []):
+                triggers.append(RunTrigger.from_api_response(item, included=included))
+
+            if not response.get("links", {}).get("next"):
+                break
+            page += 1
+
+        return triggers
 
     def add(self, workspace_id: str, source_workspace_id: str) -> RunTrigger:
         """Add an upstream run trigger to a workspace.
