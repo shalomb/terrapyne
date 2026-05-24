@@ -134,6 +134,14 @@ def test_resolve_runner_from_cwd():
     pass
 
 
+@scenario(
+    "../features/opentofu_support.feature",
+    "Version file content is available after detection",
+)
+def test_version_constraint():
+    pass
+
+
 # --- Given steps ---
 
 
@@ -277,3 +285,8 @@ def assert_resolved_name(resolved, expected: str):
 @then(parsers.parse('the resolved runner type is "{expected}"'))
 def assert_resolved_type(resolved, expected: str):
     assert resolved.runner_type == expected
+
+
+@then(parsers.parse('the resolved version constraint is "{expected}"'))
+def assert_version_constraint(resolved, expected: str):
+    assert resolved.version_constraint == expected

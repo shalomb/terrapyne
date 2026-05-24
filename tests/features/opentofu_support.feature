@@ -93,3 +93,10 @@ Feature: OpenTofu Support
     When the runner is resolved for the workspace
     Then the resolved runner name is "tofu"
     And the resolved runner type is "opentofu"
+
+  # --- Version Constraint ---
+
+  Scenario: Version file content is available after detection
+    Given the file ".opentofu-version" exists with content "1.8.2"
+    When the runner is resolved for the workspace
+    Then the resolved version constraint is "1.8.2"

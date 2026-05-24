@@ -97,11 +97,12 @@ def create_runner(
 class ResolvedRunner:
     """Lightweight result of runner resolution for CLI use."""
 
-    __slots__ = ("binary", "runner_type")
+    __slots__ = ("binary", "runner_type", "version_constraint")
 
-    def __init__(self, runner_type: str) -> None:
+    def __init__(self, runner_type: str, version_constraint: str | None = None) -> None:
         self.runner_type = runner_type
         self.binary = "tofu" if runner_type == "opentofu" else "terraform"
+        self.version_constraint = version_constraint
 
 
 def resolve_runner(
@@ -110,5 +111,17 @@ def resolve_runner(
     force_runner: str | None = None,
 ) -> ResolvedRunner:
     """Resolve the runner for CLI commands without instantiating the heavy class."""
+    directory = Path(directory)
     runner_type = detect_runner(directory, force_runner=force_runner)
-    return ResolvedRunner(runner_type)
+
+    # Read version constraint from version manager file
+    version_constraint: str | None = None
+    version_file = (
+        directory / ".opentofu-version"
+        if runner_type == "opentofu"
+        else directory / ".terraform-version"
+    )
+    if version_file.exists():
+        version_constraint = version_file.read_text().strip()
+
+    return ResolvedRunner(runner_type, version_constraint)
