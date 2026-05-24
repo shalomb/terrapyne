@@ -16,6 +16,7 @@ from terrapyne.core.runner_detection import (
     RunnerNotFoundError,
     create_runner,
     detect_runner,
+    resolve_runner,
 )
 
 # --- Scenario declarations ---
@@ -122,6 +123,14 @@ def test_registry_url_opentofu():
     "Lockfile with terraform registry URL selects terraform",
 )
 def test_registry_url_terraform():
+    pass
+
+
+@scenario(
+    "../features/opentofu_support.feature",
+    "Resolve runner from current working directory",
+)
+def test_resolve_runner_from_cwd():
     pass
 
 
@@ -252,3 +261,19 @@ def assert_terraform_instance(runner_instance):
 @then("the instance is an OpenTofu runner")
 def assert_opentofu_instance(runner_instance):
     assert isinstance(runner_instance, OpenTofu)
+
+
+@when("the runner is resolved for the workspace", target_fixture="resolved")
+def resolve_runner_for_workspace(workspace_dir: Path):
+    with patch("terrapyne.core.runner_detection.which", return_value="/usr/bin/fake"):
+        return resolve_runner(workspace_dir)
+
+
+@then(parsers.parse('the resolved runner name is "{expected}"'))
+def assert_resolved_name(resolved, expected: str):
+    assert resolved.binary == expected
+
+
+@then(parsers.parse('the resolved runner type is "{expected}"'))
+def assert_resolved_type(resolved, expected: str):
+    assert resolved.runner_type == expected

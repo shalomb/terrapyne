@@ -92,3 +92,23 @@ def create_runner(
     runner = detect_runner(directory, force_runner=force_runner)
     cls = OpenTofu if runner == "opentofu" else Terraform
     return cls(workspace_directory=str(directory))
+
+
+class ResolvedRunner:
+    """Lightweight result of runner resolution for CLI use."""
+
+    __slots__ = ("binary", "runner_type")
+
+    def __init__(self, runner_type: str) -> None:
+        self.runner_type = runner_type
+        self.binary = "tofu" if runner_type == "opentofu" else "terraform"
+
+
+def resolve_runner(
+    directory: Path | str,
+    *,
+    force_runner: str | None = None,
+) -> ResolvedRunner:
+    """Resolve the runner for CLI commands without instantiating the heavy class."""
+    runner_type = detect_runner(directory, force_runner=force_runner)
+    return ResolvedRunner(runner_type)
