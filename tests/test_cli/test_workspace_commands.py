@@ -1707,3 +1707,185 @@ def check_not_found_error(delete_workspace_not_found):
     result = delete_workspace_not_found["result"]
     assert result.exit_code == 1
     assert "not found" in result.stdout.lower()
+
+
+# B18 — workspace lock and unlock commands
+
+
+@scenario("../features/workspace.feature", "Unlock a workspace locked by a cancelled run")
+def test_workspace_unlock():
+    pass
+
+
+@scenario("../features/workspace.feature", "Lock a workspace with a reason")
+def test_workspace_lock_with_reason():
+    pass
+
+
+@scenario(
+    "../features/workspace.feature",
+    "Lock a workspace prompts for confirmation without --yes",
+)
+def test_workspace_lock_confirm():
+    pass
+
+
+@scenario("../features/workspace.feature", "Lock aborted when user declines confirmation")
+def test_workspace_lock_aborted():
+    pass
+
+
+@given('workspace "locked-ws" exists in "test-org"')
+def _():
+    pass
+
+
+@given('workspace "my-app-dev" exists in "test-org"')
+def _():
+    pass
+
+
+@pytest.fixture
+@when('I unlock workspace "locked-ws"')
+def unlock_workspace_result():
+    existing_ws = Workspace.from_api_response(
+        workspace_response(id="ws-locked-0001", name="locked-ws")["data"]
+    )
+    unlocked_ws = Workspace.from_api_response(
+        workspace_response(id="ws-locked-0001", name="locked-ws")["data"]
+    )
+    with (
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
+    ):
+        mock_org.return_value = "test-org"
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+        mock_instance.workspaces.get.return_value = existing_ws
+        mock_instance.workspaces.unlock.return_value = unlocked_ws
+
+        result = runner.invoke(
+            app, ["workspace", "unlock", "locked-ws", "--organization", "test-org"]
+        )
+        return {"result": result}
+
+
+@then("the workspace should be unlocked")
+def check_workspace_unlocked(unlock_workspace_result):
+    result = unlock_workspace_result["result"]
+    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+
+
+@then('output should show "Unlocked workspace: locked-ws"')
+def check_unlock_output(unlock_workspace_result):
+    result = unlock_workspace_result["result"]
+    assert "Unlocked workspace: locked-ws" in result.stdout
+
+
+@pytest.fixture
+@when('I lock workspace "my-app-dev" with reason "maintenance" and --yes')
+def lock_workspace_yes():
+    existing_ws = Workspace.from_api_response(
+        workspace_response(id="ws-myappdev001", name="my-app-dev")["data"]
+    )
+    locked_ws = Workspace.from_api_response(
+        workspace_response(id="ws-myappdev001", name="my-app-dev")["data"]
+    )
+    with (
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
+    ):
+        mock_org.return_value = "test-org"
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+        mock_instance.workspaces.get.return_value = existing_ws
+        mock_instance.workspaces.lock.return_value = locked_ws
+
+        result = runner.invoke(
+            app,
+            [
+                "workspace",
+                "lock",
+                "my-app-dev",
+                "--organization",
+                "test-org",
+                "--reason",
+                "maintenance",
+                "--yes",
+            ],
+        )
+        return {"result": result}
+
+
+@then("the workspace should be locked")
+def check_workspace_locked(lock_workspace_yes):
+    result = lock_workspace_yes["result"]
+    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+
+
+@then('output should show "Locked workspace: my-app-dev"')
+def check_lock_output(lock_workspace_yes):
+    result = lock_workspace_yes["result"]
+    assert "Locked workspace: my-app-dev" in result.stdout
+
+
+@pytest.fixture
+@when('I lock workspace "my-app-dev" without --yes and confirm yes')
+def lock_workspace_confirm_yes():
+    existing_ws = Workspace.from_api_response(
+        workspace_response(id="ws-myappdev001", name="my-app-dev")["data"]
+    )
+    locked_ws = Workspace.from_api_response(
+        workspace_response(id="ws-myappdev001", name="my-app-dev")["data"]
+    )
+    with (
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
+    ):
+        mock_org.return_value = "test-org"
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+        mock_instance.workspaces.get.return_value = existing_ws
+        mock_instance.workspaces.lock.return_value = locked_ws
+
+        result = runner.invoke(
+            app,
+            ["workspace", "lock", "my-app-dev", "--organization", "test-org"],
+            input="y\n",
+        )
+        return {"result": result}
+
+
+@then("the workspace should be locked")
+def _check_workspace_locked_confirm(lock_workspace_confirm_yes):
+    result = lock_workspace_confirm_yes["result"]
+    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+
+
+@pytest.fixture
+@when('I lock workspace "my-app-dev" without --yes and confirm no')
+def lock_workspace_confirm_no():
+    existing_ws = Workspace.from_api_response(
+        workspace_response(id="ws-myappdev001", name="my-app-dev")["data"]
+    )
+    with (
+        patch("terrapyne.cli.context_helpers.resolve_organization") as mock_org,
+        patch("terrapyne.api.client.TFCClient") as mock_client,
+    ):
+        mock_org.return_value = "test-org"
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+        mock_instance.workspaces.get.return_value = existing_ws
+
+        result = runner.invoke(
+            app,
+            ["workspace", "lock", "my-app-dev", "--organization", "test-org"],
+            input="n\n",
+        )
+        return {"result": result}
+
+
+@then('output should show "Aborted"')
+def check_lock_aborted(lock_workspace_confirm_no):
+    result = lock_workspace_confirm_no["result"]
+    assert "Aborted" in result.stdout or "aborted" in result.stdout.lower()

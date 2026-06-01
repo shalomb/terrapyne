@@ -311,6 +311,32 @@ class WorkspaceAPI:
         response = self.client.post(path, json_data=payload)
         return Workspace.from_api_response(response["data"])
 
+    def unlock(self, workspace_id: str) -> Workspace:
+        """Unlock a workspace.
+
+        Args:
+            workspace_id: Workspace ID to unlock
+
+        Returns:
+            Updated Workspace instance
+        """
+        self.client.post(f"/workspaces/{workspace_id}/actions/unlock")
+        return self.get_by_id(workspace_id)
+
+    def lock(self, workspace_id: str, reason: str | None = None) -> Workspace:
+        """Lock a workspace.
+
+        Args:
+            workspace_id: Workspace ID to lock
+            reason: Optional reason for locking
+
+        Returns:
+            Updated Workspace instance
+        """
+        payload = {"reason": reason} if reason else None
+        self.client.post(f"/workspaces/{workspace_id}/actions/lock", json_data=payload)
+        return self.get_by_id(workspace_id)
+
     def delete(self, workspace_id: str) -> None:
         """Delete a workspace by ID.
 
