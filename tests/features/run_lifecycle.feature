@@ -35,6 +35,19 @@ Feature: Infrastructure Change Lifecycle
     Then the execution should be halted
     And its final status should be "discarded"
 
+  Scenario: Cancel a pending run
+    Given a run "run-abc123" exists in "pending" status
+    When I cancel the run "run-abc123"
+    Then the run is cancelled
+    And the output confirms cancellation
+
+  # B17 — actionable error when discarding a pending/planning run
+  Scenario: Discard a pending run surfaces actionable error
+    Given a run "run-pending456" exists in "pending" status
+    When I discard the run "run-pending456"
+    Then the command exits with code 1
+    And the error output contains "use `tfc run cancel run-pending456` instead"
+
   Scenario: Triggering a change with a descriptive message
     When I trigger a plan for "my-app-dev" with the message "Release v2.0"
     Then the new execution should be labeled with "Release v2.0"

@@ -799,6 +799,53 @@ def workspace_delete(
     console.print(f"[green]✓[/green] Deleted workspace: {name}")
 
 
+@app.command("unlock")
+@handle_cli_errors
+def workspace_unlock(
+    ctx: typer.Context,
+    name: str = typer.Argument(..., help="Workspace name to unlock"),
+    organization: str | None = typer.Option(None, "--organization", "-o", help="TFC organization"),
+):
+    """Unlock a workspace locked by a cancelled or errored run."""
+    org = resolve_organization(organization)
+    if not org:
+        console.print("[red]Error: Organization not specified and not found in context.[/red]")
+        raise typer.Exit(1)
+
+    with get_client(ctx, organization=org) as client:
+        ws = client.workspaces.get(name, org)
+        client.workspaces.unlock(ws.id)
+
+    console.print(f"[green]✓[/green] Unlocked workspace: {name}")
+
+
+@app.command("lock")
+@handle_cli_errors
+def workspace_lock(
+    ctx: typer.Context,
+    name: str = typer.Argument(..., help="Workspace name to lock"),
+    organization: str | None = typer.Option(None, "--organization", "-o", help="TFC organization"),
+    reason: str | None = typer.Option(None, "--reason", "-r", help="Reason for locking"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
+):
+    """Lock a workspace to prevent runs from being created."""
+    org = resolve_organization(organization)
+    if not org:
+        console.print("[red]Error: Organization not specified and not found in context.[/red]")
+        raise typer.Exit(1)
+
+    with get_client(ctx, organization=org) as client:
+        ws = client.workspaces.get(name, org)
+
+        if not yes and not typer.confirm(f"Lock workspace '{name}' in '{org}'?"):
+            console.print("[yellow]Aborted.[/yellow]")
+            raise typer.Exit(0)
+
+        client.workspaces.lock(ws.id, reason=reason)
+
+    console.print(f"[green]✓[/green] Locked workspace: {name}")
+
+
 @app.command("costs")
 @handle_cli_errors
 def workspace_costs(

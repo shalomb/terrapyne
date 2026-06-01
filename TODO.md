@@ -62,14 +62,28 @@ Based on recent Agent-Native CLI design research, the backlog is currently struc
 | B13 | `run trigger` exits non-zero on success — breaks `&&` chains and scripting | 🟡 | S | 2.0 | 🔄 fix/scripting-polish |
 | B14 | `workspace var-rm` no `--yes`/`-y` flag — always prompts interactively, unusable in scripts | 🟡 | S | 2.0 | 🔄 fix/scripting-polish |
 | B15 | `--quiet` flag position-sensitive — `terrapyne workspace list --quiet` fails; must be `terrapyne --quiet workspace list` | 🟢 | S | 1.0 | 🔄 fix/scripting-polish (partial: `workspace --quiet list` now works) |
+| **BUGS (ASG BB v4.0 session, June 2026)** |
+| B16 | `run cancel` missing — pending runs cannot be cancelled; only discard exists (valid for cost_estimated/policy_checked only) | 🔴 | S | 4.0 | TODO |
+| B17 | `run discard` returns 409 on pending runs — should auto-route to cancel or surface actionable error | 🔴 | S | 4.0 | TODO |
+| B18 | `workspace unlock` missing — locked workspaces require raw API call to unblock | 🔴 | S | 4.0 | TODO |
+| B19 | `run trigger --wait` hangs on `pending` when predecessor run awaits apply — no timeout, no hint | 🔴 | M | 2.0 | TODO |
+| B20 | `run trigger` no `--workspace-id` override — context auto-detection breaks after workspace rename | 🟡 | S | 2.0 | TODO |
+| B21 | `run watch` / `run trigger` timeout hardcoded at 1800s — too short for agent-pool execution mode | 🟡 | S | 2.0 | TODO |
+| **AGENT EXPERIENCE (AX) GAPS** |
+| AX8 | `run trigger --wait` not default in agent context — agents must know to pass `--wait` or they fire-and-forget | 🔴 | M | 2.0 | TODO |
+| AX9 | `run trigger` silent on VCS-connected workspaces — agent pushes commit + triggers run, causing duplicate runs and wrong run being followed | 🔴 | M | 2.0 | TODO |
+| AX10 | Non-zero exits lack structured `hints` array — agent context exits should include corrective command suggestions in JSON envelope | 🟡 | M | 1.0 | TODO |
 | **NEW FEATURES** |
 | F13 | `workspace set-branch <workspace> <branch>` — switch VCS branch from CLI | 🟡 | S | 2.0 | ✅ |
+| F14 | `workspace rename <old> <new>` — rename workspace from CLI | 🟡 | S | 2.0 | TODO |
+| F15 | `workspace set-working-dir <workspace> <dir>` — set working directory from CLI | 🟢 | S | 1.0 | TODO |
 | F4 | Workspace notifications (webhook/Slack config) | 🟡 | M | 1.0 | TODO |
 | F5 | Policy sets / Sentinel outcome reporting | 🟡 | M | 1.0 | TODO |
 | F6 | Private registry query (modules + providers) | 🟡 | M | 1.0 | TODO |
 | F7 | Agent pools — list and show self-hosted agents | 🟡 | M | 1.0 | TODO |
 | F8 | SSH keys / VCS OAuth token management | 🟢 | L | 0.33 | TODO |
 | F10 | Context honoring (org/workspace) in `run list` and `run logs` | 🟡 | S | 2.0 | TODO |
+| F16 | `run apply --auto-apply` flag — currently only on `run watch`; apply + watch in one command | 🟢 | S | 1.0 | TODO |
 | **COMPLETED** |
 | F9 | `workspace update` command and API update method | 🔴 | M | 2.0 | ✅ |
 | B3 | `paginate_with_meta` `included` leaks only last page | 🟡 | S | 2.0 | ✅ |
@@ -846,3 +860,161 @@ These features are specifically designed to reduce the "glue logic" (bash pipes,
 **Fix**: Implement context discovery (similar to `tfc run trigger`) so that `run list` and `run logs` automatically infer `--workspace` and `--org` from the `.terraform` directory or `terraform.tf` files if invoked without explicit flags.
 **Success Criteria**:
 - `terrapyne run list` executed in a directory with initialized terraform backend prints the runs for the inferred workspace.
+
+---
+
+### B16 — `run cancel` missing
+
+**Intent**: Allow cancellation of pending or planning runs, which cannot be discarded.
+
+**Context**: TFC has two distinct stop operations — cancel (`/actions/cancel`, valid for pending/planning/applying) and discard (`/actions/discard`, valid for cost_estimated/policy_checked). Only `run discard` exists in terrapyne. Agents and scripts hitting pending runs are forced to use raw API calls.
+
+**Success Criteria**:
+- `tfc run cancel <run-id> [-m "reason"]` cancels a pending or planning run
+- Mirrors the existing `run discard` command structure
+- JSON output supported (`--format json`)
+
+---
+
+### B17 — `run discard` returns 409 on pending runs
+
+**Intent**: Surface an actionable error (or auto-route) when discard is called on a run state that requires cancel instead.
+
+**Context**: `run discard` returns HTTP 409 on pending runs. The TFC API distinguishes discard (post-plan) from cancel (pre/during-plan). The CLI should either detect the run state and route to the correct endpoint, or surface: _"Run is pending — use `tfc run cancel <id>` instead."_
+
+**Success Criteria**:
+- `tfc run discard <pending-run-id>` returns exit 1 with a clear error naming `run cancel` as the remedy
+- OR auto-routes to cancel when run state is pending/planning/applying
+
+---
+
+### B18 — `workspace unlock` missing
+
+**Intent**: Unlock a workspace locked by a cancelled or errored run.
+
+**Context**: Workspaces can be left locked after a run errors or is cancelled mid-apply. No CLI command exists to unlock; the only recourse is `POST /workspaces/{id}/actions/unlock` via raw API.
+
+**Success Criteria**:
+- `tfc workspace unlock <workspace>` unlocks the workspace
+- `tfc workspace lock <workspace>` for completeness (if not already implemented)
+- Confirmation guard for lock; unlock is non-destructive
+
+---
+
+### B19 — `run trigger --wait` hangs on `pending` when predecessor awaits apply
+
+**Intent**: When `--wait` sees a run stuck in `pending`, detect why and exit with an actionable structured hint rather than spinning indefinitely.
+
+**Context**: In non-auto-apply workspaces, a run stays `pending` until preceding runs are applied or discarded. Agents running `run trigger --wait` spin forever assuming the run will become active. The CLI should detect this condition and exit non-zero with structured JSON identifying the blocking run.
+
+**Action**: After N seconds of no state progress, check for preceding runs in `cost_estimated` or `planned` state. Exit non-zero with:
+```json
+{
+  "status": "pending",
+  "reason": "blocked_by_predecessor",
+  "predecessor_run_id": "run-xxx",
+  "hints": ["tfc run apply run-xxx", "tfc run discard run-xxx"]
+}
+```
+
+**Success Criteria**:
+- `run trigger --wait` exits non-zero after configurable stall timeout (default 120s of no progress)
+- JSON envelope includes `predecessor_run_id` and `hints` when blocked
+- Human output names the predecessor and suggests the corrective command
+- `--stall-timeout` flag to override the stall detection window
+
+---
+
+### B20 — No `--workspace-id` override for workspace resolution
+
+**Intent**: Allow commands that auto-detect workspace from `terraform.tf` to be overridden with an explicit workspace ID or name.
+
+**Context**: After a workspace rename, `terraform.tf` still references the old name. Any command using context auto-detection fails with 404. Users are forced to use raw API calls with the workspace ID directly.
+
+**Action**: Add `--workspace-id` (and `--workspace` name override) to `run trigger`, `run list`, `run logs`, `run follow`, and any other command that performs context auto-detection.
+
+**Success Criteria**:
+- `tfc run trigger --workspace-id ws-xxx` bypasses `terraform.tf` auto-detection
+- `tfc run list --workspace my-renamed-ws` overrides auto-detected name
+- Flags documented in CLI reference
+
+---
+
+### B21 — `run watch` / `run trigger` timeout too short for agent pools
+
+**Intent**: Allow configurable timeout for run polling to accommodate slow agent pool pickup.
+
+**Context**: The hardcoded 1800s timeout is hit when TFC agent pools are slow to pick up jobs. Operators using self-hosted agent pools regularly see `"did not complete within 1800.0s (current status: pending)"`.
+
+**Success Criteria**:
+- `--timeout <seconds>` flag on `run trigger` and `run watch` (0 = infinite, Ctrl-C to abort)
+- Default remains 1800s for backwards compatibility
+
+---
+
+### AX8 — `run trigger` should default to `--wait` in agent context
+
+**Intent**: Eliminate the agent trap of fire-and-forget triggering — agents that don't know to pass `--wait` get a run ID and then have no way to track progress without additional commands.
+
+**Context**: In agent context (detected via `agent_context.py`), `run trigger` should block by default. In TTY/human context, it should remain fire-and-forget. Explicit `--wait` / `--no-wait` override in either direction.
+
+**Success Criteria**:
+- `run trigger` in agent context (non-TTY stdout) blocks until terminal state by default
+- `run trigger --no-wait` in agent context returns immediately with run ID
+- `run trigger --wait` in human context blocks (opt-in, current behaviour)
+- JSON exit envelope on completion/failure per B19
+
+---
+
+### AX9 — `run trigger` silent on VCS-connected workspaces
+
+**Intent**: Warn agents before they create a duplicate run on a VCS-connected workspace where a git push already triggered a run.
+
+**Context**: When an agent pushes a commit and then calls `run trigger`, TFC creates two runs. The agent follows the manually-triggered run which stays `pending` behind the VCS-triggered run. The VCS-triggered run reaches `cost_estimated` and waits for apply; the agent's run never becomes active.
+
+**Action**: Before creating a run, check if the workspace has VCS integration (`vcs-repo` relationship). If yes, emit to stderr (or include in JSON `warnings` field):
+```
+warning: workspace "my-ws" has VCS integration — a run may already have been
+triggered by your git push. Check: tfc run list --workspace my-ws
+```
+Run is still created (soft warn, not hard stop) so agents can proceed if they know what they're doing.
+
+**Success Criteria**:
+- `run trigger` on a VCS-connected workspace emits a warning before creating the run
+- `--format json` output includes `"warnings": ["vcs_integration_detected"]`
+- `--force` flag suppresses the warning for agents that explicitly want dual runs
+
+---
+
+### AX10 — Non-zero exits lack structured `hints`
+
+**Intent**: Complete the AX-actionable-errors principle: every non-zero exit in agent context should include a `hints` array of corrective commands.
+
+**Context**: AX7 added `title` and `detail` from TFC API errors. The next step is adding `hints` — concrete CLI commands the agent can run to recover. This turns dead-end failures into self-healing workflows.
+
+**Success Criteria**:
+- JSON error envelope gains a `hints: string[]` field
+- Common errors have hints: 409 conflict → `--ignore-exists`, 404 workspace → `--workspace-id`, pending blocked → `tfc run apply <id>`
+- Empty array `[]` when no hint is available (never omitted)
+
+---
+
+### F14 — `workspace rename`
+
+**Intent**: Rename a workspace from the CLI without requiring raw API calls.
+
+**Success Criteria**:
+- `tfc workspace rename <old-name> <new-name>`
+- Warns if VCS-connected (terraform.tf will need manual update)
+
+---
+
+### F16 — `run apply --auto-apply`
+
+**Intent**: Apply a specific run and watch it to completion in a single command.
+
+**Context**: `run apply <id>` approves the run but returns immediately. To then watch it, a separate `run watch --auto-apply` is needed. Agents end up writing two-step logic for a single workflow.
+
+**Success Criteria**:
+- `tfc run apply <id> --auto-apply` approves then watches until terminal state
+- Equivalent to `tfc run apply <id> && tfc run watch <id>`

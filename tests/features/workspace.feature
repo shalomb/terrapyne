@@ -275,3 +275,31 @@ Feature: Workspace Operations
     When I try to delete workspace "ghost-workspace" in "test-org"
     Then I should see error message containing "not found"
     And exit code should be 1
+
+  # B18 — workspace lock and unlock commands
+
+  Scenario: Unlock a workspace locked by a cancelled run
+    Given workspace "locked-ws" exists in "test-org"
+    When I unlock workspace "locked-ws"
+    Then the workspace should be unlocked
+    And output should show "Unlocked workspace: locked-ws"
+    And exit code should be 0
+
+  Scenario: Lock a workspace with a reason
+    Given workspace "my-app-dev" exists in "test-org"
+    When I lock workspace "my-app-dev" with reason "maintenance" and --yes
+    Then the workspace should be locked
+    And output should show "Locked workspace: my-app-dev"
+    And exit code should be 0
+
+  Scenario: Lock a workspace prompts for confirmation without --yes
+    Given workspace "my-app-dev" exists in "test-org"
+    When I lock workspace "my-app-dev" without --yes and confirm yes
+    Then the workspace should be locked
+    And exit code should be 0
+
+  Scenario: Lock aborted when user declines confirmation
+    Given workspace "my-app-dev" exists in "test-org"
+    When I lock workspace "my-app-dev" without --yes and confirm no
+    Then output should show "Aborted"
+    And exit code should be 0

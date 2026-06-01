@@ -111,6 +111,19 @@ def test_discard_run():
     pass
 
 
+@scenario("../features/run_lifecycle.feature", "Cancel a pending run")
+def test_cancel_run():
+    pass
+
+
+@scenario(
+    "../features/run_lifecycle.feature",
+    "Discard a pending run surfaces actionable error",
+)
+def test_discard_pending_run_actionable_error():
+    pass
+
+
 @scenario("../features/run_lifecycle.feature", "Triggering a change with a descriptive message")
 def test_trigger_run_with_message():
     pass
@@ -723,6 +736,42 @@ def check_halted(cli_result, status=None):
     assert cli_result.exit_code == 0
     if status:
         assert status in cli_result.stdout.lower()
+
+
+# B16 — run cancel step definitions
+
+
+@given(parsers.parse('a run "{run_id}" exists in "{status}" status'), target_fixture="mock_client")
+def run_exists_in_status(run_id, status):
+    m = MagicMock()
+    m.runs.get.return_value = Run.model_construct(id=run_id, status=RunStatus(status))
+    return m
+
+
+@when(parsers.parse('I cancel the run "{run_id}"'), target_fixture="cli_result")
+def cancel_run(run_id, mock_client):
+    with (
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
+        patch("terrapyne.api.client.TFCClient") as c,
+    ):
+        v.return_value = ("test-org", None)
+        c.return_value.__enter__.return_value = mock_client
+
+        mock_client.runs.cancel.return_value = Run.model_construct(
+            id=run_id, status=RunStatus.CANCELED
+        )
+
+        return runner.invoke(app, ["run", "cancel", run_id, "-o", "test-org"])
+
+
+@then("the run is cancelled")
+def check_run_cancelled(cli_result):
+    assert cli_result.exit_code == 0
+
+
+@then("the output confirms cancellation")
+def check_cancellation_output(cli_result):
+    assert "cancel" in cli_result.stdout.lower()
 
 
 @then(parsers.parse('the new execution should be labeled with "{message}"'))
@@ -1379,3 +1428,35 @@ def output_not_say(cli_result, text):
     assert call_kwargs.kwargs.get("log_read_url") == _ARCHIVIST_URL, (
         "get_plan_logs not called with the plan's log_read_url"
     )
+
+
+# B17 — actionable error when discarding a pending/planning run
+
+
+@when(parsers.parse('I discard the run "{run_id}"'), target_fixture="cli_result")
+def discard_pending_run(run_id, mock_client):
+    from terrapyne.core.exceptions import TFCConflictError
+
+    with (
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
+        patch("terrapyne.api.client.TFCClient") as c,
+    ):
+        v.return_value = ("test-org", None)
+        c.return_value.__enter__.return_value = mock_client
+
+        mock_client.runs.discard.side_effect = TFCConflictError("conflict", status_code=409)
+
+        result = runner.invoke(app, ["run", "discard", run_id, "-o", "test-org"])
+        result.mock_client = mock_client
+        return result
+
+
+@then("the command exits with code 1")
+def check_exit_code_1(cli_result):
+    assert cli_result.exit_code == 1
+
+
+@then(parsers.parse('the error output contains "{text}"'))
+def check_error_output_contains(cli_result, text):
+    combined = (cli_result.output or "") + (cli_result.stdout or "")
+    assert text in combined, f"Expected {text!r} in output:\n{combined}"
