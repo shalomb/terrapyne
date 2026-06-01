@@ -111,6 +111,11 @@ def test_discard_run():
     pass
 
 
+@scenario("../features/run_lifecycle.feature", "Cancel a pending run")
+def test_cancel_run():
+    pass
+
+
 @scenario("../features/run_lifecycle.feature", "Triggering a change with a descriptive message")
 def test_trigger_run_with_message():
     pass
@@ -723,6 +728,42 @@ def check_halted(cli_result, status=None):
     assert cli_result.exit_code == 0
     if status:
         assert status in cli_result.stdout.lower()
+
+
+# B16 — run cancel step definitions
+
+
+@given(parsers.parse('a run "{run_id}" exists in "{status}" status'), target_fixture="mock_client")
+def run_exists_in_status(run_id, status):
+    m = MagicMock()
+    m.runs.get.return_value = Run.model_construct(id=run_id, status=RunStatus(status))
+    return m
+
+
+@when(parsers.parse('I cancel the run "{run_id}"'), target_fixture="cli_result")
+def cancel_run(run_id, mock_client):
+    with (
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
+        patch("terrapyne.api.client.TFCClient") as c,
+    ):
+        v.return_value = ("test-org", None)
+        c.return_value.__enter__.return_value = mock_client
+
+        mock_client.runs.cancel.return_value = Run.model_construct(
+            id=run_id, status=RunStatus.CANCELED
+        )
+
+        return runner.invoke(app, ["run", "cancel", run_id, "-o", "test-org"])
+
+
+@then("the run is cancelled")
+def check_run_cancelled(cli_result):
+    assert cli_result.exit_code == 0
+
+
+@then("the output confirms cancellation")
+def check_cancellation_output(cli_result):
+    assert "cancel" in cli_result.stdout.lower()
 
 
 @then(parsers.parse('the new execution should be labeled with "{message}"'))

@@ -937,6 +937,33 @@ def run_discard(
         console.print(f"[green]✓[/green] Run {run_id} discarded (Status: {run.status.value})")
 
 
+@app.command("cancel")
+@handle_cli_errors
+def run_cancel(
+    ctx: typer.Context,
+    run_id: Annotated[str, typer.Argument(help="Run ID")],
+    organization: Annotated[
+        str | None,
+        typer.Option(
+            "--organization",
+            "-o",
+            help="TFC organization (auto-detected from context if available)",
+        ),
+    ] = None,
+    comment: Annotated[
+        str | None,
+        typer.Option("--comment", "-m", help="Reason for cancelling"),
+    ] = None,
+):
+    """Cancel a pending, planning, or applying run."""
+    org, _ = validate_context(organization)
+
+    with get_client(ctx, organization=org) as client:
+        console.print(f"[dim]Cancelling run:[/dim] {run_id}")
+        run = client.runs.cancel(run_id, comment=comment)
+        console.print(f"[green]✓[/green] Run {run_id} cancelled (Status: {run.status.value})")
+
+
 @app.command("parse-plan")
 @handle_cli_errors
 def run_parse_plan(
