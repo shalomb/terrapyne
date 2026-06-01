@@ -104,9 +104,33 @@ def test_stdout_pipe():
 
 @scenario(
     "../features/agent_context.feature",
-    "Unknown agent with no recognised env var is caught by pipe detection",
+    "Unknown agent with no recognised env var is caught by TTY check",
 )
 def test_unknown_agent_pipe():
+    pass
+
+
+@scenario(
+    "../features/agent_context.feature",
+    "Human piping output to grep gets JSON — program is consuming stdout",
+)
+def test_human_pipe_gets_json():
+    pass
+
+
+@scenario(
+    "../features/agent_context.feature",
+    "TERM=dumb signals a PTY-allocating agent that suppresses colour",
+)
+def test_term_dumb():
+    pass
+
+
+@scenario(
+    "../features/agent_context.feature",
+    "Agent with PTY and TERM=dumb is detected despite stdout being a tty",
+)
+def test_term_dumb_with_pty():
     pass
 
 
