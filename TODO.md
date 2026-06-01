@@ -63,9 +63,11 @@ Based on recent Agent-Native CLI design research, the backlog is currently struc
 | B14 | `workspace var-rm` no `--yes`/`-y` flag — always prompts interactively, unusable in scripts | 🟡 | S | 2.0 | 🔄 fix/scripting-polish |
 | B15 | `--quiet` flag position-sensitive — `terrapyne workspace list --quiet` fails; must be `terrapyne --quiet workspace list` | 🟢 | S | 1.0 | 🔄 fix/scripting-polish (partial: `workspace --quiet list` now works) |
 | **BUGS (ASG BB v4.0 session, June 2026)** |
-| B16 | `run cancel` missing — pending runs cannot be cancelled; only discard exists (valid for cost_estimated/policy_checked only) | 🔴 | S | 4.0 | TODO |
-| B17 | `run discard` returns 409 on pending runs — should auto-route to cancel or surface actionable error | 🔴 | S | 4.0 | TODO |
-| B18 | `workspace unlock` missing — locked workspaces require raw API call to unblock | 🔴 | S | 4.0 | TODO |
+| B16 | `run cancel` missing — pending runs cannot be cancelled; only discard exists (valid for cost_estimated/policy_checked only) | 🔴 | S | 4.0 | ✅ [#130](https://github.com/shalomb/terrapyne/pull/130) |
+| B17 | `run discard` returns 409 on pending runs — should auto-route to cancel or surface actionable error | 🔴 | S | 4.0 | ✅ [#130](https://github.com/shalomb/terrapyne/pull/130) |
+| B18 | `workspace unlock` missing — locked workspaces require raw API call to unblock | 🔴 | S | 4.0 | ✅ [#130](https://github.com/shalomb/terrapyne/pull/130) |
+| B22 | `run discard` hint fires for terminal states (applied/errored/cancelled) — suggests `run cancel` which is equally invalid | 🟡 | S | 2.0 | TODO |
+| B23 | Duplicate BDD step `"the workspace should be locked"` in workspace lock tests — second registration silently shadows first | 🟢 | S | 1.0 | TODO |
 | B19 | `run trigger --wait` hangs on `pending` when predecessor run awaits apply — no timeout, no hint | 🔴 | M | 2.0 | TODO |
 | B20 | `run trigger` no `--workspace-id` override — context auto-detection breaks after workspace rename | 🟡 | S | 2.0 | TODO |
 | B21 | `run watch` / `run trigger` timeout hardcoded at 1800s — too short for agent-pool execution mode | 🟡 | S | 2.0 | TODO |
