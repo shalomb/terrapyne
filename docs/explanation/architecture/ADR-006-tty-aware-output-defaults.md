@@ -98,9 +98,9 @@ does not allocate a PTY, which is the common case for headless tool invocation.
   gets JSON. This is acceptable — the output is being consumed by a program
   (`grep`), not read directly. If the human wants a table, they read it first
   then filter: `tfc workspace list` (no pipe).
-- **Agents with PTY allocation** (e.g. agy with `TERM=dumb`): these must set
-  `TERRAPYNE_OUTPUT=json` or `NO_COLOR` explicitly, or rely on Tier 1/2 vars.
-  This is a known limitation, documented in the agent integration guide.
+- **Agents with PTY allocation** (e.g. agy): these must set `TERRAPYNE_OUTPUT=json`
+  or `NO_COLOR` explicitly, or rely on Tier 1/2 vars. This is a known limitation,
+  documented in the agent integration guide.
 
 ## Alternatives Considered
 
@@ -120,6 +120,15 @@ edge cases.
 
 Require `--format json` explicitly everywhere. Rejected: agents that don't
 know to pass the flag get broken output; this is the problem we are solving.
+
+### A5: `TERM=dumb` as a Tier 1 signal
+
+Use `TERM=dumb` to detect PTY-allocating agents that suppress colour (empirically
+observed in agy). Rejected: `TERM=dumb` is a legitimate setting for human
+terminals — Emacs `M-x shell`, serial terminals, and degraded SSH sessions all
+use it. This would silently serve JSON to human users with no way to know why.
+agy is correctly caught by Tier 3 when it runs subprocesses without a PTY, which
+is the normal headless case.
 
 ### A4: `TERRAPYNE_AGENT=1` convention
 

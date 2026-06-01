@@ -120,22 +120,6 @@ def test_human_pipe_gets_json():
 
 @scenario(
     "../features/agent_context.feature",
-    "TERM=dumb signals a PTY-allocating agent that suppresses colour",
-)
-def test_term_dumb():
-    pass
-
-
-@scenario(
-    "../features/agent_context.feature",
-    "Agent with PTY and TERM=dumb is detected despite stdout being a tty",
-)
-def test_term_dumb_with_pty():
-    pass
-
-
-@scenario(
-    "../features/agent_context.feature",
     "Interactive terminal with no agent signals is classified as human",
 )
 def test_human_interactive():

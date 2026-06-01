@@ -11,7 +11,7 @@ Per ADR-006, TTY state is the primary and authoritative signal:
 Detection is tiered, with the first match winning:
 
   Tier 1 — Explicit declaration (unconditional; covers PTY-allocating agents)
-    TERRAPYNE_OUTPUT=json, NO_COLOR, TERM=dumb,
+    TERRAPYNE_OUTPUT=json, NO_COLOR,
     TF_IN_AUTOMATION, CI, GITHUB_ACTIONS, ...
 
   Tier 2 — Known agent harness (cooperative agents that self-identify)
@@ -92,11 +92,7 @@ def detect(env: dict[str, str] | None = None, stdout_isatty: bool | None = None)
     if "NO_COLOR" in env:
         return AgentContext(is_agent=True, reason="NO_COLOR is set")
 
-    # Tier 1c: TERM=dumb — PTY allocated but colour suppressed (e.g. agy)
-    if env.get("TERM") == "dumb":
-        return AgentContext(is_agent=True, reason="TERM=dumb")
-
-    # Tier 1d: CI / automation vars
+    # Tier 1c: CI / automation vars
     for var in _CI_VARS:
         if env.get(var):
             return AgentContext(is_agent=True, reason=f"{var}={env[var]!r}")

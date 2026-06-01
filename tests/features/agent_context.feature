@@ -135,21 +135,6 @@ Feature: Agent context detection
       Then it is identified as an agent
       And the reason contains "stdout is not a tty"
 
-    Scenario: TERM=dumb signals a PTY-allocating agent that suppresses colour
-      Given the environment has "TERM" set to "dumb"
-      And stdout is a tty
-      When agent context is detected
-      Then it is identified as an agent
-      And the reason contains "TERM=dumb"
-
-    Scenario: Agent with PTY and TERM=dumb is detected despite stdout being a tty
-      Given the environment has "TERM" set to "dumb"
-      And the environment does not have "CLAUDECODE"
-      And stdout is a tty
-      When agent context is detected
-      Then it is identified as an agent
-      And the reason contains "TERM=dumb"
-
   Rule: A human at an interactive terminal is not misclassified
 
     Scenario: Interactive terminal with no agent signals is classified as human
