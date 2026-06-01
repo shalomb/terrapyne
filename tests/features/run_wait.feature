@@ -32,3 +32,10 @@ Feature: Run Queue and Wait Management
     When I trigger a new plan for "my-app-dev" with --wait
     Then the command should exit with code 0
     And the output should indicate it is paused for approval
+
+  Scenario: Pending run stall triggers a predecessor hint after timeout
+    Given workspace "my-app-dev" has a run stuck in "pending"
+    And the run has been pending for more than 60 seconds
+    When I run "run trigger --wait" for "my-app-dev"
+    Then a hint is surfaced that a predecessor run may be blocking progress
+    And in human mode the hint is a stderr message

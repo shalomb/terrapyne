@@ -193,3 +193,65 @@ def check_discarded(mock_client):
 @then("the output should indicate it is paused for approval")
 def check_paused_output(cli_result):
     assert "Run paused for manual approval" in cli_result.output
+
+
+@scenario(
+    "../features/run_wait.feature",
+    "Pending run stall triggers a predecessor hint after timeout",
+)
+def test_pending_stall_hint():
+    pass
+
+
+@given(parsers.parse('workspace "{workspace_name}" has a run stuck in "pending"'))
+def workspace_with_stuck_run(mock_client, workspace_name):
+    stuck_run = Run.model_construct(id="run-stuck", status=RunStatus.PENDING)
+    mock_client.runs.create.return_value = stuck_run
+
+
+@given("the run has been pending for more than 60 seconds")
+def run_pending_over_threshold(mock_client):
+    # poll_until_complete will call on_stall; simulate by having it invoke the callback
+    applied = Run.model_construct(id="run-stuck", status=RunStatus.APPLIED)
+
+    def _poll_with_stall(run_id, *, max_wait=1800.0, on_stall=None, **kwargs):
+        if on_stall:
+            stuck = Run.model_construct(id=run_id, status=RunStatus.PENDING)
+            on_stall(stuck, 65.0)
+        return applied
+
+    mock_client.runs.poll_until_complete.side_effect = _poll_with_stall
+
+
+@when(
+    parsers.parse('I run "run trigger --wait" for "{workspace_name}"'),
+    target_fixture="cli_result",
+)
+def run_trigger_wait_for_stall(mock_client, workspace_name):
+    with (
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
+        patch("terrapyne.api.client.TFCClient") as c,
+    ):
+        v.return_value = ("test-org", workspace_name)
+        c.return_value.__enter__.return_value = mock_client
+        return runner.invoke(
+            app,
+            ["run", "trigger", workspace_name, "--wait", "-o", "test-org"],
+            catch_exceptions=False,
+        )
+
+
+@then("a hint is surfaced that a predecessor run may be blocking progress")
+def check_hint_surfaced(cli_result):
+    assert cli_result.exit_code == 0
+    # hint goes to stderr
+    assert (
+        "predecessor" in (cli_result.stderr or "").lower()
+        or "pending" in (cli_result.stderr or "").lower()
+    )
+
+
+@then("in human mode the hint is a stderr message")
+def check_human_mode_hint(cli_result):
+    assert cli_result.stderr is not None
+    assert "predecessor run" in cli_result.stderr or "blocking" in cli_result.stderr

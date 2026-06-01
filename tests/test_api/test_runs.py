@@ -482,3 +482,141 @@ class TestRunIntegration:
         }
         updated_run = api.apply(run_id=run_id)
         assert updated_run.status == RunStatus.APPLIED
+
+
+class TestPollUntilComplete:
+    """Tests for poll_until_complete with on_stall callback."""
+
+    def _make_run(self, run_id: str, status: RunStatus, workspace_id: str = "ws-123") -> Run:
+        return Run.model_construct(id=run_id, status=status, workspace_id=workspace_id)
+
+    def _make_api(self, get_side_effect):
+        mock_client = MagicMock()
+        api = RunsAPI(mock_client)
+        api.get = MagicMock(side_effect=get_side_effect)
+        return api
+
+    def test_on_stall_fires_once_when_pending_exceeds_threshold(self):
+        """on_stall callback fires once after pending exceeds pending_hint_after."""
+        pending_run = self._make_run("run-1", RunStatus.PENDING)
+        applied_run = self._make_run("run-1", RunStatus.APPLIED)
+
+        # Needs: pending (t=0), pending (t=61, stall fires), applied (terminal)
+        calls = iter([pending_run, pending_run, applied_run])
+        api = self._make_api(lambda _: next(calls))
+
+        stall_calls = []
+
+        with pytest.MonkeyPatch().context() as mp:
+            # time.time() calls in order:
+            # 1: start_time=0.0
+            # 2: loop1 now=1.0  → pending_since=1.0
+            # 3: loop2 now=65.0 → pending_elapsed=64.0 >= 60 → fires stall
+            # 4: loop3 now=65.1 → applied, terminal
+            times = iter([0.0, 1.0, 65.0, 65.1])
+            mp.setattr("time.sleep", lambda s: None)
+            mp.setattr("time.time", lambda: next(times))
+
+            api.poll_until_complete(
+                "run-1",
+                pending_hint_after=60.0,
+                on_stall=lambda run, elapsed: stall_calls.append((run, elapsed)),
+            )
+
+        assert len(stall_calls) == 1
+        assert stall_calls[0][0] is pending_run
+        assert stall_calls[0][1] >= 60.0
+
+    def test_on_stall_does_not_fire_when_not_pending(self):
+        """on_stall is not called when run is in a non-pending active state."""
+        planning_run = self._make_run("run-1", RunStatus.PLANNING)
+        applied_run = self._make_run("run-1", RunStatus.APPLIED)
+
+        calls = iter([planning_run, applied_run])
+        api = self._make_api(lambda _: next(calls))
+
+        stall_calls = []
+
+        with pytest.MonkeyPatch().context() as mp:
+            # start_time=0, loop1(planning) now=1.0; loop2(applied) is terminal, no now call
+            times = iter([0.0, 1.0])
+            mp.setattr("time.sleep", lambda s: None)
+            mp.setattr("time.time", lambda: next(times))
+
+            api.poll_until_complete(
+                "run-1",
+                pending_hint_after=60.0,
+                on_stall=lambda run, elapsed: stall_calls.append((run, elapsed)),
+            )
+
+        assert len(stall_calls) == 0
+
+    def test_on_stall_fires_only_once_across_multiple_pending_polls(self):
+        """on_stall fires exactly once even if run stays pending through many polls."""
+        pending = self._make_run("run-1", RunStatus.PENDING)
+        applied = self._make_run("run-1", RunStatus.APPLIED)
+
+        # 3 pending polls then applied
+        calls = iter([pending, pending, pending, applied])
+        api = self._make_api(lambda _: next(calls))
+
+        stall_calls = []
+
+        with pytest.MonkeyPatch().context() as mp:
+            # start=0; loop1(pending) now=1.0 → pending_since=1; loop2(pending) now=65 → fires
+            # loop3(pending) now=66 → already fired; loop4(applied) terminal, no now call
+            times = iter([0.0, 1.0, 65.0, 66.0])
+            mp.setattr("time.sleep", lambda s: None)
+            mp.setattr("time.time", lambda: next(times))
+
+            api.poll_until_complete(
+                "run-1",
+                pending_hint_after=60.0,
+                on_stall=lambda run, elapsed: stall_calls.append((run, elapsed)),
+            )
+
+        assert len(stall_calls) == 1
+
+    def test_on_stall_resets_when_status_leaves_pending(self):
+        """Pending timer resets when status changes out of pending; re-fires after new stall."""
+        pending1 = self._make_run("run-1", RunStatus.PENDING)
+        planning = self._make_run("run-1", RunStatus.PLANNING)
+        pending2 = self._make_run("run-1", RunStatus.PENDING)
+        applied = self._make_run("run-1", RunStatus.APPLIED)
+
+        # pending1, planning, pending2, pending2 (stall fires), applied
+        calls = iter([pending1, planning, pending2, pending2, applied])
+        api = self._make_api(lambda _: next(calls))
+
+        stall_calls = []
+
+        with pytest.MonkeyPatch().context() as mp:
+            # start=0; loop1(p1) now=1 → pending_since=1; loop2(planning) now=2 → reset
+            # loop3(p2) now=3 → pending_since=3; loop4(p2) now=70 → elapsed=67 → fires
+            # loop5(applied) terminal, no now call
+            times = iter([0.0, 1.0, 2.0, 3.0, 70.0])
+            mp.setattr("time.sleep", lambda s: None)
+            mp.setattr("time.time", lambda: next(times))
+
+            api.poll_until_complete(
+                "run-1",
+                pending_hint_after=60.0,
+                on_stall=lambda run, elapsed: stall_calls.append((run, elapsed)),
+            )
+
+        assert len(stall_calls) == 1
+
+    def test_poll_without_on_stall_still_works(self):
+        """poll_until_complete works normally when on_stall is not provided."""
+        applied = self._make_run("run-1", RunStatus.APPLIED)
+        calls = iter([applied])
+        api = self._make_api(lambda _: next(calls))
+
+        with pytest.MonkeyPatch().context() as mp:
+            times = iter([0.0])
+            mp.setattr("time.sleep", lambda s: None)
+            mp.setattr("time.time", lambda: next(times))
+
+            result = api.poll_until_complete("run-1")
+
+        assert result.status == RunStatus.APPLIED
