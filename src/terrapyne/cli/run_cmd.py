@@ -14,8 +14,9 @@ from terrapyne.api.org_errors import get_errored_workspaces
 from terrapyne.cli.context_helpers import get_client, resolve_project_context, validate_context
 from terrapyne.cli.error_handlers import handle_cli_errors
 from terrapyne.cli.output_helpers import effective_format, emit_json
+from terrapyne.core.exceptions import TFCConflictError
 from terrapyne.models.run import Run
-from terrapyne.rendering.logging import console
+from terrapyne.rendering.logging import console, error_console
 from terrapyne.rendering.rich_tables import render_run_detail, render_runs
 
 app = typer.Typer(help="Run management commands")
@@ -933,7 +934,15 @@ def run_discard(
 
     with get_client(ctx, organization=org) as client:
         console.print(f"[dim]Discarding run:[/dim] {run_id}")
-        run = client.runs.discard(run_id, comment=comment)
+        try:
+            run = client.runs.discard(run_id, comment=comment)
+        except TFCConflictError:
+            current = client.runs.get(run_id)
+            error_console.print(
+                f"[red]Error:[/red] Run is in '{current.status.value}' state"
+                f" — use `tfc run cancel {run_id}` instead."
+            )
+            raise typer.Exit(1) from None
         console.print(f"[green]✓[/green] Run {run_id} discarded (Status: {run.status.value})")
 
 
