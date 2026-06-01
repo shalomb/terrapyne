@@ -49,6 +49,10 @@ def run_list(
             help="Workspace name (auto-detected if omitted)",
         ),
     ] = None,
+    workspace_id: Annotated[
+        str | None,
+        typer.Option("--workspace-id", help="Workspace ID (bypasses context detection)"),
+    ] = None,
     organization: Annotated[
         str | None,
         typer.Option(
@@ -69,30 +73,37 @@ def run_list(
     ] = "table",
 ):
     """List runs for a workspace."""
-    # Resolve organization and workspace (positional arg takes precedence over --workspace option)
-    org, workspace_name = validate_context(
-        organization, workspace_arg or workspace, require_workspace=True
-    )
+    if workspace_id:
+        from terrapyne.core.context import resolve_organization
 
-    with get_client(ctx, organization=org) as client:
-        # Get workspace to retrieve workspace ID
-        ws = client.workspaces.get(workspace_name or "", organization=org)  # type: ignore[arg-type]
+        _org = resolve_organization(organization) or organization
+        if not _org:
+            console.print("[red]Error: Organization not specified and not found in context.[/red]")
+            raise typer.Exit(1)
+        with get_client(ctx, organization=_org) as client:
+            runs, total = client.runs.list(workspace_id=workspace_id, limit=limit, status=status)
+        org, workspace_name = _org, workspace_id  # type: ignore[assignment]
+    else:
+        # Resolve organization and workspace (positional arg takes precedence over --workspace option)
+        org, workspace_name = validate_context(  # type: ignore[assignment]
+            organization, workspace_arg or workspace, require_workspace=True
+        )
+        with get_client(ctx, organization=org) as client:
+            ws = client.workspaces.get(workspace_name or "", organization=org)  # type: ignore[arg-type]
+            runs, total = client.runs.list(workspace_id=ws.id, limit=limit, status=status)
 
-        # Fetch runs
-        runs, total = client.runs.list(workspace_id=ws.id, limit=limit, status=status)
+    if not runs:
+        status_msg = f" with status '{status}'" if status else ""
+        console.print(
+            f"[yellow]No runs found for workspace '{workspace_name}'{status_msg}.[/yellow]"
+        )
+        return
 
-        if not runs:
-            status_msg = f" with status '{status}'" if status else ""
-            console.print(
-                f"[yellow]No runs found for workspace '{workspace_name}'{status_msg}.[/yellow]"
-            )
-            return
+    if effective_format(ctx, output_format) == "json":
+        emit_json([run.model_dump() for run in runs])
+        return
 
-        if effective_format(ctx, output_format) == "json":
-            emit_json([run.model_dump() for run in runs])
-            return
-
-        render_runs(runs, f"Runs in {workspace_name}", total_count=total)
+    render_runs(runs, f"Runs in {workspace_name}", total_count=total)
 
 
 @app.command("show")
@@ -348,6 +359,12 @@ def run_logs(
         str | None,
         typer.Option("--workspace", "-w", help="Workspace name (required with --latest)"),
     ] = None,
+    workspace_id: Annotated[
+        str | None,
+        typer.Option(
+            "--workspace-id", help="Workspace ID for --latest (bypasses context detection)"
+        ),
+    ] = None,
     latest: Annotated[
         bool,
         typer.Option("--latest", help="Show logs for the most recent run of --workspace"),
@@ -374,11 +391,14 @@ def run_logs(
 
     with get_client(ctx, organization=org) as client:
         if latest:
-            if not ws_name:
-                console.print("[red]Error: --latest requires --workspace[/red]")
+            if workspace_id:
+                ws_lookup_id = workspace_id
+            elif ws_name:
+                ws_lookup_id = client.workspaces.get(ws_name, org).id
+            else:
+                console.print("[red]Error: --latest requires --workspace or --workspace-id[/red]")
                 raise typer.Exit(1)
-            ws = client.workspaces.get(ws_name, org)
-            runs, _ = client.runs.list(workspace_id=ws.id, limit=1)
+            runs, _ = client.runs.list(workspace_id=ws_lookup_id, limit=1)
             run = next(iter(runs), None)
             if not run:
                 console.print("[yellow]No runs found for workspace.[/yellow]")
@@ -701,6 +721,10 @@ def run_trigger(
             help="TFC organization",
         ),
     ] = None,
+    workspace_id: Annotated[
+        str | None,
+        typer.Option("--workspace-id", help="Workspace ID (bypasses context detection)"),
+    ] = None,
     message: Annotated[
         str | None,
         typer.Option("--message", "-m", help="Reason for the run"),
@@ -776,8 +800,18 @@ def run_trigger(
     ] = False,
 ):
     """Trigger a new run with advanced queue management."""
-    # Resolve organization and workspace
-    org, workspace_name = validate_context(organization, workspace, require_workspace=True)
+    if workspace_id:
+        from terrapyne.core.context import resolve_organization
+
+        _org = resolve_organization(organization) or organization
+        if not _org:
+            console.print("[red]Error: Organization not specified and not found in context.[/red]")
+            raise typer.Exit(1)
+        org, workspace_name = _org, workspace_id  # type: ignore[assignment]
+        ws_id = workspace_id
+    else:
+        org, workspace_name = validate_context(organization, workspace, require_workspace=True)  # type: ignore[assignment]
+        ws_id = None  # resolved inside client context below
 
     if destroy and not auto_approve:
         if not typer.confirm(
@@ -788,8 +822,9 @@ def run_trigger(
             raise typer.Exit(0)
 
     with get_client(ctx, organization=org) as client:
-        # Get workspace ID
-        ws = client.workspaces.get(workspace_name or "", organization=org)  # type: ignore[arg-type]
+        if ws_id is None:
+            ws = client.workspaces.get(workspace_name or "", organization=org)  # type: ignore[arg-type]
+            ws_id = ws.id
 
         is_vcs = False
         vcs_repo = getattr(ws, "vcs_repo", None)
@@ -814,7 +849,7 @@ def run_trigger(
             raise typer.Exit(1)
 
         # 1. Handle existing runs
-        active_runs = client.runs.get_active_runs(ws.id)
+        active_runs = client.runs.get_active_runs(ws_id)
         if active_runs:
             if discard_older:
                 console.print(f"[dim]Discarding {len(active_runs)} active run(s)...[/dim]")
@@ -856,12 +891,12 @@ def run_trigger(
         # 2. Create run
         if speculative:
             run = client.runs.create_speculative(
-                workspace_id=ws.id,
+                workspace_id=ws_id,
                 message=message or f"{run_type} triggered via terrapyne",
             )
         else:
             run = client.runs.create(
-                workspace_id=ws.id,
+                workspace_id=ws_id,
                 message=message or f"{run_type} triggered via terrapyne",
                 is_destroy=destroy,
                 auto_apply=auto_apply,
@@ -950,6 +985,10 @@ def run_watch(
             "-o",
             help="TFC organization (auto-detected from context if available)",
         ),
+    ] = None,
+    workspace_id: Annotated[
+        str | None,
+        typer.Option("--workspace-id", help="Workspace ID (bypasses context detection)"),
     ] = None,
     auto_apply: Annotated[
         bool,
@@ -1098,6 +1137,10 @@ def run_follow(
             "-o",
             help="TFC organization (auto-detected from context if available)",
         ),
+    ] = None,
+    workspace_id: Annotated[
+        str | None,
+        typer.Option("--workspace-id", help="Workspace ID (bypasses context detection)"),
     ] = None,
     max_wait: Annotated[
         int,

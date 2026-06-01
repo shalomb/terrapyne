@@ -51,6 +51,14 @@ def test_run_list_positional_workspace():
     pass
 
 
+@scenario(
+    "../features/run_listing.feature",
+    "run list with explicit workspace ID bypasses context detection",
+)
+def test_run_list_workspace_id_bypass():
+    pass
+
+
 # ============================================================================
 # Scenarios - Details
 # ============================================================================
@@ -1691,3 +1699,38 @@ def monitor_new_run(cli_result):
 @then("the command should wait for completion")
 def wait_for_completion(cli_result):
     assert cli_result.mock_client.runs.poll_until_complete.called
+
+
+# B20 — --workspace-id bypass
+
+
+@given("the environment has no terraform context")
+def no_terraform_context():
+    pass
+
+
+@pytest.fixture
+@when(
+    parsers.parse('I list runs using workspace id "{ws_id}"'),
+    target_fixture="run_list_workspace_id_result",
+)
+def run_list_with_workspace_id(ws_id, run_list_response):
+    with patch("terrapyne.api.client.TFCClient") as mock_client:
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+        runs = [Run.from_api_response(data) for data in run_list_response["data"]]
+        mock_instance.runs.list.return_value = (runs, len(runs))
+        result = runner.invoke(
+            app, ["run", "list", "--workspace-id", ws_id, "--organization", "test-org"]
+        )
+        return {"result": result, "mock_instance": mock_instance, "ws_id": ws_id}
+
+
+@then(parsers.parse('runs for workspace "{ws_id}" are returned without context resolution'))
+def check_runs_returned_for_workspace_id(run_list_workspace_id_result, ws_id):
+    result = run_list_workspace_id_result["result"]
+    assert result.exit_code == 0, f"Exit {result.exit_code}: {result.stdout}"
+    # Verify runs.list was called with the workspace ID directly (no workspace name lookup)
+    mock_instance = run_list_workspace_id_result["mock_instance"]
+    mock_instance.runs.list.assert_called_once_with(workspace_id=ws_id, limit=20, status=None)
+    mock_instance.workspaces.get.assert_not_called()
