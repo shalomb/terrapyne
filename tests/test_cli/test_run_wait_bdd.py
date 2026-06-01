@@ -255,3 +255,46 @@ def check_hint_surfaced(cli_result):
 def check_human_mode_hint(cli_result):
     assert cli_result.stderr is not None
     assert "predecessor run" in cli_result.stderr or "blocking" in cli_result.stderr
+
+
+# B21 — --timeout flag
+
+
+@scenario("../features/run_wait.feature", "run watch respects explicit timeout flag")
+def test_run_watch_timeout():
+    pass
+
+
+@given(parsers.parse('a run "{run_id}" is currently "{status}"'), target_fixture="mock_client")
+def run_in_status(run_id, status):
+    m = MagicMock()
+    run = Run.model_construct(id=run_id, status=RunStatus(status))
+    m.runs.get.return_value = run
+    return m
+
+
+@when(
+    parsers.parse('I watch "{run_id}" with timeout "{seconds}"'),
+    target_fixture="cli_result",
+)
+def watch_run_with_timeout(mock_client, run_id, seconds):
+    with (
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
+        patch("terrapyne.api.client.TFCClient") as c,
+        patch("time.sleep"),  # skip actual sleeping
+        patch("time.time", side_effect=[0.0, float(seconds) + 1.0]),  # immediately expire
+    ):
+        v.return_value = ("test-org", None)
+        c.return_value.__enter__.return_value = mock_client
+        return runner.invoke(app, ["run", "watch", run_id, "--timeout", seconds, "-o", "test-org"])
+
+
+@then("the command exits with a timeout error")
+def check_timeout_error(cli_result):
+    combined = cli_result.output + (cli_result.stderr or "")
+    assert "Warning" in combined or "timeout" in combined.lower()
+
+
+@then("the exit code is non-zero")
+def check_nonzero_exit(cli_result):
+    assert cli_result.exit_code != 0

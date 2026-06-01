@@ -771,8 +771,12 @@ def run_trigger(
     ] = False,
     max_wait: Annotated[
         int,
-        typer.Option("--max-wait", help="Max seconds to wait for queue/completion"),
+        typer.Option("--max-wait", hidden=True, help="Alias for --timeout (deprecated)"),
     ] = 1800,
+    timeout: Annotated[
+        int,
+        typer.Option("--timeout", help="Max seconds to wait (0 = infinite)"),
+    ] = -1,
     debug_run: Annotated[
         bool,
         typer.Option("--debug-run", help="Enable TFC debugging mode for this run"),
@@ -800,6 +804,8 @@ def run_trigger(
     ] = False,
 ):
     """Trigger a new run with advanced queue management."""
+    effective_timeout = timeout if timeout >= 0 else max_wait
+
     if workspace_id:
         from terrapyne.core.context import resolve_organization
 
@@ -863,7 +869,12 @@ def run_trigger(
                     f"({current_run.status.value}) to finish...[/dim]"
                 )
                 try:
-                    client.runs.poll_until_complete(current_run.id, max_wait=float(max_wait))
+                    client.runs.poll_until_complete(
+                        current_run.id,
+                        max_wait=float(effective_timeout)
+                        if effective_timeout != 0
+                        else float("inf"),
+                    )
                 except TimeoutError as e:
                     console.print(f"\n[red]Error:[/red] Timed out waiting for queue: {e}")
                     raise typer.Exit(1) from None
@@ -936,7 +947,7 @@ def run_trigger(
             final_run = client.runs.poll_until_complete(
                 run.id,
                 callback=callback,
-                max_wait=float(max_wait),
+                max_wait=float(effective_timeout) if effective_timeout != 0 else float("inf"),
                 on_stall=_make_stall_callback(output_format),
             )
             print()
@@ -1003,8 +1014,12 @@ def run_watch(
     ] = None,
     max_wait: Annotated[
         int,
-        typer.Option("--max-wait", help="Max seconds to wait"),
+        typer.Option("--max-wait", hidden=True, help="Alias for --timeout (deprecated)"),
     ] = 1800,
+    timeout: Annotated[
+        int,
+        typer.Option("--timeout", help="Max seconds to wait (0 = infinite)"),
+    ] = -1,
 ):
     """Watch progress of an existing run (e.g. triggered by a VCS push).
 
@@ -1016,6 +1031,8 @@ def run_watch(
     estimation completes, then waits for the apply to finish.
     """
     import time
+
+    effective_timeout = timeout if timeout >= 0 else max_wait
 
     org, ws_name = validate_context(organization, workspace)
 
@@ -1037,7 +1054,8 @@ def run_watch(
             # Polling for a new run
             start_poll = time.time()
             found_run_id = None
-            while time.time() - start_poll < float(max_wait):
+            max_wait_f = float(effective_timeout) if effective_timeout != 0 else float("inf")
+            while time.time() - start_poll < max_wait_f:
                 runs, _ = client.runs.list(ws.id, include="workspace")
                 if runs and len(runs) > 0:
                     latest_run = runs[0]
@@ -1068,7 +1086,7 @@ def run_watch(
         intervals = [2, 2, 3, 5, 5, 10, 10, 15, 30]
         interval_index = 0
         start_time = time.time()
-        max_wait_f = float(max_wait)
+        max_wait_f = float(effective_timeout) if effective_timeout != 0 else float("inf")
 
         try:
             # Phase 1: poll until awaiting approval or terminal
@@ -1087,7 +1105,7 @@ def run_watch(
                 elapsed = time.time() - start_time
                 if elapsed >= max_wait_f:
                     raise TimeoutError(
-                        f"Run {run_id} did not reach a confirmable state within {max_wait}s "
+                        f"Run {run_id} did not reach a confirmable state within {effective_timeout}s "
                         f"(current status: {run.status.value})"
                     )
 
