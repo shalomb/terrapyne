@@ -3,19 +3,27 @@
 Terrapyne detects whether it is being invoked by a human at a terminal or by
 an automated agent/pipeline and adjusts its default output format accordingly.
 
-Detection is tiered by trust:
+Per ADR-006, TTY state is the primary and authoritative signal:
 
-  Tier 1 — Explicit declaration (unconditional)
-    TERRAPYNE_OUTPUT, NO_COLOR, TF_IN_AUTOMATION, CI, GITHUB_ACTIONS, ...
+  If stdout is not a tty → JSON output (program is consuming stdout)
+  If stdout is a tty     → human-readable output (human is watching)
+
+Detection is tiered, with the first match winning:
+
+  Tier 1 — Explicit declaration (unconditional; covers PTY-allocating agents)
+    TERRAPYNE_OUTPUT=json, NO_COLOR,
+    TF_IN_AUTOMATION, CI, GITHUB_ACTIONS, ...
 
   Tier 2 — Known agent harness (cooperative agents that self-identify)
     CLAUDECODE, GEMINI_CLI, ANTIGRAVITY_AGENT, PI_CODING_AGENT,
     COPILOT_CLI, AWS_EXECUTION_ENV=AmazonQ*
+    (belt-and-suspenders for agents that allocate a PTY)
 
-  Tier 3 — Structural inference (catches unknown agents; also catches human pipes)
+  Tier 3 — TTY inference (primary signal; catches all agents and human pipes)
     not sys.stdout.isatty()
 
-The first tier that fires wins. The reason is always available for debug output.
+The Tier 2 whitelist is not extended. Any agent not in Tier 1/2 is caught
+by Tier 3. See ADR-006 for the full rationale.
 """
 
 from __future__ import annotations

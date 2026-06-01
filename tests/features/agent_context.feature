@@ -6,6 +6,13 @@ Feature: Agent context detection
   The goal is zero configuration for agents: the right output format is chosen
   automatically, without agents having to pass --format json explicitly.
 
+  The primary signal is TTY state: if stdout is not a tty, JSON output is
+  implied. This means terrapyne works correctly with any agent — known or
+  unknown — without maintaining a whitelist. Explicit env var overrides
+  (Tier 1/2) are retained for agents that allocate a pseudo-TTY.
+
+  See ADR-006 for the full rationale.
+
   Rule: Explicit declarations are honoured unconditionally
 
     Scenario: TERRAPYNE_OUTPUT=json forces agent mode
@@ -105,7 +112,7 @@ Feature: Agent context detection
       When agent context is detected
       Then it is identified as a human
 
-  Rule: Structural inference catches unknown agents via stdout pipe detection
+  Rule: TTY state is the primary signal — non-TTY stdout means JSON output
 
     Scenario: Stdout piped to another process signals non-interactive use
       Given the environment is clean
@@ -114,8 +121,15 @@ Feature: Agent context detection
       Then it is identified as an agent
       And the reason contains "stdout is not a tty"
 
-    Scenario: Unknown agent with no recognised env var is caught by pipe detection
+    Scenario: Unknown agent with no recognised env var is caught by TTY check
       Given the environment has "SOME_UNKNOWN_AGENT" set to "1"
+      And stdout is not a tty
+      When agent context is detected
+      Then it is identified as an agent
+      And the reason contains "stdout is not a tty"
+
+    Scenario: Human piping output to grep gets JSON — program is consuming stdout
+      Given the environment is clean
       And stdout is not a tty
       When agent context is detected
       Then it is identified as an agent

@@ -69,6 +69,7 @@ Based on recent Agent-Native CLI design research, the backlog is currently struc
 | F6 | Private registry query (modules + providers) | 🟡 | M | 1.0 | TODO |
 | F7 | Agent pools — list and show self-hosted agents | 🟡 | M | 1.0 | TODO |
 | F8 | SSH keys / VCS OAuth token management | 🟢 | L | 0.33 | TODO |
+| F10 | Context honoring (org/workspace) in `run list` and `run logs` | 🟡 | S | 2.0 | TODO |
 | **COMPLETED** |
 | F9 | `workspace update` command and API update method | 🔴 | M | 2.0 | ✅ |
 | B3 | `paginate_with_meta` `included` leaks only last page | 🟡 | S | 2.0 | ✅ |
@@ -837,3 +838,11 @@ These features are specifically designed to reduce the "glue logic" (bash pipes,
 **Success Criteria**:
 - API failures (e.g. `workspace create` with a duplicate name) explicitly print the `title` and `detail` of the TFC JSON error.
 - Wait loops (`run trigger --wait`) automatically print the Terraform error block if the run hits an errored state.
+
+---
+
+### F10 — Context honoring (org/workspace) in run list and run logs
+**Context**: During agent sessions, we found that `run list` and `run logs` do not honor the local Terraform context (organization and workspace). This causes friction and forces a fallback to the TFC API (e.g. `tfc-api` or curl) or requiring explicit flags when running commands from inside a terraform directory.
+**Fix**: Implement context discovery (similar to `tfc run trigger`) so that `run list` and `run logs` automatically infer `--workspace` and `--org` from the `.terraform` directory or `terraform.tf` files if invoked without explicit flags.
+**Success Criteria**:
+- `terrapyne run list` executed in a directory with initialized terraform backend prints the runs for the inferred workspace.

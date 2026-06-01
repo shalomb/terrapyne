@@ -104,9 +104,17 @@ def test_stdout_pipe():
 
 @scenario(
     "../features/agent_context.feature",
-    "Unknown agent with no recognised env var is caught by pipe detection",
+    "Unknown agent with no recognised env var is caught by TTY check",
 )
 def test_unknown_agent_pipe():
+    pass
+
+
+@scenario(
+    "../features/agent_context.feature",
+    "Human piping output to grep gets JSON — program is consuming stdout",
+)
+def test_human_pipe_gets_json():
     pass
 
 
