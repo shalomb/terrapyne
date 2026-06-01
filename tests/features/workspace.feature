@@ -303,3 +303,10 @@ Feature: Workspace Operations
     When I lock workspace "my-app-dev" without --yes and confirm no
     Then output should show "Aborted"
     And exit code should be 0
+
+
+  Scenario: Rename a workspace
+    Given workspace "old-name" exists in org "my-org"
+    When I rename workspace "old-name" to "new-name"
+    Then the workspace is renamed to "new-name"
+    And the output warns about terraform config needing manual update
