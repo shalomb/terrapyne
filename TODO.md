@@ -1020,3 +1020,26 @@ Run is still created (soft warn, not hard stop) so agents can proceed if they kn
 **Success Criteria**:
 - `tfc run apply <id> --auto-apply` approves then watches until terminal state
 - Equivalent to `tfc run apply <id> && tfc run watch <id>`
+
+---
+
+### F17 — `workspace update`
+
+**Intent**: Modify workspace configuration settings such as `working-directory` without requiring raw API calls.
+
+**Context**: While `workspace rename` is planned (F14), agents also frequently need to repair configuration drift (like renaming the `working-directory` after refactoring examples in a building block repo).
+
+**Success Criteria**:
+- `tfc workspace update <workspace-name> --working-directory <new-dir>`
+- Support for updating other common attributes like `description` or `terraform-version`.
+
+---
+
+### F18 — Force Cancelling Active Runs / Unlocking Workspaces
+
+**Intent**: Provide a single command to find and cancel any active/queued runs blocking workspace mutation.
+
+**Context**: When an agent pushes a commit that requires a workspace configuration change (like a rename or directory update), TFC's VCS integration often immediately queues a speculative plan, which locks the workspace. The agent is then blocked with a 422 "Name cannot be changed while a run has not completed" error, and must write complex loop scripts via curl to fetch `current-run` and cancel it.
+
+**Success Criteria**:
+- A command like `tfc run cancel --current <workspace-name>` or `tfc workspace unlock --force` that safely aborts blocking speculative plans or pending runs so that configuration changes can be applied.
