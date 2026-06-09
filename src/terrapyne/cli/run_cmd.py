@@ -262,8 +262,8 @@ def run_logs(
     ] = False,
     stage: Annotated[
         str,
-        typer.Option("--stage", help="Logs to show: plan, apply"),
-    ] = "plan",
+        typer.Option("--stage", help="Logs to show: plan, apply, all"),
+    ] = "all",
 ):
     """Show logs for a specific run stage."""
     org, ws_name = validate_context(organization, workspace)
@@ -286,35 +286,55 @@ def run_logs(
 
         run = client.runs.get(run_id)
 
-        if stage == "plan":
-            if not run.plan_id:
+        plan_logs = None
+        apply_logs = None
+
+        if stage in ("plan", "all"):
+            if run.plan_id:
+                plan = None
+                with suppress(Exception):
+                    plan = client.runs.get_plan(run.plan_id)
+                plan_logs = client.runs.get_plan_logs(
+                    run.plan_id, log_read_url=plan.log_read_url if plan else None
+                )
+            elif stage == "plan":
                 console.print("[yellow]No plan logs available for this run.[/yellow]")
                 return
-            plan = None
-            with suppress(Exception):
-                plan = client.runs.get_plan(run.plan_id)
-            logs = client.runs.get_plan_logs(
-                run.plan_id, log_read_url=plan.log_read_url if plan else None
-            )
-        elif stage == "apply":
-            if not run.apply_id:
+
+        if stage in ("apply", "all"):
+            if run.apply_id:
+                apply_obj = None
+                with suppress(Exception):
+                    apply_obj = client.runs.get_apply(run.apply_id)
+                apply_logs = client.runs.get_apply_logs(
+                    run.apply_id, log_read_url=apply_obj.log_read_url if apply_obj else None
+                )
+            elif stage == "apply":
                 console.print("[yellow]No apply logs available for this run.[/yellow]")
                 return
-            apply_obj = None
-            with suppress(Exception):
-                apply_obj = client.runs.get_apply(run.apply_id)
-            logs = client.runs.get_apply_logs(
-                run.apply_id, log_read_url=apply_obj.log_read_url if apply_obj else None
+
+        if stage not in ("plan", "apply", "all"):
+            console.print(
+                f"[red]Error: Invalid stage '{stage}'. Use 'plan', 'apply', or 'all'.[/red]"
             )
-        else:
-            console.print(f"[red]Error: Invalid stage '{stage}'. Use 'plan' or 'apply'.[/red]")
             raise typer.Exit(1)
 
-        if not logs:
-            console.print(f"[yellow]Logs for {stage} stage are empty or not yet ready.[/yellow]")
-            return
-
-        console.print(logs)
+        if stage == "all":
+            if not plan_logs and not apply_logs:
+                console.print("[yellow]Logs for the run are empty or not yet ready.[/yellow]")
+                return
+            if plan_logs:
+                console.print(plan_logs)
+            if apply_logs:
+                console.print(apply_logs)
+        else:
+            logs = plan_logs if stage == "plan" else apply_logs
+            if not logs:
+                console.print(
+                    f"[yellow]Logs for {stage} stage are empty or not yet ready.[/yellow]"
+                )
+                return
+            console.print(logs)
 
 
 @app.command("apply")
