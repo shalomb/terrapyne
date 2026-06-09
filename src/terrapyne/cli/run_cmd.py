@@ -264,6 +264,10 @@ def run_logs(
         str,
         typer.Option("--stage", help="Logs to show: plan, apply, all"),
     ] = "all",
+    out: Annotated[
+        str | None,
+        typer.Option("--out", help="Save logs to file instead of printing to stdout"),
+    ] = None,
 ):
     """Show logs for a specific run stage."""
     org, ws_name = validate_context(organization, workspace)
@@ -319,14 +323,15 @@ def run_logs(
             )
             raise typer.Exit(1)
 
+        output = ""
         if stage == "all":
             if not plan_logs and not apply_logs:
                 console.print("[yellow]Logs for the run are empty or not yet ready.[/yellow]")
                 return
             if plan_logs:
-                console.print(plan_logs)
+                output += plan_logs + "\n"
             if apply_logs:
-                console.print(apply_logs)
+                output += apply_logs + "\n"
         else:
             logs = plan_logs if stage == "plan" else apply_logs
             if not logs:
@@ -334,7 +339,14 @@ def run_logs(
                     f"[yellow]Logs for {stage} stage are empty or not yet ready.[/yellow]"
                 )
                 return
-            console.print(logs)
+            output = logs
+
+        if out:
+            with open(out, "w") as f:
+                f.write(output)
+            console.print(f"[green]✓ Logs saved to {out}[/green]")
+        else:
+            console.print(output.strip())
 
 
 @app.command("apply")
