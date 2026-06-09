@@ -606,6 +606,12 @@ def run_trigger(
         str,
         typer.Option("--format", "-f", help="Output format: table, json"),
     ] = "table",
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force", help="Force a manual API run even if the workspace is VCS-connected"
+        ),
+    ] = False,
 ):
     """Trigger a new run with advanced queue management."""
     # Resolve organization and workspace
@@ -622,6 +628,19 @@ def run_trigger(
     with get_client(ctx, organization=org) as client:
         # Get workspace ID
         ws = client.workspaces.get(workspace_name or "", organization=org)  # type: ignore[arg-type]
+
+        if ws.vcs_repo is not None and not force:
+            console.print(
+                f"[bold red]Error:[/bold red] Workspace '{workspace_name}' is VCS-connected."
+            )
+            console.print(
+                "Pushing to your branch will auto-queue a run. To monitor the VCS run, use:"
+            )
+            console.print(
+                f"  [bold]terrapyne run watch --workspace {workspace_name} --wait-vcs[/bold]"
+            )
+            console.print("\nTo force a manual API run anyway, use: --force")
+            raise typer.Exit(1)
 
         # 1. Handle existing runs
         active_runs = client.runs.get_active_runs(ws.id)
@@ -739,7 +758,17 @@ def run_trigger(
 @handle_cli_errors
 def run_watch(
     ctx: typer.Context,
-    run_id: Annotated[str, typer.Argument(help="Run ID")],
+    run_id: Annotated[
+        str | None, typer.Argument(help="Run ID (optional if using --workspace)")
+    ] = None,
+    workspace: Annotated[
+        str | None,
+        typer.Option("--workspace", "-w", help="Workspace name (for --wait-vcs)"),
+    ] = None,
+    wait_vcs: Annotated[
+        bool,
+        typer.Option("--wait-vcs", help="Wait for a new VCS webhook run to appear before watching"),
+    ] = False,
     organization: Annotated[
         str | None,
         typer.Option(
@@ -775,10 +804,53 @@ def run_watch(
     """
     import time
 
-    org, _ = validate_context(organization)
+    org, ws_name = validate_context(organization, workspace)
+
+    if not run_id and not wait_vcs:
+        console.print(
+            "[red]Error:[/red] Missing argument 'RUN_ID'. Required unless using --wait-vcs."
+        )
+        raise typer.Exit(1)
+
+    if wait_vcs and not ws_name:
+        console.print("[red]Error:[/red] Missing --workspace name for --wait-vcs.")
+        raise typer.Exit(1)
 
     with get_client(ctx, organization=org) as client:
-        console.print(f"[dim]Watching run:[/dim] {run_id}")
+        if wait_vcs and ws_name:
+            ws = client.workspaces.get(ws_name, organization=org)
+            console.print(f"[dim]Waiting for new VCS run in workspace {ws_name}...[/dim]")
+
+            # Polling for a new run
+            start_poll = time.time()
+            found_run_id = None
+            while time.time() - start_poll < float(max_wait):
+                runs, _ = client.runs.list(ws.id, include="workspace")
+                if runs and len(runs) > 0:
+                    latest_run = runs[0]
+                    # if the run is very recent and in pending/fetching/planning
+                    if latest_run.status.value in (
+                        "pending",
+                        "fetching",
+                        "planning",
+                        "cost_estimating",
+                        "applying",
+                    ):
+                        found_run_id = latest_run.id
+                        break
+                time.sleep(3)
+
+            if not found_run_id:
+                console.print("\n[red]Error:[/red] Timed out waiting for new VCS run to appear.")
+                raise typer.Exit(1)
+
+            run_id = found_run_id
+
+        if run_id is None:
+            console.print("\n[red]Error:[/red] Invalid run_id resolution.")
+            raise typer.Exit(1)
+
+        console.print(f"[dim]Watching run progress:[/dim] {run_id}")
 
         intervals = [2, 2, 3, 5, 5, 10, 10, 15, 30]
         interval_index = 0
