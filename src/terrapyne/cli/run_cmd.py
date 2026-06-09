@@ -742,6 +742,10 @@ def run_watch(
 ):
     """Watch progress of an existing run (e.g. triggered by a VCS push).
 
+    NOTE (Agents & Scripts): This command polls status updates rather than streaming raw
+    verbose logs. This avoids blowing out your context window. If you specifically need
+    to read the raw streaming logs in real-time, use 'run follow' instead.
+
     With --auto-apply, automatically confirms the run once planning or cost
     estimation completes, then waits for the apply to finish.
     """
@@ -830,7 +834,11 @@ def run_follow(
         typer.Option("--max-wait", help="Max seconds to wait"),
     ] = 1800,
 ):
-    """Stream logs of an existing run in real-time."""
+    """Stream raw logs of an existing run in real-time.
+
+    NOTE (Agents & Scripts): This streams raw bytes line-by-line which can bloat your
+    context window on large plans. It also cannot auto-apply a run. If you want to monitor
+    state transitions or automatically apply a run, use 'run watch' instead."""
     org, _ = validate_context(organization)
 
     with get_client(ctx, organization=org) as client:
