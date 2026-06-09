@@ -6,7 +6,7 @@ import datetime
 import sys
 from contextlib import suppress
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Callable
 
 import typer
 
@@ -567,6 +567,10 @@ def run_trigger(
         bool,
         typer.Option("--wait/--no-wait", help="Wait for completion (default: no-wait)"),
     ] = False,
+    follow: Annotated[
+        bool,
+        typer.Option("--follow", help="Stream logs in real-time (implies --wait)"),
+    ] = False,
     wait_queue: Annotated[
         bool,
         typer.Option("--wait-queue", help="If another run is active, wait for it to finish"),
@@ -676,6 +680,8 @@ def run_trigger(
                 refresh_only=refresh_only,
                 debug=debug_run,
             )
+        if follow:
+            wait = True
 
         if output_format == "json":
             from terrapyne.cli.output_helpers import emit_json as _emit_json
@@ -696,9 +702,15 @@ def run_trigger(
             return
 
         # 3. Wait for completion
-        console.print("\nWatching run progress...")
+        if follow:
+            console.print(f"\\n[dim]Following run {run.id}...[/dim]\\n")
+        else:
+            console.print("\\nWatching run progress...")
         try:
-            final_run = client.runs.poll_until_complete(run.id, max_wait=float(max_wait))
+            callback = _create_stream_callback(client) if follow else None
+            final_run = client.runs.poll_until_complete(
+                run.id, callback=callback, max_wait=float(max_wait)
+            )
             print()
 
             plan = None
@@ -856,58 +868,7 @@ def run_follow(
     with get_client(ctx, organization=org) as client:
         console.print(f"\n[dim]Following run {run_id}...[/dim]\n")
 
-        last_plan_pos = 0
-        last_apply_pos = 0
-        current_stage = None
-        plan_url_fetched = False
-        plan_log_read_url: str | None = None
-        apply_url_fetched = False
-        apply_log_read_url: str | None = None
-
-        def stream_logs(run: Run) -> None:
-            nonlocal last_plan_pos, last_apply_pos, current_stage
-            nonlocal plan_url_fetched, plan_log_read_url
-            nonlocal apply_url_fetched, apply_log_read_url
-
-            # 1. Plan Stage
-            if run.plan_id:
-                if current_stage is None:
-                    current_stage = "plan"
-                    console.print("[dim]📋 Plan:[/dim]")
-                try:
-                    if not plan_url_fetched:
-                        plan_log_read_url = client.runs.get_plan(run.plan_id).log_read_url
-                        plan_url_fetched = True
-                    plan_log = client.runs.get_plan_logs(
-                        run.plan_id, log_read_url=plan_log_read_url
-                    )
-                    last_plan_pos = _print_log_delta(plan_log, last_plan_pos)
-                except Exception:
-                    pass
-
-            # 2. Apply Stage
-            if run.apply_id and run.status.value in ["applying", "applied"]:
-                if current_stage != "apply":
-                    current_stage = "apply"
-                    console.print("\n[dim]⚙️  Apply:[/dim]")
-                try:
-                    if not apply_url_fetched:
-                        apply_log_read_url = client.runs.get_apply(run.apply_id).log_read_url
-                        apply_url_fetched = True
-                    apply_log = client.runs.get_apply_logs(
-                        run.apply_id, log_read_url=apply_log_read_url
-                    )
-                    last_apply_pos = _print_log_delta(apply_log, last_apply_pos)
-                except Exception:
-                    pass
-
-            # Feedback if run fails before generating logs
-            if run.status.is_error and last_plan_pos == 0 and last_apply_pos == 0:
-                if current_stage != "error":
-                    current_stage = "error"
-                    console.print(
-                        f"\n[red]Run failed before generating logs: {run.status.value}[/red]"
-                    )
+        stream_logs = _create_stream_callback(client)
 
         try:
             final_run = client.runs.poll_until_complete(
@@ -927,6 +888,59 @@ def run_follow(
         except TimeoutError as e:
             console.print(f"\n[yellow]Warning:[/yellow] {e}")
             raise typer.Exit(1) from None
+
+
+def _create_stream_callback(client) -> Callable[[Run], None]:
+    last_plan_pos = 0
+    last_apply_pos = 0
+    current_stage = None
+    plan_url_fetched = False
+    plan_log_read_url: str | None = None
+    apply_url_fetched = False
+    apply_log_read_url: str | None = None
+
+    def stream_logs(run: Run) -> None:
+        nonlocal last_plan_pos, last_apply_pos, current_stage
+        nonlocal plan_url_fetched, plan_log_read_url
+        nonlocal apply_url_fetched, apply_log_read_url
+
+        # 1. Plan Stage
+        if run.plan_id:
+            if current_stage is None:
+                current_stage = "plan"
+                console.print("[dim]📋 Plan:[/dim]")
+            try:
+                if not plan_url_fetched:
+                    plan_log_read_url = client.runs.get_plan(run.plan_id).log_read_url
+                    plan_url_fetched = True
+                plan_log = client.runs.get_plan_logs(run.plan_id, log_read_url=plan_log_read_url)
+                last_plan_pos = _print_log_delta(plan_log, last_plan_pos)
+            except Exception:
+                pass
+
+        # 2. Apply Stage
+        if run.apply_id and run.status.value in ["applying", "applied"]:
+            if current_stage != "apply":
+                current_stage = "apply"
+                console.print("\n[dim]⚙️  Apply:[/dim]")
+            try:
+                if not apply_url_fetched:
+                    apply_log_read_url = client.runs.get_apply(run.apply_id).log_read_url
+                    apply_url_fetched = True
+                apply_log = client.runs.get_apply_logs(
+                    run.apply_id, log_read_url=apply_log_read_url
+                )
+                last_apply_pos = _print_log_delta(apply_log, last_apply_pos)
+            except Exception:
+                pass
+
+        # Feedback if run fails before generating logs
+        if run.status.is_error and last_plan_pos == 0 and last_apply_pos == 0:
+            if current_stage != "error":
+                current_stage = "error"
+                console.print(f"\n[red]Run failed before generating logs: {run.status.value}[/red]")
+
+    return stream_logs
 
 
 def _print_log_delta(full_log: str, last_pos: int) -> int:
