@@ -253,7 +253,9 @@ def run_show_latest(name, workspace_ctx):
     target_fixture="cli_result",
 )
 def trigger_wait_success(name, workspace_ctx):
-    ws = Workspace.from_api_response(workspace_response(id=workspace_ctx["id"], name=name)["data"])
+    ws = Workspace.from_api_response(
+        workspace_response(id=workspace_ctx["id"], name=name, vcs_repo={})["data"]
+    )
     run = Run.from_api_response(run_response(id="run-wait-001", status="applied")["data"])
     with patch("terrapyne.cli.run_cmd.get_client") as mock_gc:
         mock_client = MagicMock()
@@ -273,7 +275,9 @@ def trigger_wait_success(name, workspace_ctx):
     target_fixture="cli_result",
 )
 def trigger_wait_error(name, workspace_ctx):
-    ws = Workspace.from_api_response(workspace_response(id=workspace_ctx["id"], name=name)["data"])
+    ws = Workspace.from_api_response(
+        workspace_response(id=workspace_ctx["id"], name=name, vcs_repo={})["data"]
+    )
     pending = Run.from_api_response(run_response(id="run-err-001", status="pending")["data"])
     errored = Run.from_api_response(run_response(id="run-err-001", status="errored")["data"])
     with patch("terrapyne.cli.run_cmd.get_client") as mock_gc:
@@ -378,7 +382,9 @@ def clone_workspace_json(src, dst, workspace_ctx):
     target_fixture="cli_result",
 )
 def trigger_run_json(name, workspace_ctx):
-    ws = Workspace.from_api_response(workspace_response(id=workspace_ctx["id"], name=name)["data"])
+    ws = Workspace.from_api_response(
+        workspace_response(id=workspace_ctx["id"], name=name, vcs_repo={})["data"]
+    )
     run = Run.from_api_response(run_response(id="run-json001", status="pending")["data"])
     with patch("terrapyne.cli.run_cmd.get_client") as mock_gc:
         mock_client = MagicMock()
