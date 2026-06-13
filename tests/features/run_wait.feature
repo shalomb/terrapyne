@@ -32,3 +32,10 @@ Feature: Run Queue and Wait Management
     When I trigger a new plan for "my-app-dev" with --wait
     Then the command should exit with code 0
     And the output should indicate it is paused for approval
+
+  Scenario: Failing early when predecessor run is blocked awaiting apply
+    Given the workspace "my-app-dev" has an active run "run-blocked"
+    And "run-blocked" has status "planned"
+    When I trigger a new plan for "my-app-dev" with --wait
+    Then the command should fail with a blocked queue hint
+    And the command should exit with code 1

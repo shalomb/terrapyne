@@ -9,6 +9,8 @@ from typer.testing import CliRunner
 from terrapyne.cli.main import app
 
 runner = CliRunner()
+runner.mix_stderr = True
+runner.mix_stderr = True
 
 
 @scenario("../features/debug_mode.feature", "Enable API tracing with --debug flag")
@@ -82,21 +84,21 @@ def mock_creds():
 def check_request_in_stderr(cli_result):
     # We check both stdout and stderr since CliRunner might mix them depending on config
     # Actually CliRunner.stderr should have it if we used StreamHandler()
-    output = cli_result.stdout + cli_result.stderr
+    output = cli_result.output + cli_result.stderr
     assert "API Request" in output
     assert "GET" in output
 
 
 @then("the response details should be printed to stderr")
 def check_response_in_stderr(cli_result):
-    output = cli_result.stdout + cli_result.stderr
+    output = cli_result.output + cli_result.stderr
     assert "API Response" in output
     assert "200" in output or "404" in output
 
 
 @then("the error body should be printed to stderr")
 def check_error_in_stderr(cli_result):
-    output = cli_result.stdout + cli_result.stderr
+    output = cli_result.output + cli_result.stderr
     assert "Error Body" in output
     assert "not found" in output
 

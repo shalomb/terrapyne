@@ -9,6 +9,8 @@ from terrapyne.cli.main import app
 from terrapyne.models.workspace import Workspace
 
 runner = CliRunner()
+runner.mix_stderr = True
+runner.mix_stderr = True
 
 
 @scenario(
@@ -112,7 +114,7 @@ def list_workspaces_no_search():
 
 @then("I should see a hint to use --search for faster results")
 def check_search_hint(cli_result):
-    output = cli_result["result"].stdout
+    output = cli_result["result"].output
     assert "--search" in output
 
 

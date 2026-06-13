@@ -18,6 +18,8 @@ from terrapyne.models.workspace import Workspace
 from tests.fixtures.factories import run_response, workspace_response
 
 runner = CliRunner()
+runner.mix_stderr = True
+runner.mix_stderr = True
 
 FEATURE = "../features/agent_experience.feature"
 
@@ -451,42 +453,42 @@ def create_workspace_no_ignore(name, workspace_ctx):
 
 @then(parsers.parse('stdout is exactly "{expected}"'))
 def stdout_exactly(cli_result, expected):
-    actual = cli_result.stdout.strip()
+    actual = cli_result.output.strip()
     assert actual == expected, f"Expected {expected!r}, got {actual!r}"
 
 
 @then("there is no extra formatting")
 def no_extra_formatting(cli_result):
-    output = cli_result.stdout.strip()
+    output = cli_result.output.strip()
     assert "\n" not in output, f"Unexpected newline in output: {output!r}"
 
 
 @then("the exit code is 1")
 def exit_code_1(cli_result):
     assert cli_result.exit_code == 1, (
-        f"Expected exit 1, got {cli_result.exit_code}\nOutput: {cli_result.stdout}"
+        f"Expected exit 1, got {cli_result.exit_code}\nOutput: {cli_result.output}"
     )
 
 
 @then(parsers.parse('stderr contains "{text}"'))
 def stderr_contains(cli_result, text):
-    combined = cli_result.stdout + (cli_result.stderr or "")
+    combined = cli_result.output + (cli_result.stderr or "")
     assert text.lower() in combined.lower(), f"Expected {text!r} in output, got: {combined!r}"
 
 
 @then("the logs for the most recent run are shown")
 def logs_shown(cli_result):
     assert cli_result.exit_code == 0, (
-        f"Expected exit 0, got {cli_result.exit_code}\n{cli_result.stdout}"
+        f"Expected exit 0, got {cli_result.exit_code}\n{cli_result.output}"
     )
 
 
 @then(parsers.parse('the run detail for "{run_id}" is shown'))
 def run_detail_shown(cli_result, run_id):
     assert cli_result.exit_code == 0, (
-        f"Expected exit 0, got {cli_result.exit_code}\n{cli_result.stdout}"
+        f"Expected exit 0, got {cli_result.exit_code}\n{cli_result.output}"
     )
-    assert run_id in cli_result.stdout
+    assert run_id in cli_result.output
 
 
 @then("the command blocks until the run reaches a terminal state")
@@ -496,29 +498,29 @@ def command_blocks(cli_result):
 
 @then("no plan or apply logs are streamed")
 def no_logs_streamed(cli_result):
-    output = cli_result.stdout
+    output = cli_result.output
     assert "Plan:" not in output
     assert "Apply:" not in output
 
 
 @then("the command exits with code 0 on success")
 def exits_0_on_success(cli_result):
-    assert cli_result.exit_code == 0, f"Expected 0, got {cli_result.exit_code}\n{cli_result.stdout}"
+    assert cli_result.exit_code == 0, f"Expected 0, got {cli_result.exit_code}\n{cli_result.output}"
 
 
 @then("the command exits with code 0")
 def exits_0(cli_result):
-    assert cli_result.exit_code == 0, f"Expected 0, got {cli_result.exit_code}\n{cli_result.stdout}"
+    assert cli_result.exit_code == 0, f"Expected 0, got {cli_result.exit_code}\n{cli_result.output}"
 
 
 @then("the command exits with code 1")
 def exits_1(cli_result):
-    assert cli_result.exit_code == 1, f"Expected 1, got {cli_result.exit_code}\n{cli_result.stdout}"
+    assert cli_result.exit_code == 1, f"Expected 1, got {cli_result.exit_code}\n{cli_result.output}"
 
 
 @then("there is no table formatting")
 def no_table_formatting(cli_result):
-    output = cli_result.stdout
+    output = cli_result.output
     assert "─" not in output
     assert "│" not in output
 
@@ -526,14 +528,14 @@ def no_table_formatting(cli_result):
 @then("stdout is valid JSON")
 def stdout_is_valid_json(cli_result):
     try:
-        json.loads(cli_result.stdout)
+        json.loads(cli_result.output)
     except json.JSONDecodeError as e:
-        pytest.fail(f"stdout is not valid JSON: {e}\nOutput: {cli_result.stdout!r}")
+        pytest.fail(f"stdout is not valid JSON: {e}\nOutput: {cli_result.output!r}")
 
 
 @then(parsers.parse('the JSON contains field "{field}" matching "{pattern}"'))
 def json_field_matches_pattern(cli_result, field, pattern):
-    data = json.loads(cli_result.stdout)
+    data = json.loads(cli_result.output)
     assert field in data, f"Field {field!r} not in JSON: {data}"
     assert fnmatch.fnmatch(str(data[field]), pattern), (
         f"Field {field!r}={data[field]!r} does not match {pattern!r}"
@@ -542,7 +544,7 @@ def json_field_matches_pattern(cli_result, field, pattern):
 
 @then(parsers.parse('the JSON contains field "{field}" = "{expected}"'))
 def json_field_equals(cli_result, field, expected):
-    data = json.loads(cli_result.stdout)
+    data = json.loads(cli_result.output)
     assert field in data, f"Field {field!r} not in JSON: {data}"
     assert str(data[field]) == expected, (
         f"Field {field!r}: expected {expected!r}, got {data[field]!r}"
@@ -551,10 +553,10 @@ def json_field_equals(cli_result, field, expected):
 
 @then(parsers.parse('the JSON contains field "{field}"'))
 def json_has_field(cli_result, field):
-    data = json.loads(cli_result.stdout)
+    data = json.loads(cli_result.output)
     assert field in data, f"Field {field!r} not in JSON: {data}"
 
 
 @then("the existing workspace is returned without creating a duplicate")
 def existing_workspace_returned(cli_result):
-    assert cli_result.exit_code == 0, f"Expected 0, got {cli_result.exit_code}\n{cli_result.stdout}"
+    assert cli_result.exit_code == 0, f"Expected 0, got {cli_result.exit_code}\n{cli_result.output}"

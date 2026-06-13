@@ -606,6 +606,27 @@ def run_trigger(
                 except TimeoutError as e:
                     console.print(f"\n[red]Error:[/red] Timed out waiting for queue: {e}")
                     raise typer.Exit(1) from None
+            elif wait:
+                for r in active_runs:
+                    if r.status.is_awaiting_approval:
+                        if output_format == "json":
+                            from terrapyne.cli.output_helpers import emit_json as _emit_json
+
+                            _emit_json(
+                                {
+                                    "error": "Cannot wait for new run because predecessor run is blocked awaiting apply.",
+                                    "hints": [
+                                        "Use --discard-older to discard it, or approve it first."
+                                    ],
+                                    "blocking_run_id": r.id,
+                                }
+                            )
+                        else:
+                            console.print(
+                                f"\n[red]Error:[/red] Cannot wait for new run because predecessor run {r.id} is blocked awaiting apply.\n"
+                                f"[dim]Hint: Use --discard-older to discard it, or approve it first.[/dim]"
+                            )
+                        raise typer.Exit(1)
 
         # Identify run type
         run_type = "PLAN"

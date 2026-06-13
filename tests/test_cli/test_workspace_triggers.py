@@ -10,6 +10,8 @@ from terrapyne.cli.main import app
 from terrapyne.models.run_trigger import RunTrigger
 
 runner = CliRunner()
+runner.mix_stderr = True
+runner.mix_stderr = True
 
 
 # ============================================================================
