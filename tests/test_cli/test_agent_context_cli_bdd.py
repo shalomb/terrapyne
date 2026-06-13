@@ -13,6 +13,8 @@ from terrapyne.models.team import Team
 from terrapyne.models.workspace import Workspace
 
 runner = CliRunner()
+runner.mix_stderr = True
+runner.mix_stderr = True
 
 # ---------------------------------------------------------------------------
 # Scenario bindings

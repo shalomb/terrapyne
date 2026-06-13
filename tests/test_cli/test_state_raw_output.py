@@ -9,6 +9,8 @@ from terrapyne.models.state_version import StateVersionOutput
 from terrapyne.models.workspace import Workspace
 
 runner = CliRunner()
+runner.mix_stderr = True
+runner.mix_stderr = True
 
 
 class TestStateOutputsRaw:
@@ -34,8 +36,8 @@ class TestStateOutputsRaw:
             )
 
         assert result.exit_code == 0
-        assert result.stdout.strip() == "postgres://host:5432/db"
-        assert '"' not in result.stdout
+        assert result.output.strip() == "postgres://host:5432/db"
+        assert '"' not in result.output
 
     def test_raw_returns_json_for_dict(self):
         """--raw returns JSON representation for dict values."""
@@ -57,7 +59,7 @@ class TestStateOutputsRaw:
         assert result.exit_code == 0
         import json
 
-        assert json.loads(result.stdout) == test_dict
+        assert json.loads(result.output) == test_dict
 
     def test_raw_returns_json_for_list(self):
         """--raw returns JSON representation for list values."""
@@ -78,7 +80,7 @@ class TestStateOutputsRaw:
         assert result.exit_code == 0
         import json
 
-        assert json.loads(result.stdout) == test_list
+        assert json.loads(result.output) == test_list
 
     def test_raw_returns_json_for_number(self):
         """--raw returns JSON representation for numeric values."""
@@ -96,7 +98,7 @@ class TestStateOutputsRaw:
             )
 
         assert result.exit_code == 0
-        assert result.stdout.strip() == "5432"
+        assert result.output.strip() == "5432"
 
     def test_raw_missing_output_exits_with_error(self):
         """--raw exits with code 1 when output not found."""
@@ -113,7 +115,7 @@ class TestStateOutputsRaw:
             )
 
         assert result.exit_code == 1
-        assert "not found" in result.stdout or "not found" in result.stderr
+        assert "not found" in result.output or "not found" in result.stderr
 
     def test_raw_mutually_exclusive_with_format_json(self):
         """--raw with --format json raises error."""
@@ -137,7 +139,7 @@ class TestStateOutputsRaw:
             )
 
         assert result.exit_code == 1
-        assert "mutually exclusive" in result.stdout or "mutually exclusive" in result.stderr
+        assert "mutually exclusive" in result.output or "mutually exclusive" in result.stderr
 
     def test_raw_requires_output_name(self):
         """--raw requires a specific output name as argument."""
@@ -153,7 +155,7 @@ class TestStateOutputsRaw:
         assert result.exit_code == 1
         # The code returns "Provide a workspace name, workspace ID, or state version ID"
         # if shift logic doesn't have enough args
-        assert "Error:" in result.stdout or "Error:" in result.stderr
+        assert "Error:" in result.output or "Error:" in result.stderr
 
     def test_raw_with_workspace_id_fails(self):
         """--raw rejects workspace IDs as arguments if they are the only argument."""
@@ -179,8 +181,8 @@ class TestStateOutputsRaw:
             )
 
         assert result.exit_code == 0
-        assert "db_url" in result.stdout
-        assert "app_name" in result.stdout
+        assert "db_url" in result.output
+        assert "app_name" in result.output
 
     def test_normal_mode_json_format(self):
         """Normal JSON output still works without --raw."""
@@ -211,5 +213,5 @@ class TestStateOutputsRaw:
         assert result.exit_code == 0
         import json
 
-        data = json.loads(result.stdout)
+        data = json.loads(result.output)
         assert data["db_url"] == "postgres://host:5432/db"

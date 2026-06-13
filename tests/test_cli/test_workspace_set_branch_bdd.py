@@ -12,6 +12,8 @@ from tests.fixtures.factories import workspace_response
 scenarios("../features/workspace_set_branch.feature")
 
 runner = CliRunner()
+runner.mix_stderr = True
+runner.mix_stderr = True
 
 
 # ---------------------------------------------------------------------------
@@ -174,23 +176,23 @@ def api_patched_feature_branch(mock_api):
 
 @then('the output should show the updated branch "feature/my-change"')
 def output_shows_branch(cli_result):
-    assert "feature/my-change" in cli_result.stdout, cli_result.stdout
+    assert "feature/my-change" in cli_result.output, cli_result.output
 
 
 @then("exit code should be 0")
 def exit_0(cli_result):
-    assert cli_result.exit_code == 0, f"exit {cli_result.exit_code}: {cli_result.stdout}"
+    assert cli_result.exit_code == 0, f"exit {cli_result.exit_code}: {cli_result.output}"
 
 
 @then('I should see error message containing "no VCS"')
 def error_no_vcs(cli_result):
-    output = cli_result.stdout + cli_result.stderr
+    output = cli_result.output + cli_result.stderr
     assert "no VCS" in output or "VCS" in output, output
 
 
 @then("exit code should be 1")
 def exit_1(cli_result):
-    assert cli_result.exit_code == 1, f"exit {cli_result.exit_code}: {cli_result.stdout}"
+    assert cli_result.exit_code == 1, f"exit {cli_result.exit_code}: {cli_result.output}"
 
 
 @then('the API should PATCH vcs-repo.branch to "hotfix/123"')

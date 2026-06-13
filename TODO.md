@@ -71,7 +71,7 @@ Based on recent Agent-Native CLI design research, the backlog is currently struc
 | B21 | `run watch` / `run trigger` timeout hardcoded at 1800s — too short for agent-pool execution mode | 🟡 | S | 2.0 | TODO |
 | **AGENT EXPERIENCE (AX) GAPS** |
 | AX8 | `run trigger --wait` not default in agent context — agents must know to pass `--wait` or they fire-and-forget | 🔴 | M | 2.0 | TODO |
-| AX9 | `run trigger` silent on VCS-connected workspaces — agent pushes commit + triggers run, causing duplicate runs and wrong run being followed | 🔴 | M | 2.0 | TODO |
+| AX9 | `run trigger` silent on VCS-connected workspaces — agent pushes commit + triggers run, causing duplicate runs and wrong run being followed | ✅ | M | 2.0 | DONE |
 | AX10 | Non-zero exits lack structured `hints` array — agent context exits should include corrective command suggestions in JSON envelope | 🟡 | M | 1.0 | TODO |
 | **NEW FEATURES** |
 | F13 | `workspace set-branch <workspace> <branch>` — switch VCS branch from CLI | 🟡 | S | 2.0 | ✅ |
@@ -772,7 +772,7 @@ These items close the gap between the principles documented in `docs/explanation
 
 | # | Principle | Gap | Impact | Effort | Status |
 |---|---|---|---|---|---|
-| AX-stdout | stdout/stderr separation | `console.print` writes non-data output to stdout; breaks `cmd \| jq` | 🔴 | M | TODO |
+| AX-stdout | stdout/stderr separation | `console.print` writes non-data output to stdout; breaks `cmd \| jq` | ✅ | M | DONE |
 | AX-json-mutations | Structured output contract | `workspace create`, `workspace clone`, `run trigger` lack `--format json` | 🔴 | S | TODO (AX5) |
 | AX-next-action | Output guides next action | Successful mutations don't consistently echo the resource ID and next-step hint | 🟡 | S | TODO |
 | AX-actionable-errors | Actionable errors | API errors lack fix-command hints; only AX7 (title+detail) implemented so far | 🟡 | M | PARTIAL |

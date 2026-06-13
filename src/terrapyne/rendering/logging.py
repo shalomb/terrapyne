@@ -56,7 +56,9 @@ class _DynamicStderr:
 
 
 # Consolidated console instances for CLI output
-console = Console()
+# console is used for human-facing tables/progress and MUST write to stderr
+# so that stdout is strictly reserved for JSON/structured data.
+console = Console(file=t.cast(t.TextIO, _DynamicStderr()))
 error_console = Console(file=t.cast(t.TextIO, _DynamicStderr()))
 
 

@@ -10,6 +10,8 @@ from terrapyne.models.run import Run, RunStatus
 from terrapyne.models.workspace import Workspace
 
 runner = CliRunner()
+runner.mix_stderr = True
+runner.mix_stderr = True
 
 
 @scenario("../features/run_wait.feature", "Waiting for a run to complete")
@@ -154,8 +156,8 @@ def trigger_discard_older(mock_client, workspace_name):
 def command_blocks(cli_result, status):
     # The command has already run in the @when step
     # Match emoji and status name in the table
-    assert status in cli_result.stdout
-    assert "planned" in cli_result.stdout.lower() or "applied" in cli_result.stdout.lower()
+    assert status in cli_result.output
+    assert "planned" in cli_result.output.lower() or "applied" in cli_result.output.lower()
 
 
 @then("the command should exit with code 0")
@@ -170,13 +172,13 @@ def check_waited_for_run(mock_client, run_id, cli_result):
     from unittest.mock import ANY
 
     mock_client.runs.poll_until_complete.assert_any_call(run_id, max_wait=ANY)
-    assert f"Waiting for current run {run_id}" in cli_result.stdout
+    assert f"Waiting for current run {run_id}" in cli_result.output
 
 
 @then("then it should trigger the new run")
 def check_triggered_new(mock_client, cli_result):
     mock_client.runs.create.assert_called()
-    assert "Created PLAN run" in cli_result.stdout or "Created DESTROY run" in cli_result.stdout
+    assert "Created PLAN run" in cli_result.output or "Created DESTROY run" in cli_result.output
 
 
 @then("all existing non-terminal runs should be discarded")
@@ -192,4 +194,4 @@ def check_discarded(mock_client):
 
 @then("the output should indicate it is paused for approval")
 def check_paused_output(cli_result):
-    assert "Run paused for manual approval" in cli_result.stdout
+    assert "Run paused for manual approval" in cli_result.output

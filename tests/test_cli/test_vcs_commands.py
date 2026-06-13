@@ -14,6 +14,8 @@ from terrapyne.cli.main import app
 from terrapyne.models.workspace import Workspace
 
 runner = CliRunner()
+runner.mix_stderr = True
+runner.mix_stderr = True
 
 
 # ============================================================================
@@ -137,16 +139,16 @@ def check_repository_identifier(show_vcs_configuration):
     result = show_vcs_configuration["result"]
     assert result.exit_code == 0
     assert (
-        "myorg/my-app" in result.stdout
-        or "identifier" in result.stdout.lower()
-        or "/" in result.stdout
+        "myorg/my-app" in result.output
+        or "identifier" in result.output.lower()
+        or "/" in result.output
     )
 
 
 @then("I should see repository branch")
 def check_repository_branch(show_vcs_configuration):
     result = show_vcs_configuration["result"]
-    assert "develop" in result.stdout or "branch" in result.stdout.lower()
+    assert "develop" in result.output or "branch" in result.output.lower()
 
 
 @then("I should see working directory if set")
@@ -159,9 +161,9 @@ def check_working_directory(show_vcs_configuration):
 def check_repository_url(show_vcs_configuration):
     result = show_vcs_configuration["result"]
     assert (
-        "github" in result.stdout.lower()
-        or "http" in result.stdout
-        or "url" in result.stdout.lower()
+        "github" in result.output.lower()
+        or "http" in result.output
+        or "url" in result.output.lower()
     )
 
 
@@ -176,10 +178,10 @@ def check_no_vcs_message(show_vcs_configuration):
     result = show_vcs_configuration["result"]
     assert result.exit_code == 0
     assert (
-        "no vcs" in result.stdout.lower()
-        or "no connection" in result.stdout.lower()
-        or "not connected" in result.stdout.lower()
-        or "has no vcs" in result.stdout.lower()
+        "no vcs" in result.output.lower()
+        or "no connection" in result.output.lower()
+        or "not connected" in result.output.lower()
+        or "has no vcs" in result.output.lower()
     )
 
 
@@ -193,7 +195,7 @@ def check_exit_code_0(show_vcs_configuration):
 def check_no_repo_details(show_vcs_configuration):
     result = show_vcs_configuration["result"]
     # If no VCS, should not show identifier
-    assert "myorg/my-app" not in result.stdout
+    assert "myorg/my-app" not in result.output
 
 
 # ============================================================================
@@ -256,13 +258,13 @@ def list_available_repositories(vcs_context):
 @then("I should see repository list")
 def check_repo_list(list_available_repositories):
     result = list_available_repositories["result"]
-    assert result.exit_code == 0 or "repo" in result.stdout.lower()
+    assert result.exit_code == 0 or "repo" in result.output.lower()
 
 
 @then("each repository should show identifier")
 def check_repo_identifier(list_available_repositories):
     result = list_available_repositories["result"]
-    assert "myorg" in result.stdout or "repo" in result.stdout.lower() or result.exit_code == 0
+    assert "myorg" in result.output or "repo" in result.output.lower() or result.exit_code == 0
 
 
 @then("each repository should show branch list")
@@ -332,14 +334,14 @@ def try_show_vcs_configuration(vcs_context):
 def check_missing_workspace_error(try_show_vcs_configuration):
     result = try_show_vcs_configuration["result"]
     assert result.exit_code != 0
-    output = (result.stdout + result.stderr).lower()
+    output = (result.output + result.stderr).lower()
     assert "workspace" in output or "argument" in output
 
 
 @then('error should mention "--workspace"')
 def check_workspace_hint(try_show_vcs_configuration):
     result = try_show_vcs_configuration["result"]
-    assert "workspace" in (result.stdout + result.stderr).lower()
+    assert "workspace" in (result.output + result.stderr).lower()
 
 
 @then("exit code should be 1")
@@ -352,4 +354,4 @@ def check_exit_code_1(try_show_vcs_configuration):
 def check_missing_org_error(try_show_vcs_configuration):
     result = try_show_vcs_configuration["result"]
     assert result.exit_code != 0
-    assert "organization" in (result.stdout + result.stderr).lower()
+    assert "organization" in (result.output + result.stderr).lower()

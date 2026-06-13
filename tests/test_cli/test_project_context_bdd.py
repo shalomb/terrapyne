@@ -11,6 +11,8 @@ from terrapyne.models.project import Project
 from terrapyne.models.workspace import Workspace
 
 runner = CliRunner()
+runner.mix_stderr = True
+runner.mix_stderr = True
 
 
 @scenario("../features/project_context.feature", "Show project details using workspace context")
@@ -138,21 +140,21 @@ def request_workspace_details():
 def command_succeeds(cli_result):
     """Verify command success."""
     result = cli_result["result"]
-    assert result.exit_code == 0, f"Command failed with output: {result.stdout}"
+    assert result.exit_code == 0, f"Command failed with output: {result.output}"
 
 
 @then(parsers.parse('the output should show details for project "{project}"'))
 def check_project_details(cli_result, project):
     """Verify project details are shown."""
     result = cli_result["result"]
-    assert project in result.stdout
+    assert project in result.output
 
 
 @then(parsers.parse('the output should show team access for project "{project}"'))
 def check_project_teams(cli_result, project):
     """Verify project teams are shown."""
     result = cli_result["result"]
-    assert project in result.stdout
+    assert project in result.output
 
 
 @then(parsers.parse('the output should show project "{project}" in workspace details'))
@@ -160,4 +162,4 @@ def check_parent_project(cli_result, project):
     """Verify parent project is identified."""
     result = cli_result["result"]
     # Our mock setup uses prj-123 for the ID
-    assert "prj-123" in result.stdout or project in result.stdout
+    assert "prj-123" in result.output or project in result.output
