@@ -510,6 +510,9 @@ def workspace_clone(
                 return
 
             console.print(f"\n[green]✓[/green] {result.get('message', 'Successfully cloned')}")
+            if new_ws:
+                console.print(f"  ID:                {new_ws.id}")
+                console.print(f"\n[dim]Tip: Trigger a run with `run trigger {new_ws.name}`[/dim]")
 
             # Show details of what was cloned
             res = result.get("results", {})
@@ -710,6 +713,8 @@ def workspace_update(
             raise typer.Exit(1) from None
 
     console.print(f"[green]✓[/green] Successfully updated workspace '{name}'")
+    console.print(f"  ID:                {ws.id}")
+    console.print(f"\n[dim]Tip: Trigger a run with `run trigger {ws.name}`[/dim]")
     if new_name:
         console.print(f"  New name:          {ws.name}")
     if tf_version:
