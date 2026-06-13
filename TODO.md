@@ -66,7 +66,7 @@ Based on recent Agent-Native CLI design research, the backlog is currently struc
 | B16 | `run cancel` missing — pending runs cannot be cancelled; only discard exists (valid for cost_estimated/policy_checked only) | 🔴 | S | 4.0 | TODO |
 | B17 | `run discard` returns 409 on pending runs — should auto-route to cancel or surface actionable error | 🔴 | S | 4.0 | TODO |
 | B18 | `workspace unlock` missing — locked workspaces require raw API call to unblock | 🔴 | S | 4.0 | TODO |
-| B19 | `run trigger --wait` hangs on `pending` when predecessor run awaits apply — no timeout, no hint | 🔴 | M | 2.0 | TODO |
+| B19 | `run trigger --wait` hangs on `pending` when predecessor run awaits apply — no timeout, no hint | ✅ | M | 2.0 | DONE |
 | B20 | `run trigger` no `--workspace-id` override — context auto-detection breaks after workspace rename | 🟡 | S | 2.0 | TODO |
 | B21 | `run watch` / `run trigger` timeout hardcoded at 1800s — too short for agent-pool execution mode | 🟡 | S | 2.0 | TODO |
 | **AGENT EXPERIENCE (AX) GAPS** |
@@ -774,10 +774,10 @@ These items close the gap between the principles documented in `docs/explanation
 |---|---|---|---|---|---|
 | AX-stdout | stdout/stderr separation | `console.print` writes non-data output to stdout; breaks `cmd \| jq` | ✅ | M | DONE |
 | AX-json-mutations | Structured output contract | `workspace create`, `workspace clone`, `run trigger` lack `--format json` | 🔴 | S | TODO (AX5) |
-| AX-next-action | Output guides next action | Successful mutations don't consistently echo the resource ID and next-step hint | 🟡 | S | TODO |
+| AX-next-action | Output guides next action | Successful mutations don't consistently echo the resource ID and next-step hint | ✅ | S | DONE |
 | AX-actionable-errors | Actionable errors | API errors lack fix-command hints; only AX7 (title+detail) implemented so far | 🟡 | M | PARTIAL |
-| AX-no-interactive | No interactive requirements | `workspace var-rm` has no `--yes`; `--quiet` is position-sensitive (B14, B15) | 🟡 | S | TODO |
-| AX-tty-aware | TTY-aware output | `workspace list` truncates in pipes; no auto-disable of truncation on non-TTY (B12) | 🟡 | S | TODO |
+| AX-no-interactive | No interactive requirements | `workspace var-rm` has no `--yes`; `--quiet` is position-sensitive (B14, B15) | ✅ | S | DONE |
+| AX-tty-aware | TTY-aware output | `workspace list` truncates in pipes; no auto-disable of truncation on non-TTY (B12) | ✅ | S | DONE |
 
 ### AX-stdout — stderr separation
 

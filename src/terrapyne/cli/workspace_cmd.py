@@ -623,6 +623,10 @@ def workspace_create(
         return
 
     console.print(f"[green]✓[/green] Created workspace: {ws.name}")
+    console.print(f"  ID:                {ws.id}")
+    console.print(
+        f"\n[dim]Tip: Add variables with `workspace var set {ws.name} --key <key> --value <value>`[/dim]"
+    )
     if ws.terraform_version:
         console.print(f"  Terraform version: {ws.terraform_version}")
     if ws.execution_mode:
@@ -974,7 +978,7 @@ def var_set(
 
         if existing_var:
             console.print(f"[dim]Updating existing variable:[/dim] {key}")
-            client.workspaces.update_variable(
+            var_out = client.workspaces.update_variable(
                 variable_id=existing_var.id,
                 value=value,
                 hcl=hcl,
@@ -982,9 +986,11 @@ def var_set(
                 description=description,
             )
             console.print(f"[green]✓[/green] Updated variable: {key}")
+            console.print(f"  ID:                {var_out.id}")
+            console.print(f"\n[dim]Tip: Trigger a run with `run trigger {ws.name}`[/dim]")
         else:
             console.print(f"[dim]Creating new variable:[/dim] {key}")
-            client.workspaces.create_variable(
+            var_out = client.workspaces.create_variable(
                 workspace_id=ws.id,
                 key=key,
                 value=value,
@@ -994,6 +1000,8 @@ def var_set(
                 description=description,
             )
             console.print(f"[green]✓[/green] Created variable: {key}")
+            console.print(f"  ID:                {var_out.id}")
+            console.print(f"\n[dim]Tip: Trigger a run with `run trigger {ws.name}`[/dim]")
 
 
 @var_app.command("remove")

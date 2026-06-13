@@ -195,3 +195,29 @@ def check_discarded(mock_client):
 @then("the output should indicate it is paused for approval")
 def check_paused_output(cli_result):
     assert "Run paused for manual approval" in cli_result.output
+
+
+@scenario(
+    "../features/run_wait.feature", "Failing early when predecessor run is blocked awaiting apply"
+)
+def test_run_blocked():
+    pass
+
+
+@given(parsers.parse('"run-blocked" has status "{status}"'))
+def blocked_run_status(mock_client, status):
+    active_runs = mock_client.runs.get_active_runs.return_value
+    for r in active_runs:
+        if r.id == "run-blocked":
+            r.status = RunStatus.PLANNED
+            break
+
+
+@then("the command should fail with a blocked queue hint")
+def fail_with_hint(cli_result):
+    assert "predecessor run" in cli_result.output.lower() or "blocked" in cli_result.output.lower()
+
+
+@then("the command should exit with code 1")
+def exit_one(cli_result):
+    assert cli_result.exit_code == 1
