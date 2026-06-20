@@ -11,8 +11,6 @@ from typer.testing import CliRunner
 from terrapyne.cli.main import app
 
 runner = CliRunner()
-runner.mix_stderr = True
-runner.mix_stderr = True
 
 # Path to the feature file
 FEATURE_FILE = "../features/state_raw_output.feature"

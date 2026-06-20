@@ -12,8 +12,6 @@ from terrapyne.models.vcs import VCSConnection
 from terrapyne.models.workspace import Workspace
 
 runner = CliRunner()
-runner.mix_stderr = True
-runner.mix_stderr = True
 
 
 @pytest.fixture

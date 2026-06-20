@@ -9,8 +9,6 @@ from terrapyne.cli.main import app
 from terrapyne.models.workspace import Workspace
 
 runner = CliRunner()
-runner.mix_stderr = True
-runner.mix_stderr = True
 
 
 @scenario(

@@ -18,8 +18,6 @@ from terrapyne.models.workspace import Workspace
 from tests.fixtures.factories import run_response, workspace_response
 
 runner = CliRunner()
-runner.mix_stderr = True
-runner.mix_stderr = True
 
 FEATURE = "../features/agent_experience.feature"
 
@@ -528,9 +526,9 @@ def no_table_formatting(cli_result):
 @then("stdout is valid JSON")
 def stdout_is_valid_json(cli_result):
     try:
-        json.loads(cli_result.output)
+        json.loads(cli_result.stdout)
     except json.JSONDecodeError as e:
-        pytest.fail(f"stdout is not valid JSON: {e}\nOutput: {cli_result.output!r}")
+        pytest.fail(f"stdout is not valid JSON: {e}\nOutput: {cli_result.stdout!r}")
 
 
 @then(parsers.parse('the JSON contains field "{field}" matching "{pattern}"'))

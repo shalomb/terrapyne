@@ -11,8 +11,6 @@ from terrapyne.models.project import Project
 from terrapyne.models.workspace import Workspace
 
 runner = CliRunner()
-runner.mix_stderr = True
-runner.mix_stderr = True
 
 
 @scenario("../features/project_context.feature", "Show project details using workspace context")

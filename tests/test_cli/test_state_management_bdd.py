@@ -12,8 +12,6 @@ from terrapyne.models.state_version import StateVersion
 from terrapyne.models.workspace import Workspace
 
 runner = CliRunner()
-runner.mix_stderr = True
-runner.mix_stderr = True
 
 
 @scenario("../features/state_management.feature", "Pull current state as raw JSON")

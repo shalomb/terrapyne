@@ -9,8 +9,6 @@ from terrapyne.models.workspace import Workspace
 from tests.fixtures.factories import workspace_response
 
 runner = CliRunner()
-runner.mix_stderr = True
-runner.mix_stderr = True
 
 
 def _make_workspace(vcs_branch="feature/my-change", with_vcs=True):

@@ -9,8 +9,6 @@ from terrapyne.cli.main import app
 from terrapyne.models.team import Team
 
 runner = CliRunner()
-runner.mix_stderr = True
-runner.mix_stderr = True
 
 
 @scenario("../features/team.feature", "List teams in organization")

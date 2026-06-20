@@ -16,8 +16,6 @@ from terrapyne.models.run import Run, RunStatus
 from terrapyne.models.workspace import Workspace
 
 runner = CliRunner()
-runner.mix_stderr = True
-runner.mix_stderr = True
 
 
 # ============================================================================

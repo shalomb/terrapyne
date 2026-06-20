@@ -8,8 +8,6 @@ from terrapyne.cli.main import app
 from terrapyne.models.varset import VariableSet, VariableSetVariable
 
 runner = CliRunner()
-runner.mix_stderr = True
-runner.mix_stderr = True
 
 
 def _make_varset(id="varset-xyz789", name="shared-aws-creds", global_=False):

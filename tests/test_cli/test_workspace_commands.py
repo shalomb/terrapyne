@@ -16,8 +16,6 @@ from terrapyne.models.workspace import Workspace
 from tests.fixtures.factories import workspace_response
 
 runner = CliRunner()
-runner.mix_stderr = True
-runner.mix_stderr = True
 
 
 # Workspace-related fixtures (used in step definitions)

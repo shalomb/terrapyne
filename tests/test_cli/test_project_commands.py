@@ -15,8 +15,6 @@ from terrapyne.models.project import Project
 from terrapyne.models.team_access import TeamProjectAccess
 
 runner = CliRunner()
-runner.mix_stderr = True
-runner.mix_stderr = True
 
 
 # Project-related fixtures (used in step definitions)

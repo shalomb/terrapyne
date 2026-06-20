@@ -12,8 +12,6 @@ from terrapyne.models.workspace import Workspace
 scenarios("../features/workspace_var.feature")
 
 runner = CliRunner()
-runner.mix_stderr = True
-runner.mix_stderr = True
 
 
 # ---------------------------------------------------------------------------

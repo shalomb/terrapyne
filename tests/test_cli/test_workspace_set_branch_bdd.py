@@ -12,8 +12,6 @@ from tests.fixtures.factories import workspace_response
 scenarios("../features/workspace_set_branch.feature")
 
 runner = CliRunner()
-runner.mix_stderr = True
-runner.mix_stderr = True
 
 
 # ---------------------------------------------------------------------------

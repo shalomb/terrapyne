@@ -5,8 +5,6 @@ from typer.testing import CliRunner
 from terrapyne.cli.main import app
 
 runner = CliRunner()
-runner.mix_stderr = True
-runner.mix_stderr = True
 
 
 class TestMainCLI:

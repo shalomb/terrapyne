@@ -11,8 +11,6 @@ from terrapyne.models.workspace import Workspace
 scenarios("../features/workspace_update.feature")
 
 runner = CliRunner()
-runner.mix_stderr = True
-runner.mix_stderr = True
 
 
 @given("the TFC API accepts workspace updates", target_fixture="mock_client")

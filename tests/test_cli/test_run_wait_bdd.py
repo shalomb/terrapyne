@@ -10,8 +10,6 @@ from terrapyne.models.run import Run, RunStatus
 from terrapyne.models.workspace import Workspace
 
 runner = CliRunner()
-runner.mix_stderr = True
-runner.mix_stderr = True
 
 
 @scenario("../features/run_wait.feature", "Waiting for a run to complete")

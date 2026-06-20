@@ -9,8 +9,6 @@ from terrapyne.models.state_version import StateVersionOutput
 from terrapyne.models.workspace import Workspace
 
 runner = CliRunner()
-runner.mix_stderr = True
-runner.mix_stderr = True
 
 
 class TestStateOutputsRaw:
