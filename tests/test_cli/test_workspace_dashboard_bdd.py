@@ -225,9 +225,9 @@ def check_health_snapshot(request):
     """Verify health snapshot section is rendered."""
     ctx = _get_command_result(request)
     result = ctx["result"]
-    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+    assert result.exit_code == 0, f"Command failed: {result.output}"
     # Outcome: health status is visible (not checking for specific emoji)
-    output_lower = result.stdout.lower()
+    output_lower = result.output.lower()
     assert any(keyword in output_lower for keyword in ["health", "status", "snapshot", "state"]), (
         "Health snapshot not found in output"
     )
@@ -243,7 +243,7 @@ def check_latest_run_info(show_workspace_dashboard):
     # Outcome: latest run is present in output
     if runs:
         latest_run = runs[0]
-        assert latest_run.id in result.stdout or "run" in result.stdout.lower(), (
+        assert latest_run.id in result.output or "run" in result.output.lower(), (
             "Latest run information not found"
         )
 
@@ -255,7 +255,7 @@ def check_active_run_count(request):
     result = ctx["result"]
     assert result.exit_code == 0
     # Outcome: run count information is present
-    output_lower = result.stdout.lower()
+    output_lower = result.output.lower()
     assert any(
         keyword in output_lower for keyword in ["active", "queued", "pending", "running", "count"]
     ), "Active run count not found"
@@ -267,7 +267,7 @@ def check_unknown_health(show_workspace_no_runs):
     result = show_workspace_no_runs["result"]
     assert result.exit_code == 0
     # Outcome: health status indicates unknown/no data
-    output_lower = result.stdout.lower()
+    output_lower = result.output.lower()
     assert any(
         keyword in output_lower for keyword in ["unknown", "no data", "not", "health", "status"]
     ), "Unknown health status not indicated"
@@ -279,7 +279,7 @@ def check_zero_runs(show_workspace_no_runs):
     result = show_workspace_no_runs["result"]
     assert result.exit_code == 0
     # Outcome: indicates no active runs
-    output_lower = result.stdout.lower()
+    output_lower = result.output.lower()
     assert any(indicator in output_lower for indicator in ["0", "zero", "no", "none"]), (
         "Zero active runs not indicated"
     )
@@ -293,7 +293,7 @@ def check_commit_sha(show_workspace_dashboard):
     # Outcome: commit hash is visible (not verifying exact format)
     runs = show_workspace_dashboard["runs"]
     if runs and runs[0].commit_sha:
-        assert runs[0].commit_sha in result.stdout or "commit" in result.stdout.lower(), (
+        assert runs[0].commit_sha in result.output or "commit" in result.output.lower(), (
             "Commit SHA not found"
         )
 
@@ -307,7 +307,7 @@ def check_commit_author(show_workspace_dashboard):
     runs = show_workspace_dashboard["runs"]
     if runs and hasattr(runs[0], "commit_author") and runs[0].commit_author:
         assert (
-            "author" in result.stdout.lower() or "@" in result.stdout  # email pattern
+            "author" in result.output.lower() or "@" in result.output  # email pattern
         ), "Commit author not found"
 
 
@@ -320,8 +320,8 @@ def check_commit_message(show_workspace_dashboard):
     runs = show_workspace_dashboard["runs"]
     if runs and hasattr(runs[0], "commit_message") and runs[0].commit_message:
         assert (
-            "message" in result.stdout.lower()
-            or len(result.stdout) > 50  # has content beyond basic info
+            "message" in result.output.lower()
+            or len(result.output) > 50  # has content beyond basic info
         ), "Commit message not found"
 
 
@@ -331,7 +331,7 @@ def check_count_of_active_runs(show_workspace_dashboard):
     result = show_workspace_dashboard["result"]
     assert result.exit_code == 0
     # Outcome: count information is present
-    output_lower = result.stdout.lower()
+    output_lower = result.output.lower()
     assert any(keyword in output_lower for keyword in ["active", "count", "running", "pending"]), (
         "Active run count not found"
     )
@@ -347,7 +347,7 @@ def check_run_in_active_state(show_workspace_dashboard):
     # Outcome: at least one run is displayed
     if runs:
         active_runs = [r for r in runs if r.status in RunStatus.get_active_statuses()]
-        assert len(active_runs) > 0 or "run" in result.stdout.lower(), "No active runs found"
+        assert len(active_runs) > 0 or "run" in result.output.lower(), "No active runs found"
 
 
 @then("I should receive JSON output")
@@ -359,7 +359,7 @@ def check_json_output(show_workspace_json):
     try:
         import json
 
-        json.loads(result.stdout)
+        json.loads(result.output)
     except json.JSONDecodeError:
         pytest.fail("Output is not valid JSON")
 
@@ -372,7 +372,7 @@ def check_json_snapshot_section(show_workspace_json):
     # Outcome: snapshot data is in JSON output
     import json
 
-    data = json.loads(result.stdout)
+    data = json.loads(result.output)
 
     assert "snapshot" in data or any(
         key in str(data).lower() for key in ["latest", "activity", "health"]
@@ -387,7 +387,7 @@ def check_json_active_count(show_workspace_json):
     # Outcome: active run count is in JSON output
     import json
 
-    data = json.loads(result.stdout)
+    data = json.loads(result.output)
 
     assert any(keyword in str(data).lower() for keyword in ["active", "count", "runs"]), (
         "Active runs count not in JSON"
@@ -430,8 +430,8 @@ def run_health_subcommand(workspace_detail_response, run_list_response):
 def check_no_variables_section(run_health_subcommand):
     """Verify variables section is absent from health output."""
     result = run_health_subcommand["result"]
-    assert result.exit_code == 0, f"Command failed: {result.stdout}"
-    assert "Variables" not in result.stdout, "Variables section should not appear in health output"
+    assert result.exit_code == 0, f"Command failed: {result.output}"
+    assert "Variables" not in result.output, "Variables section should not appear in health output"
 
 
 @then("I should not see VCS configuration section")
@@ -439,4 +439,4 @@ def check_no_vcs_section(run_health_subcommand):
     """Verify VCS configuration section is absent from health output."""
     result = run_health_subcommand["result"]
     assert result.exit_code == 0
-    assert "VCS" not in result.stdout, "VCS section should not appear in health output"
+    assert "VCS" not in result.output, "VCS section should not appear in health output"

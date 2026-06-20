@@ -155,14 +155,14 @@ def remove_team_member_step(mock_client, user_id, team_name):
 
 @then(parsers.parse('I should see "{name}" in the list'))
 def check_name_in_list(cli_result, name):
-    assert name in cli_result.stdout
+    assert name in cli_result.output
 
 
 @then(parsers.parse('the team "{name}" should be created successfully'))
 def check_team_created(cli_result, name):
     assert cli_result.exit_code == 0
-    assert name in cli_result.stdout
-    assert "created" in cli_result.stdout.lower()
+    assert name in cli_result.output
+    assert "created" in cli_result.output.lower()
 
 
 @then("it should have the requested permissions")
@@ -173,16 +173,16 @@ def check_permissions():
 @then("the team should be removed from the organization")
 def check_team_removed(cli_result):
     assert cli_result.exit_code == 0
-    assert "deleted" in cli_result.stdout.lower()
+    assert "deleted" in cli_result.output.lower()
 
 
 @then(parsers.parse('"{user_id}" should be listed as a member of "{team_name}"'))
 def check_member_added(cli_result, user_id, team_name):
     assert cli_result.exit_code == 0
-    assert "added" in cli_result.stdout.lower()
+    assert "added" in cli_result.output.lower()
 
 
 @then(parsers.parse('"{user_id}" should no longer be a member of "{team_name}"'))
 def check_member_removed(cli_result_remove, user_id, team_name):
     assert cli_result_remove.exit_code == 0
-    assert "removed" in cli_result_remove.stdout.lower()
+    assert "removed" in cli_result_remove.output.lower()

@@ -627,38 +627,38 @@ def check_exit_code_zero(cli_result):
 @then("the output should show parsed plan summary")
 def check_cli_output_summary(cli_result):
     assert (
-        "Summary:" in cli_result.stdout
-        or "Plan:" in cli_result.stdout
-        or "Resources:" in cli_result.stdout
+        "Summary:" in cli_result.output
+        or "Plan:" in cli_result.output
+        or "Resources:" in cli_result.output
     )
 
 
 @then("the output should show resource count")
 def check_cli_output_resource_count(cli_result):
-    assert "Resources:" in cli_result.stdout
+    assert "Resources:" in cli_result.output
 
 
 @then("the output should be valid JSON output")
 def check_valid_json_output(cli_result):
-    data = extract_json(cli_result.stdout)
+    data = extract_json(cli_result.output)
     assert data is not None
 
 
 @then("the JSON should contain resource_changes, plan_summary, diagnostics")
 def check_json_content(cli_result):
-    data = extract_json(cli_result.stdout)
+    data = extract_json(cli_result.output)
     assert "resource_changes" in data
     assert "plan_summary" in data
 
 
 @then("the output should be formatted for human readability")
 def check_human_readability(cli_result):
-    assert "📊 Resources:" in cli_result.stdout
+    assert "📊 Resources:" in cli_result.output
 
 
 @then("resources should be listed with addresses and actions")
 def check_human_resources(cli_result):
-    assert "aws_instance.web" in cli_result.stdout
+    assert "aws_instance.web" in cli_result.output
 
 
 @given("I have a Terraform instance initialized", target_fixture="tf")

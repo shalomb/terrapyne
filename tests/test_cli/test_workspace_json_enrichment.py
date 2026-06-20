@@ -110,7 +110,7 @@ class TestWorkspaceShowJSONEnrichment:
         result = self._invoke_with_mocks(mock_client)
 
         assert result.exit_code == 0
-        output = json.loads(result.stdout)
+        output = json.loads(result.output)
 
         assert "vcs" in output
         assert output["vcs"]["identifier"] == "myorg/my-app"
@@ -129,7 +129,7 @@ class TestWorkspaceShowJSONEnrichment:
         result = self._invoke_with_mocks(mock_client)
 
         assert result.exit_code == 0
-        output = json.loads(result.stdout)
+        output = json.loads(result.output)
 
         assert output["updated_at"] == "2025-03-15T10:00:00Z"
         assert output["environment"] == "development"
@@ -147,7 +147,7 @@ class TestWorkspaceShowJSONEnrichment:
         result = self._invoke_with_mocks(mock_client)
 
         assert result.exit_code == 0
-        output = json.loads(result.stdout)
+        output = json.loads(result.output)
 
         assert "variable_summary" in output
         summary = output["variable_summary"]
@@ -167,7 +167,7 @@ class TestWorkspaceShowJSONEnrichment:
         result = self._invoke_with_mocks(mock_client)
 
         assert result.exit_code == 0
-        output = json.loads(result.stdout)
+        output = json.loads(result.output)
 
         assert output["vcs"] is None
 
@@ -182,7 +182,7 @@ class TestWorkspaceShowJSONEnrichment:
         result = self._invoke_with_mocks(mock_client)
 
         assert result.exit_code == 0
-        output = json.loads(result.stdout)
+        output = json.loads(result.output)
 
         # Empty list should produce variable_summary with total=0, not None
         assert output["variable_summary"] is None or output["variable_summary"]["total"] == 0
@@ -200,7 +200,7 @@ class TestWorkspaceShowJSONEnrichment:
         result = self._invoke_with_mocks(mock_client)
 
         assert result.exit_code == 0
-        output = json.loads(result.stdout)
+        output = json.loads(result.output)
 
         assert output["vcs"] is None
 
@@ -217,7 +217,7 @@ class TestWorkspaceShowJSONEnrichment:
         result = self._invoke_with_mocks(mock_client)
 
         assert result.exit_code == 0
-        output = json.loads(result.stdout)
+        output = json.loads(result.output)
 
         assert output["variable_summary"] is None
         assert output["vcs"] is not None  # VCS should still be present
@@ -234,6 +234,6 @@ class TestWorkspaceShowJSONEnrichment:
 
         assert result.exit_code == 0
         # This will raise if not valid JSON
-        output = json.loads(result.stdout)
+        output = json.loads(result.output)
         assert isinstance(output, dict)
         assert "id" in output

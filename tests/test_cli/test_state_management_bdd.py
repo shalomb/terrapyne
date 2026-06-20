@@ -109,7 +109,7 @@ def list_state_versions(mock_client):
 @then("the output should be valid JSON")
 def check_valid_json(cli_result):
     assert cli_result.exit_code == 0
-    data = json.loads(cli_result.stdout)
+    data = json.loads(cli_result.output)
     assert data is not None
 
 
@@ -118,21 +118,21 @@ def check_output_content(cli_result, text):
     # For JSON state files, resources might be separate fields
     if "." in text:
         parts = text.split(".")
-        assert parts[0] in cli_result.stdout
-        assert parts[1] in cli_result.stdout
+        assert parts[0] in cli_result.output
+        assert parts[1] in cli_result.output
     else:
-        assert text in cli_result.stdout
+        assert text in cli_result.output
 
 
 @then(parsers.parse("I should see {count:d} versions in the list"))
 def check_version_count(cli_result, count):
     assert cli_result.exit_code == 0
     # Match version lines
-    assert "sv-" in cli_result.stdout
-    assert str(count) in cli_result.stdout
+    assert "sv-" in cli_result.output
+    assert str(count) in cli_result.output
 
 
 @then(parsers.parse('I should see relative times like "{t1}" or "{t2}"'))
 def check_relative_times(cli_result, t1, t2):
     # Just check that it's using the relative formatter (e.g. "h ago")
-    assert "ago" in cli_result.stdout
+    assert "ago" in cli_result.output

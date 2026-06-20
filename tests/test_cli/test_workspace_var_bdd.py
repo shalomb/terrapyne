@@ -235,55 +235,55 @@ def copy_vars(mock_client):
 
 @then("I should see the variable listing")
 def check_variable_listing(cli_result):
-    assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}: {cli_result.stdout}"
-    assert "region" in cli_result.stdout, (
-        f"Expected variable key 'region' in output: {cli_result.stdout}"
+    assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}: {cli_result.output}"
+    assert "region" in cli_result.output, (
+        f"Expected variable key 'region' in output: {cli_result.output}"
     )
-    assert "env" in cli_result.stdout, f"Expected variable key 'env' in output: {cli_result.stdout}"
+    assert "env" in cli_result.output, f"Expected variable key 'env' in output: {cli_result.output}"
 
 
 @then("the variable should be created")
 def check_var_created(cli_result):
-    assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}: {cli_result.stdout}"
+    assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}: {cli_result.output}"
 
 
 @then('output should confirm "Created variable: region"')
 def check_created_output(cli_result):
-    assert "Created variable: region" in cli_result.stdout
+    assert "Created variable: region" in cli_result.output
 
 
 @then("the variable should be updated")
 def check_var_updated(cli_result):
-    assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}: {cli_result.stdout}"
+    assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}: {cli_result.output}"
 
 
 @then('output should confirm "Updated variable: region"')
 def check_updated_output(cli_result):
-    assert "Updated variable: region" in cli_result.stdout
+    assert "Updated variable: region" in cli_result.output
 
 
 @then("the variable should be deleted")
 def check_var_deleted(cli_result, mock_client):
-    assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}: {cli_result.stdout}"
+    assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}: {cli_result.output}"
     mock_client.workspaces.delete_variable.assert_called_once()
 
 
 @then('output should confirm "Removed variable: old-var"')
 def check_removed_output(cli_result):
-    assert "Removed variable: old-var" in cli_result.stdout
+    assert "Removed variable: old-var" in cli_result.output
 
 
 @then('2 variables should be created in "staging-app"')
 def check_vars_copied(cli_result, mock_client):
-    assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}: {cli_result.stdout}"
+    assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}: {cli_result.output}"
     assert mock_client.workspaces.create_variable.call_count == 2
 
 
 @then("output should confirm variables were copied")
 def check_copy_output(cli_result):
-    assert "Done!" in cli_result.stdout
+    assert "Done!" in cli_result.output
 
 
 @then("exit code should be 0")
 def exit_0(cli_result):
-    assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}: {cli_result.stdout}"
+    assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}: {cli_result.output}"

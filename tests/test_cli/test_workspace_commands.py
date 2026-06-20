@@ -127,13 +127,13 @@ def list_workspaces_quiet(org_setup, workspace_list_response):
 @then("workspace list output should contain only data")
 def check_quiet_output(quiet_list_result):
     # In quiet mode there should be no Rich table decorations (no "Workspaces" title)
-    assert "Workspaces" not in quiet_list_result.stdout
+    assert "Workspaces" not in quiet_list_result.output
 
 
 @then("workspace list result should exit with code 0")
 def check_quiet_exit(quiet_list_result):
     assert quiet_list_result.exit_code == 0, (
-        f"Exit {quiet_list_result.exit_code}: {quiet_list_result.stdout}"
+        f"Exit {quiet_list_result.exit_code}: {quiet_list_result.output}"
     )
 
 
@@ -157,12 +157,12 @@ def list_workspaces_no_truncate(long_name_workspace):
 @then("the full workspace name should appear in the output without truncation")
 def check_full_name(no_truncate_result):
     assert no_truncate_result.exit_code == 0, (
-        f"Exit {no_truncate_result.exit_code}: {no_truncate_result.stdout}"
+        f"Exit {no_truncate_result.exit_code}: {no_truncate_result.output}"
     )
     assert (
         "tec-man-dad-dev-10803-appstream-very-long-name-that-gets-truncated"
-        in no_truncate_result.stdout
-    ), f"Full name missing in: {no_truncate_result.stdout}"
+        in no_truncate_result.output
+    ), f"Full name missing in: {no_truncate_result.output}"
 
 
 @pytest.fixture
@@ -195,9 +195,9 @@ def check_workspace_list(list_all_workspaces):
     """Verify workspace list is displayed."""
     result = list_all_workspaces["result"]
     if result.exit_code != 0:
-        print(f"DEBUG EXCEPTION: {result.exception}", "DEBUG STDOUT:", result.stdout)
+        print(f"DEBUG EXCEPTION: {result.exception}", "DEBUG STDOUT:", result.output)
     assert result.exit_code == 0
-    assert "my-app-dev" in result.stdout or "my-app-prod" in result.stdout
+    assert "my-app-dev" in result.output or "my-app-prod" in result.output
 
 
 @then("the list should show workspace count")
@@ -205,7 +205,7 @@ def check_workspace_count(list_all_workspaces):
     """Verify workspace count is shown."""
     result = list_all_workspaces["result"]
     # Should show pagination info like "Showing: X of Y"
-    assert "2" in result.stdout or "workspace" in result.stdout.lower()
+    assert "2" in result.output or "workspace" in result.output.lower()
 
 
 # ============================================================================
@@ -263,8 +263,8 @@ def show_workspace_details(workspace_context, workspace_detail_response):
 def check_workspace_properties(show_workspace_details):
     """Verify workspace properties are shown."""
     result = show_workspace_details["result"]
-    assert result.exit_code == 0, f"Command failed: {result.stdout}"
-    assert "my-app-dev" in result.stdout
+    assert result.exit_code == 0, f"Command failed: {result.output}"
+    assert "my-app-dev" in result.output
 
 
 @then("I should see workspace ID")
@@ -272,21 +272,21 @@ def check_workspace_id(show_workspace_details):
     """Verify workspace ID is shown."""
     result = show_workspace_details["result"]
     workspace = show_workspace_details["workspace"]
-    assert workspace.id in result.stdout or "ws-" in result.stdout
+    assert workspace.id in result.output or "ws-" in result.output
 
 
 @then("I should see terraform version")
 def check_terraform_version(show_workspace_details):
     """Verify terraform version is shown."""
     result = show_workspace_details["result"]
-    assert "1.7.0" in result.stdout or "terraform" in result.stdout.lower()
+    assert "1.7.0" in result.output or "terraform" in result.output.lower()
 
 
 @then("I should see execution mode")
 def check_execution_mode(show_workspace_details):
     """Verify execution mode is shown."""
     result = show_workspace_details["result"]
-    assert "remote" in result.stdout or "execution" in result.stdout.lower()
+    assert "remote" in result.output or "execution" in result.output.lower()
 
 
 # ============================================================================
@@ -319,14 +319,14 @@ def check_error_message(try_list_without_org):
     """Verify error message about missing organization."""
     result = try_list_without_org["result"]
     assert result.exit_code != 0
-    assert "organization" in result.stdout.lower()
+    assert "organization" in result.output.lower()
 
 
 @then('error message should mention "--organization"')
 def check_error_hint(try_list_without_org):
     """Verify error mentions how to fix it."""
     result = try_list_without_org["result"]
-    assert "Organization not specified" in result.stdout
+    assert "Organization not specified" in result.output
 
 
 @then("exit code should be 1")
@@ -382,21 +382,21 @@ def check_repository_info(show_vcs_config):
     """Verify repository information is shown."""
     result = show_vcs_config["result"]
     assert result.exit_code == 0
-    assert "myorg/my-app" in result.stdout or "Repository" in result.stdout
+    assert "myorg/my-app" in result.output or "Repository" in result.output
 
 
 @then("I should see branch information")
 def check_branch_info(show_vcs_config):
     """Verify branch information is shown."""
     result = show_vcs_config["result"]
-    assert "develop" in result.stdout or "branch" in result.stdout.lower()
+    assert "develop" in result.output or "branch" in result.output.lower()
 
 
 @then("I should see auto-apply setting")
 def check_auto_apply(show_vcs_config):
     """Verify auto-apply setting is shown."""
     result = show_vcs_config["result"]
-    assert "auto" in result.stdout.lower() or "apply" in result.stdout.lower()
+    assert "auto" in result.output.lower() or "apply" in result.output.lower()
 
 
 @scenario("../features/workspace.feature", "Handle workspace without VCS")
@@ -451,7 +451,7 @@ def check_no_vcs_message(show_vcs_no_connection):
     """Verify message about no VCS connection."""
     result = show_vcs_no_connection["result"]
     assert result.exit_code == 0
-    assert "no VCS" in result.stdout or "No VCS" in result.stdout
+    assert "no VCS" in result.output or "No VCS" in result.output
 
 
 @then("exit code should be 0")
@@ -562,7 +562,7 @@ def check_workspace_created_basic(clone_basic_settings):
     """Verify target workspace was created."""
     result = clone_basic_settings["result"]
     assert result.exit_code == 0
-    assert "staging-app" in result.stdout
+    assert "staging-app" in result.output
 
 
 @then('workspace "staging-app" should have same terraform version as "prod-app"')
@@ -571,7 +571,7 @@ def check_terraform_version_same(clone_basic_settings):
     result = clone_basic_settings["result"]
     # Settings were copied as indicated by successful clone
     assert result.exit_code == 0
-    assert "staging-app" in result.stdout
+    assert "staging-app" in result.output
 
 
 @then('workspace "staging-app" should have same execution mode as "prod-app"')
@@ -707,14 +707,14 @@ def _(clone_with_variables):
     """Verify target workspace created."""
     result = clone_with_variables["result"]
     assert result.exit_code == 0
-    assert "staging-app" in result.stdout
+    assert "staging-app" in result.output
 
 
 @then('workspace "staging-app" should have 3 variables')
 def check_variables_count(clone_with_variables):
     """Verify variable count."""
     result = clone_with_variables["result"]
-    assert "3" in result.stdout
+    assert "3" in result.output
 
 
 @then("all variables should preserve their category (terraform/env)")
@@ -736,7 +736,7 @@ def check_variable_sensitivity(clone_with_variables):
 def check_variables_output(clone_with_variables):
     """Verify output shows variable count."""
     result = clone_with_variables["result"]
-    assert "Variables cloned: 3" in result.stdout
+    assert "Variables cloned: 3" in result.output
 
 
 # Clone with VCS scenario
@@ -849,7 +849,7 @@ def check_vcs_branch(clone_with_vcs):
 def check_vcs_output(clone_with_vcs):
     """Verify VCS details in output."""
     result = clone_with_vcs["result"]
-    assert "VCS" in result.stdout or "configured" in result.stdout.lower()
+    assert "VCS" in result.output or "configured" in result.output.lower()
 
 
 # Clone fails when source not found
@@ -909,14 +909,14 @@ def check_source_not_found_error(clone_source_not_found):
     """Verify error message about source not found."""
     result = clone_source_not_found["result"]
     assert result.exit_code == 1
-    assert "not found" in result.stdout.lower() or "error" in result.stdout.lower()
+    assert "not found" in result.output.lower() or "error" in result.output.lower()
 
 
 @then('I should see error message containing "non-existent"')
 def check_source_name_in_error(clone_source_not_found):
     """Verify source name in error."""
     result = clone_source_not_found["result"]
-    assert "non-existent" in result.stdout.lower()
+    assert "non-existent" in result.output.lower()
 
 
 @then('workspace "target-app" should not be created')
@@ -989,14 +989,14 @@ def check_target_exists_error(clone_target_exists):
     """Verify error about target existing."""
     result = clone_target_exists["result"]
     assert result.exit_code == 1
-    assert "already exists" in result.stdout or "exists" in result.stdout.lower()
+    assert "already exists" in result.output or "exists" in result.output.lower()
 
 
 @then('I should see suggestion to use "--force"')
 def check_force_suggestion(clone_target_exists):
     """Verify suggestion to use --force."""
     result = clone_target_exists["result"]
-    assert "--force" in result.stdout or "force" in result.stdout.lower()
+    assert "--force" in result.output or "force" in result.output.lower()
 
 
 @then('workspace "existing-target" should not be modified')
@@ -1081,7 +1081,7 @@ def check_target_updated(clone_with_force):
     """Verify target was updated."""
     result = clone_with_force["result"]
     assert result.exit_code == 0
-    assert "existing-target" in result.stdout
+    assert "existing-target" in result.output
 
 
 @then('workspace "existing-target" should have terraform version from "prod-app"')
@@ -1176,28 +1176,28 @@ def clone_detailed_output(workspace_prod_response, workspace_cloned_response):
 def check_clone_message(clone_detailed_output):
     """Verify clone start message."""
     result = clone_detailed_output["result"]
-    assert "Cloning" in result.stdout or "prod-app" in result.stdout
+    assert "Cloning" in result.output or "prod-app" in result.output
 
 
 @then("output should show success message with checkmark")
 def check_success_checkmark(clone_detailed_output):
     """Verify success message with checkmark."""
     result = clone_detailed_output["result"]
-    assert "✓" in result.stdout or "success" in result.stdout.lower()
+    assert "✓" in result.output or "success" in result.output.lower()
 
 
 @then("output should show target workspace ID")
 def check_workspace_id_shown(clone_detailed_output):
     """Verify workspace ID shown."""
     result = clone_detailed_output["result"]
-    assert "ws-" in result.stdout or "workspace" in result.stdout.lower()
+    assert "ws-" in result.output or "workspace" in result.output.lower()
 
 
 @then('output should show "Variables cloned: 2"')
 def check_var_count_shown(clone_detailed_output):
     """Verify variable count shown."""
     result = clone_detailed_output["result"]
-    assert "2" in result.stdout and "Variables" in result.stdout
+    assert "2" in result.output and "Variables" in result.output
 
 
 @then("output should show variable breakdown (terraform vs env)")
@@ -1205,15 +1205,15 @@ def check_var_breakdown(clone_detailed_output):
     """Verify terraform/env breakdown."""
     result = clone_detailed_output["result"]
     assert (
-        "terraform" in result.stdout.lower() or "env" in result.stdout.lower()
-    ) and "1" in result.stdout
+        "terraform" in result.output.lower() or "env" in result.output.lower()
+    ) and "1" in result.output
 
 
 @then('output should show "VCS configured:" with repository details')
 def check_vcs_details_shown(clone_detailed_output):
     """Verify VCS details shown."""
     result = clone_detailed_output["result"]
-    assert "VCS" in result.stdout or "github" in result.stdout.lower()
+    assert "VCS" in result.output or "github" in result.output.lower()
 
 
 # Clone without optional flags
@@ -1283,7 +1283,7 @@ def check_settings_only_created(clone_settings_only):
     """Verify workspace created with settings."""
     result = clone_settings_only["result"]
     assert result.exit_code == 0
-    assert "staging-app" in result.stdout
+    assert "staging-app" in result.output
 
 
 @then('workspace "staging-app" should NOT have prod-app variables')
@@ -1291,7 +1291,7 @@ def check_no_variables(clone_settings_only):
     """Verify variables not cloned."""
     result = clone_settings_only["result"]
     # Settings only shouldn't show variable count
-    assert "Variables cloned" not in result.stdout or "0" in result.stdout
+    assert "Variables cloned" not in result.output or "0" in result.output
 
 
 @then('workspace "staging-app" should NOT have prod-app VCS configuration')
@@ -1299,7 +1299,7 @@ def check_no_vcs(clone_settings_only):
     """Verify VCS not cloned."""
     # Use a safe way to check
     result_obj = clone_settings_only["result"]
-    assert "VCS configured" not in result_obj.stdout or "No VCS" in result_obj.stdout
+    assert "VCS configured" not in result_obj.output or "No VCS" in result_obj.output
 
 
 @then("output should show success message")
@@ -1351,14 +1351,14 @@ def create_workspace_basic(workspace_list_response):
 def check_workspace_created(create_workspace_basic):
     """Verify workspace created."""
     result = create_workspace_basic["result"]
-    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+    assert result.exit_code == 0, f"Command failed: {result.output}"
 
 
 @then('output should show "Created workspace: new-workspace"')
 def check_create_output(create_workspace_basic):
     """Verify creation output message."""
     result = create_workspace_basic["result"]
-    assert "new-workspace" in result.stdout
+    assert "new-workspace" in result.output
 
 
 @scenario("../features/workspace.feature", "Create a workspace with optional settings")
@@ -1408,15 +1408,15 @@ def create_workspace_with_settings():
 def check_tf_version(create_workspace_with_settings):
     """Verify terraform version."""
     result = create_workspace_with_settings["result"]
-    assert result.exit_code == 0, f"Command failed: {result.stdout}"
-    assert "1.9.0" in result.stdout
+    assert result.exit_code == 0, f"Command failed: {result.output}"
+    assert "1.9.0" in result.output
 
 
 @then('workspace should have execution mode "remote"')
 def check_execution_mode_create(create_workspace_with_settings):
     """Verify execution mode."""
     result = create_workspace_with_settings["result"]
-    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+    assert result.exit_code == 0, f"Command failed: {result.output}"
 
 
 @scenario("../features/workspace.feature", "Create a workspace with project association")
@@ -1467,7 +1467,7 @@ def create_workspace_with_project():
 def check_project_association(create_workspace_with_project):
     """Verify project association."""
     result = create_workspace_with_project["result"]
-    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+    assert result.exit_code == 0, f"Command failed: {result.output}"
 
 
 @scenario("../features/workspace.feature", "Create workspace fails when it already exists")
@@ -1509,7 +1509,7 @@ def check_already_exists_error(create_workspace_already_exists):
     """Verify already exists error."""
     result = create_workspace_already_exists["result"]
     assert result.exit_code == 1
-    assert "already exists" in result.stdout.lower()
+    assert "already exists" in result.output.lower()
 
 
 # ============================================================================
@@ -1563,14 +1563,14 @@ def delete_workspace_force():
 def check_workspace_deleted(delete_workspace_force):
     """Verify workspace deleted."""
     result = delete_workspace_force["result"]
-    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+    assert result.exit_code == 0, f"Command failed: {result.output}"
 
 
 @then('output should show "Deleted workspace: old-workspace"')
 def check_delete_output(delete_workspace_force):
     """Verify delete output message."""
     result = delete_workspace_force["result"]
-    assert "old-workspace" in result.stdout
+    assert "old-workspace" in result.output
 
 
 @scenario(
@@ -1610,7 +1610,7 @@ def delete_workspace_confirm_yes():
 def check_workspace_deleted_yes(delete_workspace_confirm_yes):
     """Verify workspace deleted after yes."""
     result = delete_workspace_confirm_yes["result"]
-    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+    assert result.exit_code == 0, f"Command failed: {result.output}"
 
 
 @scenario(
@@ -1656,7 +1656,7 @@ def check_workspace_not_deleted(delete_workspace_confirm_no):
 def check_aborted_output(delete_workspace_confirm_no):
     """Verify aborted message."""
     result = delete_workspace_confirm_no["result"]
-    assert "Aborted" in result.stdout or "aborted" in result.stdout.lower()
+    assert "Aborted" in result.output or "aborted" in result.output.lower()
 
 
 @scenario("../features/workspace.feature", "Delete fails when workspace does not exist")
@@ -1706,7 +1706,7 @@ def check_not_found_error(delete_workspace_not_found):
     """Verify not found error."""
     result = delete_workspace_not_found["result"]
     assert result.exit_code == 1
-    assert "not found" in result.stdout.lower()
+    assert "not found" in result.output.lower()
 
 
 # B18 — workspace lock and unlock commands
@@ -1773,13 +1773,13 @@ def unlock_workspace_result():
 @then("the workspace should be unlocked")
 def check_workspace_unlocked(unlock_workspace_result):
     result = unlock_workspace_result["result"]
-    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+    assert result.exit_code == 0, f"Command failed: {result.output}"
 
 
 @then('output should show "Unlocked workspace: locked-ws"')
 def check_unlock_output(unlock_workspace_result):
     result = unlock_workspace_result["result"]
-    assert "Unlocked workspace: locked-ws" in result.stdout
+    assert "Unlocked workspace: locked-ws" in result.output
 
 
 @pytest.fixture
@@ -1820,13 +1820,13 @@ def lock_workspace_yes():
 @then("the workspace should be locked")
 def check_workspace_locked(lock_workspace_yes):
     result = lock_workspace_yes["result"]
-    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+    assert result.exit_code == 0, f"Command failed: {result.output}"
 
 
 @then('output should show "Locked workspace: my-app-dev"')
 def check_lock_output(lock_workspace_yes):
     result = lock_workspace_yes["result"]
-    assert "Locked workspace: my-app-dev" in result.stdout
+    assert "Locked workspace: my-app-dev" in result.output
 
 
 @pytest.fixture
@@ -1859,7 +1859,7 @@ def lock_workspace_confirm_yes():
 @then("the workspace should be locked")
 def _check_workspace_locked_confirm(lock_workspace_confirm_yes):
     result = lock_workspace_confirm_yes["result"]
-    assert result.exit_code == 0, f"Command failed: {result.stdout}"
+    assert result.exit_code == 0, f"Command failed: {result.output}"
 
 
 @pytest.fixture
@@ -1888,4 +1888,4 @@ def lock_workspace_confirm_no():
 @then('output should show "Aborted"')
 def check_lock_aborted(lock_workspace_confirm_no):
     result = lock_workspace_confirm_no["result"]
-    assert "Aborted" in result.stdout or "aborted" in result.stdout.lower()
+    assert "Aborted" in result.output or "aborted" in result.output.lower()

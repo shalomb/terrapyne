@@ -92,7 +92,7 @@ def check_project_list(list_all_projects):
     assert result.exit_code == 0
     # Check that at least one project name is shown
     projects = list_all_projects["projects"]
-    assert any(p.name in result.stdout for p in projects) or "project" in result.stdout.lower()
+    assert any(p.name in result.output for p in projects) or "project" in result.output.lower()
 
 
 @then("list should show project names")
@@ -101,7 +101,7 @@ def check_project_names(list_all_projects):
     result = list_all_projects["result"]
     projects = list_all_projects["projects"]
     # Check that at least one project is displayed
-    assert any(p.name in result.stdout for p in projects) or "project" in result.stdout.lower()
+    assert any(p.name in result.output for p in projects) or "project" in result.output.lower()
 
 
 @then("list should show workspace counts")
@@ -110,9 +110,9 @@ def check_workspace_counts(list_all_projects):
     result = list_all_projects["result"]
     # Check for count indicators
     assert (
-        "workspace" in result.stdout.lower()
-        or "count" in result.stdout.lower()
-        or "5" in result.stdout
+        "workspace" in result.output.lower()
+        or "count" in result.output.lower()
+        or "5" in result.output
     )
 
 
@@ -181,14 +181,14 @@ def check_project_id(show_project_details):
     result = show_project_details["result"]
     project = show_project_details["project"]
     assert result.exit_code == 0
-    assert project.id in result.stdout or "prj-" in result.stdout
+    assert project.id in result.output or "prj-" in result.output
 
 
 @then("I should see project description")
 def check_project_description(show_project_details):
     """Verify project description is shown."""
     result = show_project_details["result"]
-    assert "description" in result.stdout.lower() or "my-infrastructure" in result.stdout
+    assert "description" in result.output.lower() or "my-infrastructure" in result.output
 
 
 @then("I should see creation date")
@@ -196,14 +196,14 @@ def check_creation_date(show_project_details):
     """Verify creation date is shown."""
     result = show_project_details["result"]
     # Check for date indicators
-    assert "202" in result.stdout or "created" in result.stdout.lower()
+    assert "202" in result.output or "created" in result.output.lower()
 
 
 @then("I should see workspace count")
 def check_workspace_count_shown(show_project_details):
     """Verify workspace count is shown."""
     result = show_project_details["result"]
-    assert "workspace" in result.stdout.lower() or "5" in result.stdout
+    assert "workspace" in result.output.lower() or "5" in result.output
 
 
 # --- Steps for 'Show project health snapshot' ---
@@ -284,12 +284,12 @@ def show_project_snapshot(project_snapshot_setup):
 
 @then("I should see a project health snapshot")
 def check_snapshot_visible(show_project_snapshot_result):
-    assert "Project Snapshot" in show_project_snapshot_result.stdout
+    assert "Project Snapshot" in show_project_snapshot_result.output
 
 
 @then(parsers.parse("snapshot should show {ws_count:d} workspaces and {run_count:d} active runs"))
 def check_snapshot_counts(show_project_snapshot_result, ws_count, run_count):
-    output = show_project_snapshot_result.stdout
+    output = show_project_snapshot_result.output
     assert f"Workspaces                 {ws_count}" in output
     # Check for active runs - Task 1c currently aggregates "workspaces with active runs"
     # based on latest_run status. In our 3-workspace test, 2 have active status.
@@ -304,7 +304,7 @@ def check_snapshot_counts(show_project_snapshot_result, ws_count, run_count):
     )
 )
 def check_snapshot_health_distribution(show_project_snapshot_result, healthy, unhealthy, warning):
-    output = show_project_snapshot_result.stdout
+    output = show_project_snapshot_result.output
     # Healthy: ws-prod (active) -> but CLI marks it as active status (Warning)
     # The setup logic: active_runs > 0 -> latest_status = PLANNING (Warning)
     # So: ws-prod (Warning), ws-dev (Warning), ws-stg (Unhealthy)
@@ -315,7 +315,7 @@ def check_snapshot_health_distribution(show_project_snapshot_result, healthy, un
 
 @then(parsers.parse("snapshot should show {locked:d} locked workspace"))
 def check_snapshot_locked(show_project_snapshot_result, locked):
-    assert f"🔒 {locked} locked" in show_project_snapshot_result.stdout
+    assert f"🔒 {locked} locked" in show_project_snapshot_result.output
 
 
 @given("I have project with 5 workspaces")
@@ -352,18 +352,18 @@ def show_project_workspaces(project_with_workspaces):
 
 @then("I should see workspace list")
 def check_ws_list(show_project_workspaces_result):
-    assert "Workspaces in" in show_project_workspaces_result.stdout
+    assert "Workspaces in" in show_project_workspaces_result.output
 
 
 @then(parsers.parse('workspace count should show "{count}"'))
 def check_ws_count(show_project_workspaces_result, count):
-    assert count in show_project_workspaces_result.stdout
+    assert count in show_project_workspaces_result.output
 
 
 @then("all workspaces should be displayed")
 def check_all_ws_shown(show_project_workspaces_result):
-    assert "ws-0" in show_project_workspaces_result.stdout
-    assert "ws-4" in show_project_workspaces_result.stdout
+    assert "ws-0" in show_project_workspaces_result.output
+    assert "ws-4" in show_project_workspaces_result.output
 
 
 # ============================================================================
@@ -424,7 +424,7 @@ def check_team_names(list_team_access):
     result = list_team_access["result"]
     assert result.exit_code == 0
     # Check that at least one team is shown or "team" appears in output
-    assert "team" in result.stdout.lower() or len(list_team_access["teams"]) >= 0
+    assert "team" in result.output.lower() or len(list_team_access["teams"]) >= 0
 
 
 @then("I should see team access levels")
@@ -433,9 +433,9 @@ def check_team_access_levels(list_team_access):
     result = list_team_access["result"]
     # Check for access level indicators
     assert (
-        "admin" in result.stdout.lower()
-        or "access" in result.stdout.lower()
-        or "maintain" in result.stdout.lower()
+        "admin" in result.output.lower()
+        or "access" in result.output.lower()
+        or "maintain" in result.output.lower()
     )
 
 
@@ -468,7 +468,7 @@ def check_org_error(try_list_projects_no_org):
     """Verify error about missing organization."""
     result = try_list_projects_no_org["result"]
     assert result.exit_code != 0
-    assert "organization" in result.stdout.lower()
+    assert "organization" in result.output.lower()
 
 
 @then('I should see error "No organization specified"')
@@ -476,14 +476,14 @@ def check_org_error_exact(try_list_projects_no_org):
     """Verify exact error message about missing organization."""
     result = try_list_projects_no_org["result"]
     assert result.exit_code != 0
-    assert "organization" in (result.stdout + result.stderr).lower()
+    assert "organization" in (result.output + result.stderr).lower()
 
 
 @then("error should mention how to specify organization")
 def check_org_error_how(try_list_projects_no_org):
     """Verify error tells user how to specify organization."""
     result = try_list_projects_no_org["result"]
-    output = result.stdout + result.stderr
+    output = result.output + result.stderr
     assert "--organization" in output or "organization" in output.lower()
 
 
@@ -491,7 +491,7 @@ def check_org_error_how(try_list_projects_no_org):
 def check_org_error_hint(try_list_projects_no_org):
     """Verify error mentions organization option."""
     result = try_list_projects_no_org["result"]
-    output = result.stdout + result.stderr
+    output = result.output + result.stderr
     assert "--organization" in output or "ORGANIZATION" in output
 
 
@@ -513,8 +513,8 @@ def check_project_ids(list_all_projects):
     result = list_all_projects["result"]
     projects = list_all_projects["projects"]
     assert (
-        any("prj-" in result.stdout for _ in projects)
-        or "prj-" in result.stdout
+        any("prj-" in result.output for _ in projects)
+        or "prj-" in result.output
         or result.exit_code == 0
     )
 
@@ -532,10 +532,10 @@ def check_access_levels(list_team_access):
     result = list_team_access["result"]
     assert result.exit_code == 0
     assert (
-        "admin" in result.stdout.lower()
-        or "maintain" in result.stdout.lower()
-        or "read" in result.stdout.lower()
-        or "access" in result.stdout.lower()
+        "admin" in result.output.lower()
+        or "maintain" in result.output.lower()
+        or "read" in result.output.lower()
+        or "access" in result.output.lower()
     )
 
 
@@ -544,7 +544,7 @@ def check_team_ids(list_team_access):
     """Verify team IDs are shown."""
     result = list_team_access["result"]
     assert result.exit_code == 0
-    assert "team" in result.stdout.lower() or "id" in result.stdout.lower()
+    assert "team" in result.output.lower() or "id" in result.output.lower()
 
 
 @then("I should see project permissions")

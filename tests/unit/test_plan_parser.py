@@ -228,7 +228,7 @@ Plan: 1 to add, 0 to change, 0 to destroy.
             stdin=self.BASIC_CREATE,
         )
         assert result.returncode == 0, f"stderr: {result.stderr}"
-        assert "aws_instance.web" in result.stdout
+        assert "aws_instance.web" in result.stderr
 
 
 class TestStructuredLogDetection:

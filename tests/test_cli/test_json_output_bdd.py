@@ -278,14 +278,14 @@ def req_prj_detail(mock_client):
 
 @then("the output is valid JSON")
 def valid_json(cli_result):
-    assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}: {cli_result.stdout}"
-    data = json.loads(cli_result.stdout)
+    assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}: {cli_result.output}"
+    data = json.loads(cli_result.output)
     assert data is not None
 
 
 @then('each workspace has an "id" and "name"')
 def check_ws_items(cli_result):
-    data = json.loads(cli_result.stdout)
+    data = json.loads(cli_result.output)
     for item in data:
         assert "id" in item
         assert "name" in item
@@ -293,7 +293,7 @@ def check_ws_items(cli_result):
 
 @then('each run has an "id" and "status"')
 def check_run_items(cli_result):
-    data = json.loads(cli_result.stdout)
+    data = json.loads(cli_result.output)
     for item in data:
         assert "id" in item
         assert "status" in item
@@ -301,7 +301,7 @@ def check_run_items(cli_result):
 
 @then('each team has an "id" and "name"')
 def check_team_items(cli_result):
-    data = json.loads(cli_result.stdout)
+    data = json.loads(cli_result.output)
     for item in data:
         assert "id" in item
         assert "name" in item
@@ -309,7 +309,7 @@ def check_team_items(cli_result):
 
 @then(parsers.parse('the result is a JSON object with key "{key}"'))
 def check_json_object_key(cli_result, key):
-    data = json.loads(cli_result.stdout)
+    data = json.loads(cli_result.output)
     assert isinstance(data, dict)
     assert key in data
 
@@ -384,8 +384,8 @@ def req_run_errors_json(mock_client):
 
 @then('each entry has "workspace" and "error" keys')
 def check_error_entries(cli_result):
-    assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}:\n{cli_result.stdout}"
-    data = json.loads(cli_result.stdout)
+    assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}:\n{cli_result.output}"
+    data = json.loads(cli_result.output)
     assert isinstance(data, list)
     assert len(data) > 0
     for entry in data:
@@ -395,6 +395,6 @@ def check_error_entries(cli_result):
 
 @then("the result is an empty JSON array")
 def check_empty_array(cli_result):
-    assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}:\n{cli_result.stdout}"
-    data = json.loads(cli_result.stdout)
+    assert cli_result.exit_code == 0, f"Exit {cli_result.exit_code}:\n{cli_result.output}"
+    data = json.loads(cli_result.output)
     assert data == []

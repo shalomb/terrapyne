@@ -291,22 +291,22 @@ def run_command(mock_api_client: MagicMock, command: str) -> object:
 
 @then("the command should succeed")
 def command_succeeds(cli_result: object) -> None:
-    assert cli_result.exit_code == 0, f"Command failed: {cli_result.stdout}"
+    assert cli_result.exit_code == 0, f"Command failed: {cli_result.output}"
 
 
 @then(parsers.parse('the output should show an estimated monthly cost of "{expected_cost}"'))
 def output_shows_monthly_cost(cli_result: object, expected_cost: str) -> None:
-    assert expected_cost in cli_result.stdout
+    assert expected_cost in cli_result.output
 
 
 @then(parsers.parse('the output should show a cost delta of "{expected_delta}"'))
 def output_shows_cost_delta(cli_result: object, expected_delta: str) -> None:
-    assert expected_delta in cli_result.stdout
+    assert expected_delta in cli_result.output
 
 
 @then("the output should indicate no cost estimates are available")
 def output_indicates_no_cost_estimates(cli_result: object) -> None:
-    assert "No finished cost estimates" in cli_result.stdout
+    assert "No finished cost estimates" in cli_result.output
 
 
 @then(
@@ -317,5 +317,5 @@ def output_indicates_no_cost_estimates(cli_result: object) -> None:
 def output_shows_total_project_cost(cli_result: object, expected_cost: str) -> None:
     # Remove formatting (commas) from both expected and actual for comparison
     normalized_expected = expected_cost.replace(",", "")
-    normalized_stdout = cli_result.stdout.replace(",", "")
+    normalized_stdout = cli_result.output.replace(",", "")
     assert normalized_expected in normalized_stdout

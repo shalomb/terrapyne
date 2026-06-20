@@ -269,22 +269,22 @@ def check_summary_list(list_runs_refined):
 @then("the list should identify each run by its unique ID")
 def check_list_ids(list_runs_refined):
     result = list_runs_refined["result"]
-    assert "run-" in result.stdout
+    assert "run-" in result.output
 
 
 @then("the current status of each run should be visible")
 def check_list_status(list_runs_refined):
     assert (
-        "applied" in list_runs_refined["result"].stdout
-        or "status" in list_runs_refined["result"].stdout.lower()
+        "applied" in list_runs_refined["result"].output
+        or "status" in list_runs_refined["result"].output.lower()
     )
 
 
 @then("the execution time should be displayed for each entry")
 def check_list_time(list_runs_refined):
     assert (
-        "202" in list_runs_refined["result"].stdout
-        or "created" in list_runs_refined["result"].stdout.lower()
+        "202" in list_runs_refined["result"].output
+        or "created" in list_runs_refined["result"].output.lower()
     )
 
 
@@ -329,7 +329,7 @@ def filter_runs_step(status, run_list_response, workspace_detail_response):
 
 @then(parsers.parse('the resulting list should only contain "{status}" runs'))
 def check_filtered_results(filter_runs, status):
-    assert status in filter_runs["result"].stdout.lower()
+    assert status in filter_runs["result"].output.lower()
 
 
 @then("the total count should reflect the filter criteria")
@@ -369,7 +369,7 @@ def run_list_positional(workspace, run_list_response, workspace_detail_response)
 @then("the runs should be listed without error")
 def check_runs_listed(run_list_positional_result):
     assert run_list_positional_result.exit_code == 0, (
-        f"Exit {run_list_positional_result.exit_code}: {run_list_positional_result.stdout}"
+        f"Exit {run_list_positional_result.exit_code}: {run_list_positional_result.output}"
     )
 
 
@@ -382,7 +382,7 @@ def try_list_no_context():
 
 @then("I should receive guidance on how to specify a workspace")
 def check_workspace_guidance(try_list_no_context):
-    assert "workspace" in (try_list_no_context.stdout + try_list_no_context.stderr).lower()
+    assert "workspace" in (try_list_no_context.output + try_list_no_context.stderr).lower()
 
 
 @then("the request should not proceed")
@@ -399,8 +399,8 @@ def check_recent_page(list_runs_refined):
 @then("I should see how many entries are currently being displayed")
 def check_pagination_info(list_runs_refined):
     assert (
-        "150" in list_runs_refined["result"].stdout
-        or "Showing" in list_runs_refined["result"].stdout
+        "150" in list_runs_refined["result"].output
+        or "Showing" in list_runs_refined["result"].output
     )
 
 
@@ -441,24 +441,24 @@ def examine_run_details(run_detail_response, workspace_detail_response, request)
 def check_status_detail(examine_run_details, status=None):
     assert examine_run_details["result"].exit_code == 0
     if status:
-        assert status in examine_run_details["result"].stdout.lower()
+        assert status in examine_run_details["result"].output.lower()
 
 
 @then("the user message for the run should be visible")
 def check_message_detail(examine_run_details):
-    assert "Applied by user" in examine_run_details["result"].stdout
+    assert "Applied by user" in examine_run_details["result"].output
 
 
 @then("the precise time of execution should be indicated")
 def check_time_detail(examine_run_details):
-    assert "202" in examine_run_details["result"].stdout
+    assert "202" in examine_run_details["result"].output
 
 
 @then("I should see how many resources were affected")
 def check_resources_detail(examine_run_details):
     assert (
-        "3" in examine_run_details["result"].stdout
-        or "resource" in examine_run_details["result"].stdout.lower()
+        "3" in examine_run_details["result"].output
+        or "resource" in examine_run_details["result"].output.lower()
     )
 
 
@@ -537,7 +537,7 @@ def try_examine_missing_step():
 
 @then(parsers.parse("I should be notified that the record was not found"))
 def check_not_found_msg(try_examine_missing):
-    assert "not found" in (try_examine_missing.stdout + try_examine_missing.stderr).lower()
+    assert "not found" in (try_examine_missing.output + try_examine_missing.stderr).lower()
 
 
 # ============================================================================
@@ -574,7 +574,7 @@ def trigger_run_no_wait(workspace):
 
 @then("the run should be queued")
 def check_run_queued(cli_result):
-    assert "run-b13" in cli_result.stdout
+    assert "run-b13" in cli_result.output
 
 
 @when(
@@ -611,12 +611,12 @@ def trigger_plan(workspace, message=None):
 @then("I should receive the new execution ID")
 def check_initiated(cli_result):
     assert cli_result.exit_code == 0
-    assert "run-123" in cli_result.stdout
+    assert "run-123" in cli_result.output
 
 
 @then(parsers.parse('its initial status should be "{status}"'))
 def check_initial_status(cli_result, status):
-    assert status in cli_result.stdout
+    assert status in cli_result.output
 
 
 @when(parsers.parse('I trigger a total destruction of "{workspace}"'), target_fixture="cli_result")
@@ -661,8 +661,8 @@ def check_confirm_required():
 @then("once confirmed, a destruction execution should be initiated")
 def check_destroy_initiated(cli_result):
     assert cli_result.exit_code == 0
-    assert "DESTROY" in cli_result.stdout
-    assert "run-destroy-123" in cli_result.stdout
+    assert "DESTROY" in cli_result.output
+    assert "run-destroy-123" in cli_result.output
 
 
 @given(
@@ -694,7 +694,7 @@ def authorize_proceed(mock_client):
 def check_transition(cli_result, status):
     # Match either the exact status or its terminal counterpart (e.g., applying -> applied)
     status_lower = status.lower()
-    output_lower = cli_result.stdout.lower()
+    output_lower = cli_result.output.lower()
     assert status_lower in output_lower or "applied" in output_lower
 
 
@@ -735,7 +735,7 @@ def discard_execution(mock_client):
 def check_halted(cli_result, status=None):
     assert cli_result.exit_code == 0
     if status:
-        assert status in cli_result.stdout.lower()
+        assert status in cli_result.output.lower()
 
 
 # B16 — run cancel step definitions
@@ -771,17 +771,17 @@ def check_run_cancelled(cli_result):
 
 @then("the output confirms cancellation")
 def check_cancellation_output(cli_result):
-    assert "cancel" in cli_result.stdout.lower()
+    assert "cancel" in cli_result.output.lower()
 
 
 @then(parsers.parse('the new execution should be labeled with "{message}"'))
 def check_label(cli_result, message):
-    assert message in cli_result.stdout
+    assert message in cli_result.output
 
 
 @then("I should see the execution tracking ID")
 def check_tracking_id(cli_result):
-    assert "run-123" in cli_result.stdout
+    assert "run-123" in cli_result.output
 
 
 @when(parsers.parse('I trigger a plan for "{workspace}" targeting:'), target_fixture="cli_result")
@@ -811,7 +811,7 @@ def trigger_targeted(workspace, datatable):
 @then("the execution should only evaluate the specified components")
 def check_targeted_eval(cli_result):
     assert cli_result.exit_code == 0
-    assert "TARGETED" in cli_result.stdout
+    assert "TARGETED" in cli_result.output
 
 
 @when(
@@ -882,7 +882,7 @@ def start_monitoring(mock_client, run_id):
 @then("I should eventually see the final completion summary")
 def check_continuous_updates(cli_result):
     assert cli_result.exit_code == 0
-    assert "applied" in cli_result.stdout.lower()
+    assert "applied" in cli_result.output.lower()
 
 
 @given(
@@ -947,21 +947,21 @@ def follow_logs(mock_client, run_id):
 
 @then("the plan logs should be streamed progressively")
 def check_plan_logs_streamed(cli_result):
-    assert "Plan starting..." in cli_result.stdout
-    assert "Plan finished." in cli_result.stdout
+    assert "Plan starting..." in cli_result.output
+    assert "Plan finished." in cli_result.output
 
 
 @then("the apply logs should be streamed progressively")
 def check_apply_logs_streamed(cli_result):
-    assert "Apply starting..." in cli_result.stdout
-    assert "Apply finished." in cli_result.stdout
+    assert "Apply starting..." in cli_result.output
+    assert "Apply finished." in cli_result.output
 
 
 @then("no duplicate log lines should be printed")
 def check_no_duplicate_logs(cli_result):
     # Ensure "Plan starting..." and "Apply starting..." only appear once despite being returned in multiple chunks
-    assert cli_result.stdout.count("Plan starting...") == 1
-    assert cli_result.stdout.count("Apply starting...") == 1
+    assert cli_result.output.count("Plan starting...") == 1
+    assert cli_result.output.count("Apply starting...") == 1
 
 
 @given(
@@ -1029,15 +1029,15 @@ def analyze_project_failures_step(project_errors_setup):
 @then("I should see a report of all failed executions")
 def check_failure_report(analyze_project_failures):
     assert analyze_project_failures.exit_code == 0
-    assert "run-aaa111" in analyze_project_failures.stdout
-    assert "run-bbb222" in analyze_project_failures.stdout
+    assert "run-aaa111" in analyze_project_failures.output
+    assert "run-bbb222" in analyze_project_failures.output
 
 
 @then("the report should include environment names, IDs, and error summaries")
 def check_failure_report_details(analyze_project_failures):
     assert (
-        "run-" in analyze_project_failures.stdout
-        or "execution-id" in analyze_project_failures.stdout
+        "run-" in analyze_project_failures.output
+        or "execution-id" in analyze_project_failures.output
     )
 
 
@@ -1086,7 +1086,7 @@ def analyze_project_failures_clean_step(no_project_failures, days):
 
 @then("I should be notified that no project errors were found")
 def check_no_errors_msg(analyze_project_failures_clean):
-    assert "No errored workspaces found" in analyze_project_failures_clean.stdout
+    assert "No errored workspaces found" in analyze_project_failures_clean.output
     assert analyze_project_failures_clean.exit_code == 0
 
 
@@ -1167,13 +1167,13 @@ def check_speculative_cv_created(speculative_result):
 
 @then("a run should be associated with that configuration version")
 def check_run_associated_with_cv(speculative_result):
-    assert "run-spec-456" in speculative_result.stdout
+    assert "run-spec-456" in speculative_result.output
 
 
 @then("the run should not be confirmable")
 def check_run_not_confirmable(speculative_result):
     # Speculative run type should be shown in output
-    assert "SPECULATIVE" in speculative_result.stdout
+    assert "SPECULATIVE" in speculative_result.output
 
 
 # ============================================================================
@@ -1255,7 +1255,7 @@ def check_run_not_applied(mock_client, cli_result):
 
 @then("the output should indicate the run requires manual approval")
 def check_manual_approval_output(cli_result):
-    assert "manual approval" in cli_result.stdout.lower()
+    assert "manual approval" in cli_result.output.lower()
 
 
 @then("the command should exit with code 0")
@@ -1362,12 +1362,12 @@ def follow_run(mock_client, run_id):
 
 @then(parsers.parse('the output should contain "{text}"'))
 def output_contains(cli_result, text):
-    assert text in cli_result.stdout
+    assert text in cli_result.output
 
 
 @then(parsers.parse('the output should not show "{text}"'))
 def output_does_not_contain(cli_result, text):
-    assert text not in cli_result.stdout
+    assert text not in cli_result.output
     call_kwargs = cli_result.mock_client.runs.get_plan_logs.call_args
     assert call_kwargs is not None, "get_plan_logs was never called"
     assert call_kwargs.kwargs.get("log_read_url") == _ARCHIVIST_URL, (
@@ -1422,7 +1422,7 @@ def retrieve_run_logs(pre_plan_logs_client, run_id):
 
 @then(parsers.parse('the output should not say "{text}"'))
 def output_not_say(cli_result, text):
-    assert text not in cli_result.stdout
+    assert text not in cli_result.output
     call_kwargs = cli_result.mock_client.runs.get_plan_logs.call_args
     assert call_kwargs is not None, "get_plan_logs was never called"
     assert call_kwargs.kwargs.get("log_read_url") == _ARCHIVIST_URL, (
@@ -1458,5 +1458,5 @@ def check_exit_code_1(cli_result):
 
 @then(parsers.parse('the error output contains "{text}"'))
 def check_error_output_contains(cli_result, text):
-    combined = (cli_result.output or "") + (cli_result.stdout or "")
+    combined = (cli_result.output or "") + (cli_result.output or "")
     assert text in combined, f"Expected {text!r} in output:\n{combined}"

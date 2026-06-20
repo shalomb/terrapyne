@@ -54,8 +54,8 @@ class TestWorkspaceSetBranchCommand:
                 ],
             )
 
-        assert result.exit_code == 0, result.stdout
-        assert "feature/my-change" in result.stdout
+        assert result.exit_code == 0, result.output
+        assert "feature/my-change" in result.output
 
     def test_set_branch_calls_api_with_correct_args(self):
         """set-branch passes workspace name, branch, and org to the API."""
@@ -114,8 +114,8 @@ class TestWorkspaceSetBranchCommand:
             )
 
         assert result.exit_code == 1
-        assert "no VCS" in (result.stdout + result.stderr) or "Error" in (
-            result.stdout + result.stderr
+        assert "no VCS" in (result.output + result.stderr) or "Error" in (
+            result.output + result.stderr
         )
 
     def test_set_branch_requires_organization(self):
@@ -129,4 +129,4 @@ class TestWorkspaceSetBranchCommand:
             )
 
         assert result.exit_code == 1
-        assert "Organization" in result.stdout or "organization" in result.stdout
+        assert "Organization" in result.output or "organization" in result.output

@@ -38,13 +38,13 @@ class TestPrintLogDelta:
         pos = _print_log_delta(log, 0)
         assert pos == 8
         captured = capsys.readouterr()
-        assert captured.out == "ABC\nDEF\n"
+        assert captured.err == "ABC\nDEF\n"
 
         # Second read: position 8 (at end), no new content
         pos = _print_log_delta(log, pos)
         assert pos == 8
         captured = capsys.readouterr()
-        assert captured.out == ""
+        assert captured.err == ""
 
     def test_incremental_reading(self, capsys):
         """Simulate streaming incremental log updates."""
@@ -56,21 +56,21 @@ class TestPrintLogDelta:
         # First poll: read entire log1
         pos = _print_log_delta(log1, 0)
         captured = capsys.readouterr()
-        assert "Planning" in captured.out
+        assert "Planning" in captured.err
         # pos should be len(log1) = 12
 
         # Second poll: log has grown, read from pos to new length
         # log2 has new content "Fetching modules\n"
         pos = _print_log_delta(log2, pos)
         captured = capsys.readouterr()
-        assert "Fetching modules" in captured.out
-        assert "Planning" not in captured.out  # Don't repeat first line
+        assert "Fetching modules" in captured.err
+        assert "Planning" not in captured.err  # Don't repeat first line
         # pos should be len(log2) = 28
 
         # Third poll: log has grown more
         pos = _print_log_delta(log3, pos)
         captured = capsys.readouterr()
-        assert "Done" in captured.out
+        assert "Done" in captured.err
 
     def test_position_at_log_boundary(self):
         """Position exactly at log length returns same length."""
@@ -85,7 +85,7 @@ class TestPrintLogDelta:
 
         _print_log_delta(log, header_len)
         captured = capsys.readouterr()
-        assert captured.out == "Line A\nLine B\nLine C\n"
+        assert captured.err == "Line A\nLine B\nLine C\n"
 
     def test_empty_delta_no_output(self, capsys):
         """When delta is empty, no output is printed."""
@@ -93,4 +93,4 @@ class TestPrintLogDelta:
         _print_log_delta(log, len(log))
         captured = capsys.readouterr()
         # flush=True but no content written
-        assert captured.out == ""
+        assert captured.err == ""

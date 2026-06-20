@@ -53,7 +53,7 @@ class TestVarsetListCommand:
         mock_client = MagicMock()
         mock_client.varsets.list.return_value = ([_make_varset(name="shared-aws-creds")], 1)
         result = self._invoke(mock_client)
-        assert "shared-aws-creds" in result.stdout
+        assert "shared-aws-creds" in result.output
 
     def test_list_json_output(self):
         import json
@@ -68,7 +68,7 @@ class TestVarsetListCommand:
             mock_tfc.return_value.__enter__.return_value = mock_client
             result = runner.invoke(app, ["varset", "list", "-o", "test-org", "--json"])
         assert result.exit_code == 0
-        data = json.loads(result.stdout)
+        data = json.loads(result.output)
         assert isinstance(data, list)
         assert data[0]["name"] == "shared-aws-creds"
 
@@ -95,7 +95,7 @@ class TestVarsetShowCommand:
         mock_client.varsets.get_by_name.return_value = _make_varset()
         mock_client.varsets.get_variables.return_value = iter([_make_var(key="AWS_REGION")])
         result = self._invoke(mock_client)
-        assert "AWS_REGION" in result.stdout
+        assert "AWS_REGION" in result.output
 
     def test_show_masks_sensitive_variables(self):
         mock_client = MagicMock()
@@ -104,8 +104,8 @@ class TestVarsetShowCommand:
             [_make_var(key="SECRET_KEY", value="s3cr3t", sensitive=True)]
         )
         result = self._invoke(mock_client)
-        assert "s3cr3t" not in result.stdout
-        assert "••••••••" in result.stdout
+        assert "s3cr3t" not in result.output
+        assert "••••••••" in result.output
 
     def test_show_not_found_exits_nonzero(self):
         mock_client = MagicMock()

@@ -94,13 +94,13 @@ def req_update_workspace_invalid_project(mock_client):
 @then("the command succeeds")
 def command_succeeds(cli_result):
     """Verify command success."""
-    assert cli_result.exit_code == 0, f"Exit code {cli_result.exit_code}: {cli_result.stdout}"
+    assert cli_result.exit_code == 0, f"Exit code {cli_result.exit_code}: {cli_result.output}"
 
 
 @then("the output shows the workspace was successfully updated")
 def check_update_output(cli_result):
     """Verify update output."""
-    assert "Successfully updated workspace 'my-app-dev'" in cli_result.stdout
+    assert "Successfully updated workspace 'my-app-dev'" in cli_result.output
 
 
 @then("the command fails")
@@ -112,4 +112,4 @@ def command_fails(cli_result):
 @then("the error output indicates the project could not be found")
 def check_project_not_found(cli_result):
     """Verify project not found error message."""
-    assert "Project not found" in cli_result.stdout
+    assert "Project not found" in cli_result.output

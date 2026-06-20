@@ -108,42 +108,42 @@ def run_state_outputs_raw(name, mock_output):
 @then(parsers.parse("stdout is exactly {expected}"))
 def stdout_exact(cli_result, expected):
     # Remove trailing newline if present for comparison
-    actual = cli_result.stdout.rstrip("\n")
+    actual = cli_result.output.rstrip("\n")
     expected_val = expected.strip('"')
     assert actual == expected_val, f"Expected '{expected_val}', got '{actual}'"
 
 
 @then("there is no table formatting")
 def no_table_formatting(cli_result):
-    assert "───" not in cli_result.stdout
-    assert "Outputs for" not in cli_result.stdout
+    assert "───" not in cli_result.output
+    assert "Outputs for" not in cli_result.output
 
 
 @then("there are no ANSI escape codes")
 def no_ansi_codes(cli_result):
     ansi_pattern = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
-    assert not re.search(ansi_pattern, cli_result.stdout), "Output contains ANSI escape codes"
+    assert not re.search(ansi_pattern, cli_result.output), "Output contains ANSI escape codes"
 
 
 @then("stdout contains the JSON value")
 def stdout_contains_json(cli_result):
     # Try to parse the output as JSON to verify it's valid JSON
     try:
-        json.loads(cli_result.stdout)
+        json.loads(cli_result.output)
     except json.JSONDecodeError:
-        pytest.fail(f"Output is not valid JSON: {cli_result.stdout}")
+        pytest.fail(f"Output is not valid JSON: {cli_result.output}")
 
 
 @then(parsers.parse("the exit code is {code:d}"))
 def check_exit_code(cli_result, code):
     assert cli_result.exit_code == code, (
-        f"Expected exit code {code}, got {cli_result.exit_code}. Output: {cli_result.stdout}"
+        f"Expected exit code {code}, got {cli_result.exit_code}. Output: {cli_result.output}"
     )
 
 
 @then(parsers.parse("stderr contains {text}"))
 def stderr_contains(cli_result, text):
     expected = text.strip('"')
-    assert expected in cli_result.stdout or expected in cli_result.stderr, (
-        f"Expected '{expected}' in stderr, got: {cli_result.stderr}\nStdout: {cli_result.stdout}"
+    assert expected in cli_result.output or expected in cli_result.stderr, (
+        f"Expected '{expected}' in stderr, got: {cli_result.stderr}\nStdout: {cli_result.output}"
     )
