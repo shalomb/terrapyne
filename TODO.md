@@ -63,9 +63,11 @@ Based on recent Agent-Native CLI design research, the backlog is currently struc
 | B14 | `workspace var-rm` no `--yes`/`-y` flag — always prompts interactively, unusable in scripts | 🟡 | S | 2.0 | 🔄 fix/scripting-polish |
 | B15 | `--quiet` flag position-sensitive — `terrapyne workspace list --quiet` fails; must be `terrapyne --quiet workspace list` | 🟢 | S | 1.0 | 🔄 fix/scripting-polish (partial: `workspace --quiet list` now works) |
 | **BUGS (ASG BB v4.0 session, June 2026)** |
-| B16 | `run cancel` missing — pending runs cannot be cancelled; only discard exists (valid for cost_estimated/policy_checked only) | 🔴 | S | 4.0 | TODO |
-| B17 | `run discard` returns 409 on pending runs — should auto-route to cancel or surface actionable error | 🔴 | S | 4.0 | TODO |
-| B18 | `workspace unlock` missing — locked workspaces require raw API call to unblock | 🔴 | S | 4.0 | TODO |
+| B16 | `run cancel` missing — pending runs cannot be cancelled; only discard exists (valid for cost_estimated/policy_checked only) | 🔴 | S | 4.0 | ✅ [#130](https://github.com/shalomb/terrapyne/pull/130) |
+| B17 | `run discard` returns 409 on pending runs — should auto-route to cancel or surface actionable error | 🔴 | S | 4.0 | ✅ [#130](https://github.com/shalomb/terrapyne/pull/130) |
+| B18 | `workspace unlock` missing — locked workspaces require raw API call to unblock | 🔴 | S | 4.0 | ✅ [#130](https://github.com/shalomb/terrapyne/pull/130) |
+| B22 | `run discard` hint fires for terminal states (applied/errored/cancelled) — suggests `run cancel` which is equally invalid | 🟡 | S | 2.0 | TODO |
+| B23 | Duplicate BDD step `"the workspace should be locked"` in workspace lock tests — second registration silently shadows first | 🟢 | S | 1.0 | TODO |
 | B19 | `run trigger --wait` hangs on `pending` when predecessor run awaits apply — no timeout, no hint | 🔴 | M | 2.0 | TODO |
 | B20 | `run trigger` no `--workspace-id` override — context auto-detection breaks after workspace rename | 🟡 | S | 2.0 | TODO |
 | B21 | `run watch` / `run trigger` timeout hardcoded at 1800s — too short for agent-pool execution mode | 🟡 | S | 2.0 | TODO |
@@ -1019,3 +1021,26 @@ Run is still created (soft warn, not hard stop) so agents can proceed if they kn
 **Success Criteria**:
 - `tfc run apply <id> --auto-apply` approves then watches until terminal state
 - Equivalent to `tfc run apply <id> && tfc run watch <id>`
+
+---
+
+### F17 — `workspace update`
+
+**Intent**: Modify workspace configuration settings such as `working-directory` without requiring raw API calls.
+
+**Context**: While `workspace rename` is planned (F14), agents also frequently need to repair configuration drift (like renaming the `working-directory` after refactoring examples in a building block repo).
+
+**Success Criteria**:
+- `tfc workspace update <workspace-name> --working-directory <new-dir>`
+- Support for updating other common attributes like `description` or `terraform-version`.
+
+---
+
+### F18 — Force Cancelling Active Runs / Unlocking Workspaces
+
+**Intent**: Provide a single command to find and cancel any active/queued runs blocking workspace mutation.
+
+**Context**: When an agent pushes a commit that requires a workspace configuration change (like a rename or directory update), TFC's VCS integration often immediately queues a speculative plan, which locks the workspace. The agent is then blocked with a 422 "Name cannot be changed while a run has not completed" error, and must write complex loop scripts via curl to fetch `current-run` and cancel it.
+
+**Success Criteria**:
+- A command like `tfc run cancel --current <workspace-name>` or `tfc workspace unlock --force` that safely aborts blocking speculative plans or pending runs so that configuration changes can be applied.

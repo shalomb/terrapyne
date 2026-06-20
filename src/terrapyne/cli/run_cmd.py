@@ -6,7 +6,7 @@ import datetime
 import sys
 from contextlib import suppress
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Callable
 
 import typer
 
@@ -262,8 +262,12 @@ def run_logs(
     ] = False,
     stage: Annotated[
         str,
-        typer.Option("--stage", help="Logs to show: plan, apply"),
-    ] = "plan",
+        typer.Option("--stage", help="Logs to show: plan, apply, all"),
+    ] = "all",
+    out: Annotated[
+        str | None,
+        typer.Option("--out", help="Save logs to file instead of printing to stdout"),
+    ] = None,
 ):
     """Show logs for a specific run stage."""
     org, ws_name = validate_context(organization, workspace)
@@ -286,35 +290,63 @@ def run_logs(
 
         run = client.runs.get(run_id)
 
-        if stage == "plan":
-            if not run.plan_id:
+        plan_logs = None
+        apply_logs = None
+
+        if stage in ("plan", "all"):
+            if run.plan_id:
+                plan = None
+                with suppress(Exception):
+                    plan = client.runs.get_plan(run.plan_id)
+                plan_logs = client.runs.get_plan_logs(
+                    run.plan_id, log_read_url=plan.log_read_url if plan else None
+                )
+            elif stage == "plan":
                 console.print("[yellow]No plan logs available for this run.[/yellow]")
                 return
-            plan = None
-            with suppress(Exception):
-                plan = client.runs.get_plan(run.plan_id)
-            logs = client.runs.get_plan_logs(
-                run.plan_id, log_read_url=plan.log_read_url if plan else None
-            )
-        elif stage == "apply":
-            if not run.apply_id:
+
+        if stage in ("apply", "all"):
+            if run.apply_id:
+                apply_obj = None
+                with suppress(Exception):
+                    apply_obj = client.runs.get_apply(run.apply_id)
+                apply_logs = client.runs.get_apply_logs(
+                    run.apply_id, log_read_url=apply_obj.log_read_url if apply_obj else None
+                )
+            elif stage == "apply":
                 console.print("[yellow]No apply logs available for this run.[/yellow]")
                 return
-            apply_obj = None
-            with suppress(Exception):
-                apply_obj = client.runs.get_apply(run.apply_id)
-            logs = client.runs.get_apply_logs(
-                run.apply_id, log_read_url=apply_obj.log_read_url if apply_obj else None
+
+        if stage not in ("plan", "apply", "all"):
+            console.print(
+                f"[red]Error: Invalid stage '{stage}'. Use 'plan', 'apply', or 'all'.[/red]"
             )
-        else:
-            console.print(f"[red]Error: Invalid stage '{stage}'. Use 'plan' or 'apply'.[/red]")
             raise typer.Exit(1)
 
-        if not logs:
-            console.print(f"[yellow]Logs for {stage} stage are empty or not yet ready.[/yellow]")
-            return
+        output = ""
+        if stage == "all":
+            if not plan_logs and not apply_logs:
+                console.print("[yellow]Logs for the run are empty or not yet ready.[/yellow]")
+                return
+            if plan_logs:
+                output += plan_logs + "\n"
+            if apply_logs:
+                output += apply_logs + "\n"
+        else:
+            logs = plan_logs if stage == "plan" else apply_logs
+            if not logs:
+                console.print(
+                    f"[yellow]Logs for {stage} stage are empty or not yet ready.[/yellow]"
+                )
+                return
+            output = logs
 
-        console.print(logs)
+        if out:
+            with open(out, "w") as f:
+                f.write(output)
+            console.print(f"[green]✓ Logs saved to {out}[/green]")
+        else:
+            console.print(output.strip())
 
 
 @app.command("apply")
@@ -535,6 +567,10 @@ def run_trigger(
         bool,
         typer.Option("--wait/--no-wait", help="Wait for completion (default: no-wait)"),
     ] = False,
+    follow: Annotated[
+        bool,
+        typer.Option("--follow", help="Stream logs in real-time (implies --wait)"),
+    ] = False,
     wait_queue: Annotated[
         bool,
         typer.Option("--wait-queue", help="If another run is active, wait for it to finish"),
@@ -570,6 +606,12 @@ def run_trigger(
         str,
         typer.Option("--format", "-f", help="Output format: table, json"),
     ] = "table",
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force", help="Force a manual API run even if the workspace is VCS-connected"
+        ),
+    ] = False,
 ):
     """Trigger a new run with advanced queue management."""
     # Resolve organization and workspace
@@ -586,6 +628,19 @@ def run_trigger(
     with get_client(ctx, organization=org) as client:
         # Get workspace ID
         ws = client.workspaces.get(workspace_name or "", organization=org)  # type: ignore[arg-type]
+
+        if ws.vcs_repo is not None and not force:
+            console.print(
+                f"[bold red]Error:[/bold red] Workspace '{workspace_name}' is VCS-connected."
+            )
+            console.print(
+                "Pushing to your branch will auto-queue a run. To monitor the VCS run, use:"
+            )
+            console.print(
+                f"  [bold]terrapyne run watch --workspace {workspace_name} --wait-vcs[/bold]"
+            )
+            console.print("\nTo force a manual API run anyway, use: --force")
+            raise typer.Exit(1)
 
         # 1. Handle existing runs
         active_runs = client.runs.get_active_runs(ws.id)
@@ -644,6 +699,8 @@ def run_trigger(
                 refresh_only=refresh_only,
                 debug=debug_run,
             )
+        if follow:
+            wait = True
 
         if output_format == "json":
             from terrapyne.cli.output_helpers import emit_json as _emit_json
@@ -664,9 +721,15 @@ def run_trigger(
             return
 
         # 3. Wait for completion
-        console.print("\nWatching run progress...")
+        if follow:
+            console.print(f"\\n[dim]Following run {run.id}...[/dim]\\n")
+        else:
+            console.print("\\nWatching run progress...")
         try:
-            final_run = client.runs.poll_until_complete(run.id, max_wait=float(max_wait))
+            callback = _create_stream_callback(client) if follow else None
+            final_run = client.runs.poll_until_complete(
+                run.id, callback=callback, max_wait=float(max_wait)
+            )
             print()
 
             plan = None
@@ -695,7 +758,17 @@ def run_trigger(
 @handle_cli_errors
 def run_watch(
     ctx: typer.Context,
-    run_id: Annotated[str, typer.Argument(help="Run ID")],
+    run_id: Annotated[
+        str | None, typer.Argument(help="Run ID (optional if using --workspace)")
+    ] = None,
+    workspace: Annotated[
+        str | None,
+        typer.Option("--workspace", "-w", help="Workspace name (for --wait-vcs)"),
+    ] = None,
+    wait_vcs: Annotated[
+        bool,
+        typer.Option("--wait-vcs", help="Wait for a new VCS webhook run to appear before watching"),
+    ] = False,
     organization: Annotated[
         str | None,
         typer.Option(
@@ -722,15 +795,62 @@ def run_watch(
 ):
     """Watch progress of an existing run (e.g. triggered by a VCS push).
 
+    NOTE (Agents & Scripts): This command polls status updates rather than streaming raw
+    verbose logs. This avoids blowing out your context window. If you specifically need
+    to read the raw streaming logs in real-time, use 'run follow' instead.
+
     With --auto-apply, automatically confirms the run once planning or cost
     estimation completes, then waits for the apply to finish.
     """
     import time
 
-    org, _ = validate_context(organization)
+    org, ws_name = validate_context(organization, workspace)
+
+    if not run_id and not wait_vcs:
+        console.print(
+            "[red]Error:[/red] Missing argument 'RUN_ID'. Required unless using --wait-vcs."
+        )
+        raise typer.Exit(1)
+
+    if wait_vcs and not ws_name:
+        console.print("[red]Error:[/red] Missing --workspace name for --wait-vcs.")
+        raise typer.Exit(1)
 
     with get_client(ctx, organization=org) as client:
-        console.print(f"[dim]Watching run:[/dim] {run_id}")
+        if wait_vcs and ws_name:
+            ws = client.workspaces.get(ws_name, organization=org)
+            console.print(f"[dim]Waiting for new VCS run in workspace {ws_name}...[/dim]")
+
+            # Polling for a new run
+            start_poll = time.time()
+            found_run_id = None
+            while time.time() - start_poll < float(max_wait):
+                runs, _ = client.runs.list(ws.id, include="workspace")
+                if runs and len(runs) > 0:
+                    latest_run = runs[0]
+                    # if the run is very recent and in pending/fetching/planning
+                    if latest_run.status.value in (
+                        "pending",
+                        "fetching",
+                        "planning",
+                        "cost_estimating",
+                        "applying",
+                    ):
+                        found_run_id = latest_run.id
+                        break
+                time.sleep(3)
+
+            if not found_run_id:
+                console.print("\n[red]Error:[/red] Timed out waiting for new VCS run to appear.")
+                raise typer.Exit(1)
+
+            run_id = found_run_id
+
+        if run_id is None:
+            console.print("\n[red]Error:[/red] Invalid run_id resolution.")
+            raise typer.Exit(1)
+
+        console.print(f"[dim]Watching run progress:[/dim] {run_id}")
 
         intervals = [2, 2, 3, 5, 5, 10, 10, 15, 30]
         interval_index = 0
@@ -810,64 +930,17 @@ def run_follow(
         typer.Option("--max-wait", help="Max seconds to wait"),
     ] = 1800,
 ):
-    """Stream logs of an existing run in real-time."""
+    """Stream raw logs of an existing run in real-time.
+
+    NOTE (Agents & Scripts): This streams raw bytes line-by-line which can bloat your
+    context window on large plans. It also cannot auto-apply a run. If you want to monitor
+    state transitions or automatically apply a run, use 'run watch' instead."""
     org, _ = validate_context(organization)
 
     with get_client(ctx, organization=org) as client:
         console.print(f"\n[dim]Following run {run_id}...[/dim]\n")
 
-        last_plan_pos = 0
-        last_apply_pos = 0
-        current_stage = None
-        plan_url_fetched = False
-        plan_log_read_url: str | None = None
-        apply_url_fetched = False
-        apply_log_read_url: str | None = None
-
-        def stream_logs(run: Run) -> None:
-            nonlocal last_plan_pos, last_apply_pos, current_stage
-            nonlocal plan_url_fetched, plan_log_read_url
-            nonlocal apply_url_fetched, apply_log_read_url
-
-            # 1. Plan Stage
-            if run.plan_id:
-                if current_stage is None:
-                    current_stage = "plan"
-                    console.print("[dim]📋 Plan:[/dim]")
-                try:
-                    if not plan_url_fetched:
-                        plan_log_read_url = client.runs.get_plan(run.plan_id).log_read_url
-                        plan_url_fetched = True
-                    plan_log = client.runs.get_plan_logs(
-                        run.plan_id, log_read_url=plan_log_read_url
-                    )
-                    last_plan_pos = _print_log_delta(plan_log, last_plan_pos)
-                except Exception:
-                    pass
-
-            # 2. Apply Stage
-            if run.apply_id and run.status.value in ["applying", "applied"]:
-                if current_stage != "apply":
-                    current_stage = "apply"
-                    console.print("\n[dim]⚙️  Apply:[/dim]")
-                try:
-                    if not apply_url_fetched:
-                        apply_log_read_url = client.runs.get_apply(run.apply_id).log_read_url
-                        apply_url_fetched = True
-                    apply_log = client.runs.get_apply_logs(
-                        run.apply_id, log_read_url=apply_log_read_url
-                    )
-                    last_apply_pos = _print_log_delta(apply_log, last_apply_pos)
-                except Exception:
-                    pass
-
-            # Feedback if run fails before generating logs
-            if run.status.is_error and last_plan_pos == 0 and last_apply_pos == 0:
-                if current_stage != "error":
-                    current_stage = "error"
-                    console.print(
-                        f"\n[red]Run failed before generating logs: {run.status.value}[/red]"
-                    )
+        stream_logs = _create_stream_callback(client)
 
         try:
             final_run = client.runs.poll_until_complete(
@@ -887,6 +960,59 @@ def run_follow(
         except TimeoutError as e:
             console.print(f"\n[yellow]Warning:[/yellow] {e}")
             raise typer.Exit(1) from None
+
+
+def _create_stream_callback(client) -> Callable[[Run], None]:
+    last_plan_pos = 0
+    last_apply_pos = 0
+    current_stage = None
+    plan_url_fetched = False
+    plan_log_read_url: str | None = None
+    apply_url_fetched = False
+    apply_log_read_url: str | None = None
+
+    def stream_logs(run: Run) -> None:
+        nonlocal last_plan_pos, last_apply_pos, current_stage
+        nonlocal plan_url_fetched, plan_log_read_url
+        nonlocal apply_url_fetched, apply_log_read_url
+
+        # 1. Plan Stage
+        if run.plan_id:
+            if current_stage is None:
+                current_stage = "plan"
+                console.print("[dim]📋 Plan:[/dim]")
+            try:
+                if not plan_url_fetched:
+                    plan_log_read_url = client.runs.get_plan(run.plan_id).log_read_url
+                    plan_url_fetched = True
+                plan_log = client.runs.get_plan_logs(run.plan_id, log_read_url=plan_log_read_url)
+                last_plan_pos = _print_log_delta(plan_log, last_plan_pos)
+            except Exception:
+                pass
+
+        # 2. Apply Stage
+        if run.apply_id and run.status.value in ["applying", "applied"]:
+            if current_stage != "apply":
+                current_stage = "apply"
+                console.print("\n[dim]⚙️  Apply:[/dim]")
+            try:
+                if not apply_url_fetched:
+                    apply_log_read_url = client.runs.get_apply(run.apply_id).log_read_url
+                    apply_url_fetched = True
+                apply_log = client.runs.get_apply_logs(
+                    run.apply_id, log_read_url=apply_log_read_url
+                )
+                last_apply_pos = _print_log_delta(apply_log, last_apply_pos)
+            except Exception:
+                pass
+
+        # Feedback if run fails before generating logs
+        if run.status.is_error and last_plan_pos == 0 and last_apply_pos == 0:
+            if current_stage != "error":
+                current_stage = "error"
+                console.print(f"\n[red]Run failed before generating logs: {run.status.value}[/red]")
+
+    return stream_logs
 
 
 def _print_log_delta(full_log: str, last_pos: int) -> int:

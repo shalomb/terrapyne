@@ -164,6 +164,38 @@ def test_trigger_run_exits_zero():
     pass
 
 
+@scenario("../features/run_lifecycle.feature", "Saving verbose run logs to a file")
+def test_saving_logs_to_file():
+    pass
+
+
+@scenario(
+    "../features/run_lifecycle.feature",
+    "Triggering an infrastructure change and streaming real-time output",
+)
+def test_trigger_run_with_follow():
+    pass
+
+
+@scenario(
+    "../features/run_lifecycle.feature", "Preventing duplicate runs on a VCS-connected workspace"
+)
+def test_prevent_duplicate_vcs_runs():
+    pass
+
+
+@scenario("../features/run_lifecycle.feature", "Forcing a manual run on a VCS-connected workspace")
+def test_force_vcs_manual_run():
+    pass
+
+
+@scenario(
+    "../features/run_lifecycle.feature", "Watching for an externally triggered VCS run to appear"
+)
+def test_watch_wait_vcs():
+    pass
+
+
 @scenario(
     "../features/run_lifecycle.feature",
     "Watching an externally triggered run and auto-applying after planning",
@@ -1460,3 +1492,201 @@ def check_exit_code_1(cli_result):
 def check_error_output_contains(cli_result, text):
     combined = (cli_result.output or "") + (cli_result.output or "")
     assert text in combined, f"Expected {text!r} in output:\n{combined}"
+
+
+# ============================================================================
+# Retrofitted BDD steps and AX9 Guardrail
+# ============================================================================
+
+
+@given(
+    parsers.parse('a completed infrastructure change "{run_id}"'),
+    target_fixture="completed_run_client",
+)
+def completed_run_client_fixture(run_id, mocker):
+    from terrapyne.models.run import Run, RunStatus
+
+    mock_client = mocker.MagicMock()
+    run = Run.model_construct(
+        id=run_id, status=RunStatus.APPLIED, plan_id="plan-1", apply_id="apply-1"
+    )
+    mock_client.runs.get.return_value = run
+    mock_client.runs.get_plan_logs.return_value = "Plan log content"
+    mock_client.runs.get_apply_logs.return_value = "Apply log content"
+    return mock_client
+
+
+@when(
+    parsers.parse('I retrieve the logs for "{run_id}" specifying output file "{filename}"'),
+    target_fixture="cli_result",
+)
+def retrieve_logs_out(completed_run_client, run_id, filename, tmp_path):
+    import os
+
+    out_path = os.path.join(tmp_path, filename)
+    with (
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
+        patch("terrapyne.api.client.TFCClient") as c,
+    ):
+        v.return_value = ("test-org", None)
+        c.return_value.__enter__.return_value = completed_run_client
+        result = runner.invoke(app, ["run", "logs", run_id, "-o", "test-org", "--out", out_path])
+        result.mock_client = completed_run_client
+        result.out_path = out_path
+        return result
+
+
+@then(parsers.parse('the verbose logs should be saved to "{filename}"'))
+def logs_saved_to_file(cli_result, filename):
+    import os
+
+    assert os.path.exists(cli_result.out_path)
+    with open(cli_result.out_path) as f:
+        content = f.read()
+    assert "Plan log content" in content
+    assert "Apply log content" in content
+
+
+@then("the console output should indicate the file was saved")
+def output_indicates_saved(cli_result):
+    assert "Logs saved to" in cli_result.stdout
+
+
+@then("the console output should not contain the raw log text")
+def output_no_raw_logs(cli_result):
+    assert "Plan log content" not in cli_result.stdout
+
+
+@when(
+    parsers.parse('I trigger a new infrastructure plan for "{workspace}" with the follow flag'),
+    target_fixture="cli_result",
+)
+def trigger_run_follow(mocker, workspace):
+    from terrapyne.models.run import Run, RunStatus
+    from terrapyne.models.workspace import Workspace
+
+    mock_client = mocker.MagicMock()
+    ws = Workspace.model_construct(id="ws-123", name=workspace)
+    run = Run.model_construct(
+        id="run-123", status=RunStatus.APPLIED, plan_id="plan-1", apply_id="apply-1"
+    )
+
+    mock_client.workspaces.get.return_value = ws
+    mock_client.runs.create.return_value = run
+    mock_client.runs.poll_until_complete.return_value = run
+
+    with (
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
+        patch("terrapyne.api.client.TFCClient") as c,
+    ):
+        v.return_value = ("test-org", workspace)
+        c.return_value.__enter__.return_value = mock_client
+        result = runner.invoke(app, ["run", "trigger", workspace, "-o", "test-org", "--follow"])
+        result.mock_client = mock_client
+        return result
+
+
+@then("the plan logs should be streamed progressively to the console")
+def plan_logs_streamed(cli_result):
+    assert "Following run" in cli_result.stdout
+
+
+@given(
+    parsers.parse('the workspace "{workspace}" is connected to a VCS repository'),
+    target_fixture="vcs_workspace_client",
+)
+def vcs_workspace_client(mocker, workspace):
+    mock_client = mocker.MagicMock()
+    from terrapyne.models.workspace import Workspace, WorkspaceVCS
+
+    ws = Workspace.model_construct(
+        id="ws-vcs", name=workspace, vcs_repo=WorkspaceVCS.model_construct(identifier="org/repo")
+    )
+    mock_client.workspaces.get.return_value = ws
+
+    from terrapyne.models.run import Run, RunStatus
+
+    run = Run.model_construct(id="run-vcs1", status=RunStatus.PENDING)
+    mock_client.runs.create.return_value = run
+    mock_client.runs.poll_until_complete.return_value = run
+
+    # Also for wait-vcs
+    mock_client.runs.list.return_value = ([run], None)
+    return mock_client
+
+
+@when(
+    parsers.parse('I trigger a new infrastructure plan for "{workspace}"'),
+    target_fixture="cli_result",
+)
+def trigger_vcs_no_force(vcs_workspace_client, workspace):
+    with (
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
+        patch("terrapyne.api.client.TFCClient") as c,
+    ):
+        v.return_value = ("test-org", workspace)
+        c.return_value.__enter__.return_value = vcs_workspace_client
+        result = runner.invoke(app, ["run", "trigger", workspace, "-o", "test-org"])
+        result.mock_client = vcs_workspace_client
+        return result
+
+
+@then("the error should suggest using watch instead to avoid duplicate runs")
+def error_suggest_watch(cli_result):
+    assert "is VCS-connected" in cli_result.stdout
+    assert "terrapyne run watch" in cli_result.stdout
+
+
+@when(
+    parsers.parse('I trigger a new infrastructure plan for "{workspace}" with the force flag'),
+    target_fixture="cli_result",
+)
+def trigger_vcs_force(vcs_workspace_client, workspace):
+    with (
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
+        patch("terrapyne.api.client.TFCClient") as c,
+    ):
+        v.return_value = ("test-org", workspace)
+        c.return_value.__enter__.return_value = vcs_workspace_client
+        result = runner.invoke(app, ["run", "trigger", workspace, "-o", "test-org", "--force"])
+        result.mock_client = vcs_workspace_client
+        return result
+
+
+@then("a new execution should be initiated manually")
+def execution_initiated_manually(cli_result):
+    assert cli_result.exit_code == 0
+    assert "Created PLAN run" in cli_result.stdout
+
+
+@when(
+    parsers.parse('I watch the workspace "{workspace}" waiting for a new VCS run'),
+    target_fixture="cli_result",
+)
+def watch_wait_vcs(vcs_workspace_client, workspace):
+    with (
+        patch("terrapyne.cli.run_cmd.validate_context") as v,
+        patch("terrapyne.api.client.TFCClient") as c,
+    ):
+        v.return_value = ("test-org", workspace)
+        c.return_value.__enter__.return_value = vcs_workspace_client
+        result = runner.invoke(
+            app, ["run", "watch", "-w", workspace, "-o", "test-org", "--wait-vcs"]
+        )
+        result.mock_client = vcs_workspace_client
+        return result
+
+
+@then("the command should poll until a new active run appears")
+def poll_until_run_appears(cli_result):
+    assert "Waiting for new VCS run" in cli_result.stdout
+
+
+@then("it should monitor that new run")
+def monitor_new_run(cli_result):
+    assert "Watching run progress" in cli_result.stdout
+
+
+@then("the command should wait for completion")
+def wait_for_completion(cli_result):
+    assert cli_result.mock_client.runs.poll_until_complete.called

@@ -107,3 +107,33 @@ Feature: Infrastructure Change Lifecycle
     When I follow "run-prefail-001"
     Then the output should contain "Error: Invalid provider configuration"
     And the output should not show "Run failed before generating logs"
+
+  Scenario: Saving verbose run logs to a file
+    Given a completed infrastructure change "run-abc123"
+    When I retrieve the logs for "run-abc123" specifying output file "debug_log.txt"
+    Then the verbose logs should be saved to "debug_log.txt"
+    And the console output should indicate the file was saved
+    And the console output should not contain the raw log text
+
+  Scenario: Triggering an infrastructure change and streaming real-time output
+    When I trigger a new infrastructure plan for "my-app-dev" with the follow flag
+    Then a new execution should be initiated
+    And the plan logs should be streamed progressively to the console
+    And the command should wait for completion
+
+  Scenario: Preventing duplicate runs on a VCS-connected workspace
+    Given the workspace "my-app-dev" is connected to a VCS repository
+    When I trigger a new infrastructure plan for "my-app-dev"
+    Then the command exits with code 1
+    And the error should suggest using watch instead to avoid duplicate runs
+
+  Scenario: Forcing a manual run on a VCS-connected workspace
+    Given the workspace "my-app-dev" is connected to a VCS repository
+    When I trigger a new infrastructure plan for "my-app-dev" with the force flag
+    Then a new execution should be initiated manually
+
+  Scenario: Watching for an externally triggered VCS run to appear
+    Given the workspace "my-app-dev" is connected to a VCS repository
+    When I watch the workspace "my-app-dev" waiting for a new VCS run
+    Then the command should poll until a new active run appears
+    And it should monitor that new run
