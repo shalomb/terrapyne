@@ -9,6 +9,7 @@ import typer
 
 from terrapyne.cli import (
     debug_cmd,
+    local_cmd,
     project_cmd,
     run_cmd,
     state_cmd,
@@ -50,6 +51,9 @@ app.add_typer(state_cmd.app, name="state")
 
 # Add varset commands
 app.add_typer(varset_cmd.app, name="varset")
+
+# Add local runner commands
+app.add_typer(local_cmd.app, name="local")
 
 
 def version_callback(value: bool) -> None:
