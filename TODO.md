@@ -69,6 +69,7 @@ Based on recent Agent-Native CLI design research, the backlog is currently struc
 | B19 | `run trigger --wait` hangs on `pending` when predecessor run awaits apply — no timeout, no hint | 🔴 | M | 2.0 | TODO |
 | B20 | `run trigger` no `--workspace-id` override — context auto-detection breaks after workspace rename | 🟡 | S | 2.0 | TODO |
 | B21 | `run watch` / `run trigger` timeout hardcoded at 1800s — too short for agent-pool execution mode | 🟡 | S | 2.0 | TODO |
+| B22 | 10 UAT tests (e.g. `test_list_workspaces`) failing with 404s due to missing auth/environment setup in local test harness | 🔴 | S | 4.0 | TODO |
 | **AGENT EXPERIENCE (AX) GAPS** |
 | AX8 | `run trigger --wait` not default in agent context — agents must know to pass `--wait` or they fire-and-forget | 🔴 | M | 2.0 | TODO |
 | AX9 | `run trigger` silent on VCS-connected workspaces — agent pushes commit + triggers run, causing duplicate runs and wrong run being followed | ✅ | M | 2.0 | DONE |
