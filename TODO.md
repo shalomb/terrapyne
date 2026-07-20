@@ -1019,3 +1019,128 @@ Run is still created (soft warn, not hard stop) so agents can proceed if they kn
 **Success Criteria**:
 - `tfc run apply <id> --auto-apply` approves then watches until terminal state
 - Equivalent to `tfc run apply <id> && tfc run watch <id>`
+
+---
+
+## Session Findings (GMSGQ-DIME-AWS-INFRA, 2026-07-20)
+
+Source: Applying `mode1/245-ted-support-readonly-role` branch to TFC workspaces
+`tpc-aws-ted-{dev,tst,prd}-92104-support-readonly` via terrapyne CLI.
+
+### Priority Matrix Additions
+
+| # | Finding | Impact | Effort | WSJF | Status |
+|---|---|---|---|---|---|
+| S1 | `workspace set-branch` `--quiet` flag swallows GET response body — workspace ID always null | 🔴 | S | 4.0 | TODO |
+| S2 | `run trigger` on VCS-connected workspace creates manual run (null commit_sha) — VCS hook fires separately, causing duplicate/race runs | 🔴 | M | 2.0 | PARTIAL (AX9 covers warning; needs hard guidance) |
+| S3 | `run cancel` returns 409 "transition not allowed" on already-cancelled run with no state hint | 🟡 | S | 2.0 | TODO |
+| S4 | `run apply` exits non-zero when apply errors but prints `✓ Applied run` — misleading success signal before the watch phase | 🟡 | S | 2.0 | TODO |
+| S5 | `run trigger --discard-older` discards runs including the one it just created under race condition | 🔴 | M | 2.0 | TODO |
+| S6 | No `terrapyne run poll` / `run status` command — checking status requires `run list` + python/jq or `run show` + grep | 🟡 | S | 2.0 | TODO |
+| S7 | `workspace unlock` 409 "locked by Run X" error doesn't suggest `tfc run discard X` as remedy | 🟡 | S | 2.0 | TODO (overlaps B18) |
+| S8 | `run apply` watches the apply but exits non-zero on apply error — `✓ Applied run` then `✗ Run failed` is confusing sequencing | 🟡 | S | 2.0 | TODO |
+
+---
+
+### S1 — `workspace set-branch` script: `--quiet` on GET swallows response body
+
+**Context**: The `set-workspace-branch.sh` helper script used `http --ignore-stdin --quiet GET` to fetch the workspace ID. `--quiet` in httpie suppresses the response body, so `jq -r '.data.id'` received empty input and returned null. Workspace ID was always empty, causing "workspace not found" errors.
+
+**Fix**: In `terrapyne workspace set-branch`, verify the GET response is checked before the PATCH. The terrapyne CLI implementation doesn't have this issue (it worked correctly), but the bug was encountered in the script fallback documented in the tfc-api skill.
+
+**Action for terrapyne**: N/A — `terrapyne workspace set-branch` worked correctly. Document that the script fallback has this `--quiet` footgun.
+
+---
+
+### S2 — `run trigger` on VCS-connected workspace creates null-commit-sha run
+
+**Context**: After pushing commits to `mode1/245-ted-support-readonly-role`, `terrapyne run trigger` was used to immediately trigger runs. These runs had `commit_sha: null` (manually uploaded config version), while the VCS webhook simultaneously fired and created a separate run from the actual commit. The agent followed the wrong (manual) run, which was planning from stale code. Multiple cycles of debugging were spent on this before realising the applies were using the pre-push config.
+
+**Root Cause**: `run trigger` always uploads a local configuration version snapshot. For VCS-connected workspaces, the correct approach is to push to git and let the webhook trigger the run naturally.
+
+**Fix (AX9 extension)**: Beyond the warning added in AX9, terrapyne should:
+1. Detect VCS-connected workspaces and refuse `run trigger` by default (with `--force-manual` to override)
+2. Provide `run trigger --vcs` that waits for the VCS webhook to fire and returns the resulting run ID
+
+**Success Criteria**:
+- `tfc run trigger <vcs-ws>` exits with a clear error: _"Workspace is VCS-connected. Push to git and let the webhook trigger the run, or use --force-manual to override."_
+- `tfc run trigger <vcs-ws> --force-manual` proceeds with current behaviour (null commit_sha run)
+- `tfc run trigger <vcs-ws> --vcs` polls for a new run triggered by the latest commit SHA and returns that run ID
+
+---
+
+### S3 — `run cancel` 409 on already-cancelled run gives no state hint
+
+**Context**: `terrapyne run cancel run-JYBR1e4fQqNz7zWo` returned `API Error (409): transition not allowed`. The run was already in `canceled` state. The error gave no indication of the current run status, forcing a separate `run show` call to diagnose.
+
+**Fix**: When cancel/discard returns 409, fetch and display the current run status in the error message:
+```
+Error: Cannot cancel run-xxx — current status is 'canceled' (already in terminal state).
+```
+
+**Success Criteria**:
+- 409 on cancel/discard includes current run status in the error output
+- JSON error envelope includes `current_status` field
+
+---
+
+### S4 / S8 — `run apply` misleading output sequencing
+
+**Context**: `terrapyne run apply <run-id>` prints `✓ Applied run: <run-id>` then starts watching the apply phase. If the apply subsequently errors, it prints `✗ Run failed with status: errored`. The `✓` is printed before the outcome is known, misleading agents into treating it as success.
+
+**Fix**: The `✓ Applied run` message should be renamed to `→ Apply approved: <run-id>` to reflect that the API call approved the apply, not that the apply succeeded. The final `✓`/`✗` is the authoritative completion signal.
+
+**Success Criteria**:
+- `run apply` first line reads: `→ Apply approved: run-xxx` (or equivalent non-checkmark)
+- Final line reads: `✓ Run completed successfully` or `✗ Run failed with status: errored`
+- JSON output: `{ "approved": true, "status": "applied" | "errored" }`
+
+---
+
+### S5 — `run trigger --discard-older` race: may discard the run it just created
+
+**Context**: In one session, `run trigger --discard-older` discarded `run-HYbxQ5vUMRAZpAyx`, which was the most recent run — the one the agent intended to follow. The `--discard-older` logic apparently ran after the new run was queued, so it discarded runs it should have preserved.
+
+**Fix**: `--discard-older` should only discard runs created *before* the new run's `created_at` timestamp, never the new run itself. Guard by run ID exclusion or timestamp comparison.
+
+**Success Criteria**:
+- `run trigger --discard-older` never discards the run it creates in the same invocation
+- Discard list is computed before the new run is created (snapshot approach)
+
+---
+
+### S6 — No `terrapyne run status <run-id>` command
+
+**Context**: Throughout this session, checking run status required either:
+- `terrapyne run list -w <ws> | python3 -c "import sys,json; r=json.load(sys.stdin)[0]; print(r['status'])"` — verbose, requires workspace name
+- `terrapyne run show <run-id> | grep '"status"'` — noisy, requires grep
+
+A simple `terrapyne run status <run-id>` that prints just the status string would eliminate all this glue logic.
+
+**Success Criteria**:
+- `tfc run status run-xxx` prints a single line: `cost_estimated`
+- `tfc run status run-xxx --format json` prints `{"id": "run-xxx", "status": "cost_estimated"}`
+- Non-zero exit if run is in errored/cancelled terminal state
+
+---
+
+### S7 — `workspace unlock` error should suggest `run discard`
+
+**Context**: `terrapyne workspace unlock tpc-aws-ted-dev-92104-support-readonly` returned:
+```
+conflict: Unable to unlock workspace. The workspace is locked by Run run-HYbxQ5vUMRAZpAyx and may not be unlocked except by them.
+```
+No hint was given that `tfc run discard run-HYbxQ5vUMRAZpAyx` would release the lock.
+
+**Fix**: Parse the `run-xxx` ID from the 409 error body and include it in the hint:
+```
+Workspace is locked by run-HYbxQ5vUMRAZpAyx (status: cost_estimated).
+To release: tfc run discard run-HYbxQ5vUMRAZpAyx
+```
+
+**Success Criteria**:
+- `workspace unlock` 409 error extracts the locking run ID from the error body
+- Prints the locking run's current status
+- Suggests the corrective command (`discard` for cost_estimated, `cancel` for planning/pending)
+- JSON output includes `locking_run_id`, `locking_run_status`, `hints`
+
