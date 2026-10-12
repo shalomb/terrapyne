@@ -28,3 +28,10 @@ Feature: Repoint a workspace's VCS repository
     When I run "tfc vcs set-repo no-vcs-ws myorg/new-name"
     Then I should see error message containing "no VCS"
     And exit code should be 1
+
+  Scenario: Workspace already uses the repository
+    Given workspace "my-app-dev" is connected to repository "myorg/new-name"
+    When I run "tfc vcs set-repo my-app-dev myorg/new-name"
+    Then the output should show "already" and "myorg/new-name"
+    And no change should be sent to Terraform Cloud
+    And exit code should be 0

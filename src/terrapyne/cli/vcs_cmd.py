@@ -142,6 +142,10 @@ def vcs_set_repo(
         if not current.vcs_repo:
             raise ValueError(f"Workspace '{workspace}' has no VCS connection.")
 
+        if current.vcs_identifier == identifier:
+            console.print(f"{workspace}: already uses {identifier}, nothing to do")
+            return
+
         if dry_run:
             console.print(
                 f"[yellow]Dry run:[/yellow] {workspace}: "
