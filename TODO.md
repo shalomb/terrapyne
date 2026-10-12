@@ -70,6 +70,8 @@ Based on recent Agent-Native CLI design research, the backlog is currently struc
 | B20 | `run trigger` no `--workspace-id` override — context auto-detection breaks after workspace rename | 🟡 | S | 2.0 | TODO |
 | B21 | `run watch` / `run trigger` timeout hardcoded at 1800s — too short for agent-pool execution mode | 🟡 | S | 2.0 | TODO |
 | B22 | 10 UAT tests (e.g. `test_list_workspaces`) failing with 404s due to missing auth/environment setup in local test harness | 🔴 | S | 4.0 | TODO |
+| B23 | `set_vcs_branch` PATCHes a partial `vcs-repo` (branch only); TFC treats `vcs-repo` as one object, so token/submodule settings may be reset — unverified | 🟡 | S | 2.0 | ⬜ |
+| B24 | `tfc vcs set-repo` GETs the workspace in the CLI and again in `set_vcs_repo` (extra call, stale "old" value in the message) | 🟢 | S | 1.0 | ⬜ |
 | **AGENT EXPERIENCE (AX) GAPS** |
 | AX8 | `run trigger --wait` not default in agent context — agents must know to pass `--wait` or they fire-and-forget | 🔴 | M | 2.0 | TODO |
 | AX9 | `run trigger` silent on VCS-connected workspaces — agent pushes commit + triggers run, causing duplicate runs and wrong run being followed | ✅ | M | 2.0 | DONE |
@@ -1019,3 +1021,28 @@ Run is still created (soft warn, not hard stop) so agents can proceed if they kn
 **Success Criteria**:
 - `tfc run apply <id> --auto-apply` approves then watches until terminal state
 - Equivalent to `tfc run apply <id> && tfc run watch <id>`
+
+---
+
+### B23 — `set_vcs_branch` sends a partial `vcs-repo`
+
+**Intent**: Confirm `WorkspaceAPI.set_vcs_branch` cannot reset the OAuth token or submodule setting, and fix it if it can.
+
+**Context**: Found in the adversarial review of `set_vcs_repo`. `set_vcs_branch` sends `{"vcs-repo": {"branch": ...}}`. `set_vcs_repo` now sends the existing settings back with the change, following TFC's own update example. Whether TFC merges or replaces a partial `vcs-repo` has not been checked against a live workspace.
+
+**Success Criteria**:
+- A live check on a scratch workspace shows whether token, submodules and working directory survive a branch-only PATCH
+- If they do not, `set_vcs_branch` carries them over like `set_vcs_repo`, with a test that fails first
+
+---
+
+### B24 — Double GET in `tfc vcs set-repo`
+
+**Intent**: Fetch the workspace once per `set-repo` call.
+
+**Context**: Found in the adversarial review. The command GETs the workspace to show the old identifier, then `set_vcs_repo` GETs it again. Harmless for a one-off admin command, noticeable across a batch of ~120 workspaces.
+
+**Success Criteria**:
+- One GET per workspace for both `--dry-run` and apply
+- The success message shows the identifier that was actually replaced
+
