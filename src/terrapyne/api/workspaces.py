@@ -2,12 +2,21 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from typing import Any
 
 from terrapyne.api.client import TFCClient
 from terrapyne.models.variable import WorkspaceVariable
 from terrapyne.models.workspace import Workspace
+
+_REPO_IDENTIFIER = re.compile(r"[\w.-]+/[\w.-]+")
+
+
+def validate_repo_identifier(identifier: str) -> None:
+    """Raise ValueError unless identifier looks like ``owner/repo``."""
+    if not _REPO_IDENTIFIER.fullmatch(identifier):
+        raise ValueError(f"identifier must be 'owner/repo', got {identifier!r}")
 
 
 class WorkspaceAPI:
@@ -387,6 +396,51 @@ class WorkspaceAPI:
             "data": {
                 "type": "workspaces",
                 "attributes": {"vcs-repo": {"branch": branch}},
+            }
+        }
+
+        response = self.client.patch(path, json_data=payload)
+        return Workspace.from_api_response(response["data"])
+
+    def set_vcs_repo(
+        self,
+        workspace_name: str,
+        identifier: str,
+        organization: str | None = None,
+    ) -> Workspace:
+        """Repoint a workspace's VCS repository (for example after a repo rename).
+
+        Only ``vcs-repo.identifier`` is sent, so the existing OAuth token, branch and
+        other VCS settings are preserved.
+
+        Args:
+            workspace_name: Workspace name
+            identifier: New repository identifier in ``owner/repo`` form
+            organization: Organization name (uses client default if not specified)
+
+        Returns:
+            Updated Workspace instance
+
+        Raises:
+            TFCAPIError: If update fails
+            ValueError: If identifier is malformed or the workspace has no VCS repo
+        """
+        validate_repo_identifier(identifier)
+
+        org = self.client.get_organization(organization)
+
+        ws = self.get(workspace_name, org, include=None)
+        if not ws.vcs_repo:
+            raise ValueError(
+                f"Workspace '{workspace_name}' has no VCS connection. "
+                "Connect a VCS repository before changing its repo."
+            )
+
+        path = f"/organizations/{org}/workspaces/{workspace_name}"
+        payload: dict[str, Any] = {
+            "data": {
+                "type": "workspaces",
+                "attributes": {"vcs-repo": {"identifier": identifier}},
             }
         }
 
