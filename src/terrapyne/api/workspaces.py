@@ -10,13 +10,26 @@ from terrapyne.api.client import TFCClient
 from terrapyne.models.variable import WorkspaceVariable
 from terrapyne.models.workspace import Workspace
 
-_REPO_IDENTIFIER = re.compile(r"[\w.-]+/[\w.-]+")
+_REPO_IDENTIFIER = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
+
+# vcs-repo settings TFC returns that must be sent back with a changed identifier.
+_VCS_SETTINGS_TO_KEEP = (
+    "oauth-token-id",
+    "github-app-installation-id",
+    "branch",
+    "ingress-submodules",
+)
 
 
 def validate_repo_identifier(identifier: str) -> None:
-    """Raise ValueError unless identifier looks like ``owner/repo``."""
-    if not _REPO_IDENTIFIER.fullmatch(identifier):
-        raise ValueError(f"identifier must be 'owner/repo', got {identifier!r}")
+    """Raise ValueError unless identifier looks like a GitHub ``owner/repo``."""
+    owner, _, repo = identifier.partition("/")
+    if (
+        not _REPO_IDENTIFIER.fullmatch(identifier)
+        or {owner, repo} & {".", ".."}
+        or repo.endswith(".git")
+    ):
+        raise ValueError(f"identifier must be 'owner/repo' (GitHub), got {identifier!r}")
 
 
 class WorkspaceAPI:
@@ -410,8 +423,9 @@ class WorkspaceAPI:
     ) -> Workspace:
         """Repoint a workspace's VCS repository (for example after a repo rename).
 
-        Only ``vcs-repo.identifier`` is sent, so the existing OAuth token, branch and
-        other VCS settings are preserved.
+        The existing OAuth token (or GitHub App installation), branch and submodule setting
+        are read from the workspace and sent back with the new identifier. If the workspace
+        already uses ``identifier``, nothing is sent.
 
         Args:
             workspace_name: Workspace name
@@ -428,20 +442,24 @@ class WorkspaceAPI:
         validate_repo_identifier(identifier)
 
         org = self.client.get_organization(organization)
+        path = f"/organizations/{org}/workspaces/{workspace_name}"
 
-        ws = self.get(workspace_name, org, include=None)
-        if not ws.vcs_repo:
+        response = self.client.get(path)
+        current = response["data"]["attributes"].get("vcs-repo")
+        if not current:
             raise ValueError(
                 f"Workspace '{workspace_name}' has no VCS connection. "
                 "Connect a VCS repository before changing its repo."
             )
+        if current.get("identifier") == identifier:
+            return Workspace.from_api_response(response["data"])
 
-        path = f"/organizations/{org}/workspaces/{workspace_name}"
+        # TFC treats vcs-repo as one object: send the existing settings back with the new
+        # identifier rather than a partial object that could reset them.
+        vcs_repo = {k: current[k] for k in _VCS_SETTINGS_TO_KEEP if current.get(k) is not None}
+        vcs_repo["identifier"] = identifier
         payload: dict[str, Any] = {
-            "data": {
-                "type": "workspaces",
-                "attributes": {"vcs-repo": {"identifier": identifier}},
-            }
+            "data": {"type": "workspaces", "attributes": {"vcs-repo": vcs_repo}}
         }
 
         response = self.client.patch(path, json_data=payload)
