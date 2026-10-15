@@ -145,3 +145,105 @@ def test_api_command_raw_output(monkeypatch):
         result = runner.invoke(app, ["api", "/status", "--raw", "-o", "test-org"])
         assert result.exit_code == 0
         assert '{"raw": true}' in result.output
+
+
+def test_api_command_normalizes_leading_slash():
+    runner = CliRunner()
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.text = "{}"
+    mock_resp.json.return_value = {}
+    mock_client._request.return_value = mock_resp
+
+    with (
+        patch("terrapyne.cli.api_cmd.get_client") as get_client_mock,
+        patch("terrapyne.cli.api_cmd.validate_context", return_value=("test-org", None)),
+    ):
+        get_client_mock.return_value.__enter__.return_value = mock_client
+        # Call without leading slash
+        result = runner.invoke(app, ["api", "organizations/test-org/workspaces", "-o", "test-org"])
+        assert result.exit_code == 0
+        called_path = mock_client._request.call_args.kwargs["path"]
+        assert called_path == "/organizations/test-org/workspaces"
+
+
+def test_api_command_input_file_with_field_override(tmp_path):
+    runner = CliRunner()
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.text = "{}"
+    mock_resp.json.return_value = {}
+    mock_client._request.return_value = mock_resp
+
+    payload_file = tmp_path / "req.json"
+    payload_file.write_text(json.dumps({"name": "base", "version": 1}))
+
+    with (
+        patch("terrapyne.cli.api_cmd.get_client") as get_client_mock,
+        patch("terrapyne.cli.api_cmd.validate_context", return_value=("test-org", None)),
+    ):
+        get_client_mock.return_value.__enter__.return_value = mock_client
+        result = runner.invoke(
+            app,
+            [
+                "api",
+                "-X",
+                "POST",
+                "/workspaces",
+                "-i",
+                str(payload_file),
+                "-F",
+                "version=2",
+                "-o",
+                "test-org",
+            ],
+        )
+        assert result.exit_code == 0
+        sent_json = mock_client._request.call_args.kwargs["json_data"]
+        assert sent_json["name"] == "base"
+        assert sent_json["version"] == 2
+
+
+def test_api_command_stdin_input():
+    runner = CliRunner()
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.text = "{}"
+    mock_resp.json.return_value = {}
+    mock_client._request.return_value = mock_resp
+
+    with (
+        patch("terrapyne.cli.api_cmd.get_client") as get_client_mock,
+        patch("terrapyne.cli.api_cmd.validate_context", return_value=("test-org", None)),
+    ):
+        get_client_mock.return_value.__enter__.return_value = mock_client
+        result = runner.invoke(
+            app,
+            ["api", "-X", "POST", "/workspaces", "--input", "-", "-o", "test-org"],
+            input='{"streamed": true}',
+        )
+        assert result.exit_code == 0
+        sent_json = mock_client._request.call_args.kwargs["json_data"]
+        assert sent_json == {"streamed": True}
+
+
+def test_api_command_non_json_response():
+    runner = CliRunner()
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.text = "plain text log or diagnostic"
+    mock_resp.json.side_effect = json.JSONDecodeError("Expecting value", "", 0)
+    mock_client._request.return_value = mock_resp
+
+    with (
+        patch("terrapyne.cli.api_cmd.get_client") as get_client_mock,
+        patch("terrapyne.cli.api_cmd.validate_context", return_value=("test-org", None)),
+    ):
+        get_client_mock.return_value.__enter__.return_value = mock_client
+        result = runner.invoke(app, ["api", "/logs", "-o", "test-org"])
+        assert result.exit_code == 0
+        assert "plain text log or diagnostic" in result.output
