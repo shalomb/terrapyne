@@ -9,6 +9,7 @@ from terrapyne.cli import triggers_cmd
 from terrapyne.cli.context_helpers import get_client, validate_context
 from terrapyne.cli.error_handlers import handle_cli_errors
 from terrapyne.cli.output_helpers import effective_format, emit_json, set_quiet_mode
+from terrapyne.cli.safety import check_deletion_allowed
 from terrapyne.core.browser import get_workspace_url, open_url_in_browser
 from terrapyne.core.context import resolve_organization
 from terrapyne.core.exceptions import TFCAPIError, WorkspaceNotFoundError
@@ -808,6 +809,8 @@ def workspace_delete(
         # Delete without confirmation (use in CI/CD)
         tfc workspace delete my-old-workspace --organization my-org --force
     """
+    check_deletion_allowed("workspace", ctx=ctx)
+
     org = resolve_organization(organization)
     if not org:
         console.print("[red]Error: Organization not specified and not found in context.[/red]")
@@ -1052,6 +1055,8 @@ def var_remove(
     ] = False,
 ):
     """Remove a workspace variable."""
+    check_deletion_allowed("var", ctx=ctx)
+
     if key is None:
         console.print("[red]Error: Variable key is required.[/red]")
         raise typer.Exit(1)

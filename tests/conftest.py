@@ -240,8 +240,11 @@ def default_human_context(request):
     Tests that specifically need agent context patch configure_for_agent_context
     themselves (see test_agent_context_cli_bdd.py).
     """
-    # Tests in agent_context_cli_bdd manage their own patching — skip there.
-    if "agent_context_cli" in request.module.__name__:
+    # Tests in agent_context_cli_bdd, session_gated_deletions, and test_safety manage their own patching — skip there.
+    if any(
+        m in request.module.__name__
+        for m in ("agent_context_cli", "session_gated_deletions", "test_safety")
+    ):
         yield
         return
 

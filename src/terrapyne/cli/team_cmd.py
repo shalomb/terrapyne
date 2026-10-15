@@ -6,6 +6,7 @@ from rich.table import Table
 from terrapyne.cli.context_helpers import get_client, validate_context
 from terrapyne.cli.error_handlers import handle_cli_errors
 from terrapyne.cli.output_helpers import effective_format
+from terrapyne.cli.safety import check_deletion_allowed
 from terrapyne.rendering.logging import console
 
 app = typer.Typer(help="Team management commands")
@@ -258,6 +259,8 @@ def team_delete(
         # Delete without confirmation
         terrapyne team delete team-abc123 --force
     """
+    check_deletion_allowed("team", ctx=ctx)
+
     org, _ = validate_context(organization)
 
     with get_client(ctx, organization=org) as client:
@@ -389,6 +392,8 @@ def remove_team_member(
         # Remove without confirmation
         terrapyne team remove-member team-abc123 --user user-xyz789 --force
     """
+    check_deletion_allowed("team", ctx=ctx)
+
     org, _ = validate_context(organization)
 
     with get_client(ctx, organization=org) as client:
