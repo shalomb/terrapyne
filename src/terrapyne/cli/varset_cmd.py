@@ -5,6 +5,7 @@ import typer
 from terrapyne.cli.context_helpers import get_client
 from terrapyne.cli.error_handlers import handle_cli_errors
 from terrapyne.cli.output_helpers import emit_json
+from terrapyne.cli.safety import check_deletion_allowed
 from terrapyne.core.context import resolve_organization
 from terrapyne.rendering.logging import console
 
@@ -138,6 +139,8 @@ def varset_remove(
     organization: str | None = typer.Option(None, "--organization", "-o", help="TFC organization"),
 ):
     """Remove a variable set from a workspace."""
+    check_deletion_allowed("varset", ctx=ctx)
+
     org = resolve_organization(organization)
     if not org:
         console.print("[red]Error: Organization not specified.[/red]")

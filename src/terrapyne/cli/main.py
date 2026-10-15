@@ -10,6 +10,7 @@ import typer
 from terrapyne.cli import (
     api_cmd,
     debug_cmd,
+    harness_cmd,
     local_cmd,
     project_cmd,
     run_cmd,
@@ -61,6 +62,9 @@ app.add_typer(varset_cmd.app, name="varset")
 
 # Add local runner commands
 app.add_typer(local_cmd.app, name="local")
+
+# Add agent harness commands
+app.add_typer(harness_cmd.harness_app, name="harness")
 
 
 def version_callback(value: bool) -> None:

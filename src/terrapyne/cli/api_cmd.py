@@ -11,6 +11,7 @@ import typer
 
 from terrapyne.cli.context_helpers import get_client, validate_context
 from terrapyne.cli.error_handlers import handle_cli_errors
+from terrapyne.cli.safety import check_deletion_allowed
 from terrapyne.rendering.logging import console
 
 
@@ -199,6 +200,8 @@ def api_command(
         interpolated_path = f"/{interpolated_path}"
 
     upper_method = method.upper()
+    if upper_method == "DELETE":
+        check_deletion_allowed("api", ctx=ctx, output_format="raw" if raw else "json")
 
     # Parse fields
     field_dict = parse_field_options(field)

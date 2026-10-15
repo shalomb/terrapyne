@@ -61,7 +61,13 @@ def check_deletion_allowed(
     Raises:
         typer.Exit(1): If the deletion is not authorized in an agent context.
     """
-    context = agent_context.detect(env=env, stdout_isatty=stdout_isatty)
+    context: agent_context.AgentContext | None = None
+    if ctx is not None and isinstance(ctx.obj, dict) and "agent_context" in ctx.obj:
+        context = ctx.obj["agent_context"]
+
+    if context is None:
+        context = agent_context.detect(env=env, stdout_isatty=stdout_isatty)
+
     if not context.is_agent:
         # Human interactive terminal — allowed to proceed to prompt/force confirmation.
         return

@@ -138,3 +138,13 @@ Troubleshooting and diagnostic tools.
 
 - `run`: Diagnose run failures with log analysis.
 - `workspace`: Check workspace health and configuration.
+
+---
+
+## `tfc harness`
+Agent harness and execution session management (ADR-007).
+
+- `exec`: Run a child command with explicit session-authorized deletion grants.
+  - `--allow-delete`: Comma-separated list of deletion classes to authorize (`workspace`, `var`, `varset`, `team`, `trigger`, `api`, or `all`).
+  - Usage: `tfc harness exec --allow-delete=workspace -- <command>`
+

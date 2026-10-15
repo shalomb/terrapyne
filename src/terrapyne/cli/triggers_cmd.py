@@ -6,6 +6,7 @@ import typer
 
 from terrapyne.cli.context_helpers import get_client, validate_context
 from terrapyne.cli.error_handlers import handle_cli_errors
+from terrapyne.cli.safety import check_deletion_allowed
 from terrapyne.core.context import resolve_organization
 from terrapyne.rendering.logging import console
 
@@ -78,6 +79,8 @@ def triggers_remove(
     force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation"),
 ):
     """Remove a run trigger by its ID."""
+    check_deletion_allowed("trigger", ctx=ctx)
+
     org = resolve_organization(organization)
 
     if not force and not typer.confirm(f"Remove run trigger '{trigger_id}'?"):
