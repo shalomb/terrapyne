@@ -6,8 +6,10 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from terrapyne.core.diagnostic_parser import DiagnosticParser
 from terrapyne.core.exceptions import TFCAuthenticationError, TFCNotFoundError
 from terrapyne.models.apply import Apply
+from terrapyne.models.diagnostic import Diagnostic, DiagnosticSeverity
 from terrapyne.models.plan import Plan
 from terrapyne.models.run import Run
 
@@ -420,11 +422,53 @@ class RunsAPI:
         else:
             raw = self.get_plan_logs(run.plan_id, log_read_url=plan_log_read_url)
 
+        parsed_diags = DiagnosticParser.parse(raw)
+        error_diags = [d for d in parsed_diags if d.severity == DiagnosticSeverity.ERROR]
+        if error_diags:
+            lines = [d.summary for d in error_diags if d.summary]
+            return "\n".join(lines)
+
         clean = _ANSI_ESCAPE.sub("", raw)
         error_lines = [
             line.strip() for line in clean.splitlines() if line.lstrip().startswith("Error:")
         ]
         return "\n".join(error_lines) if error_lines else fallback
+
+    def get_diagnostics(
+        self,
+        run: Run | str,
+        stage: str = "plan",
+    ) -> builtins.list[Diagnostic]:
+        """Extract diagnostics (warnings, errors, deprecations) for a run.
+
+        Args:
+            run: Run instance or run ID
+            stage: "plan" or "apply"
+
+        Returns:
+            List of parsed Diagnostic instances
+        """
+        run_obj = self.get(run) if isinstance(run, str) else run
+        raw = ""
+        if stage == "apply" and run_obj.apply_id:
+            apply_log_read_url: str | None = None
+            try:
+                apply_log_read_url = self.get_apply(run_obj.apply_id).log_read_url
+            except Exception:
+                pass
+            raw = self.get_apply_logs(run_obj.apply_id, log_read_url=apply_log_read_url)
+        elif run_obj.plan_id:
+            plan_log_read_url: str | None = None
+            try:
+                plan_log_read_url = self.get_plan(run_obj.plan_id).log_read_url
+            except Exception:
+                pass
+            raw = self.get_plan_logs(run_obj.plan_id, log_read_url=plan_log_read_url)
+
+        if not raw:
+            return []
+
+        return DiagnosticParser.parse(raw)
 
     def get_apply(self, apply_id: str) -> Apply:
         """Get apply details.
