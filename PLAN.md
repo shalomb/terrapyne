@@ -17,16 +17,17 @@ Each epic has an ID `EPIC-XXX` that maps 1:1 to a `td` epic ID once registered. 
 
 | ID         | Title                                                | Track            | Priority | Status |
 | ---------- | ---------------------------------------------------- | ---------------- | -------- | ------ |
-| EPIC-001   | Restore Test-Suite Repeatability                     | Quality / TDD    | P0       | Draft  |
-| EPIC-002   | Honour the Documented Automation Contract            | Agent Experience | P0       | Draft  |
+| EPIC-001   | Restore Test-Suite Repeatability                     | Quality / TDD    | P0       | Done   |
+| EPIC-002   | Honour the Documented Automation Contract            | Agent Experience | P0       | Done   |
 | EPIC-003   | Structured Output for Mutating Commands              | Agent Experience | P0       | Draft  |
 | EPIC-004   | Frictionless Scripting & Non-Interactive Use         | Scripting        | P1       | Draft  |
-| EPIC-005   | Pagination Honesty in the SDK                        | SDK Correctness  | P1       | Draft  |
+| EPIC-005   | Pagination Honesty in the SDK                        | SDK Correctness  | P1       | Done   |
 | EPIC-006   | Decompose CLI Command Modules                        | Maintainability  | P2       | Draft  |
 | EPIC-007   | Push Orchestration from CLI into the SDK             | Architecture     | P2       | Draft  |
-| EPIC-008   | OpenTofu Support in `terrapyne.local`                | Platform Reach   | P1       | Draft  |
+| EPIC-008   | OpenTofu Support in `terrapyne.local`                | Platform Reach   | P1       | Done   |
 | EPIC-009   | Async TFCClient                                      | Platform Reach   | P3       | Parked |
 | EPIC-010   | Plugin Model for Custom Command Groups               | Platform Reach   | P3       | Parked |
+| EPIC-011   | Plan Diagnostics & Module Health Alerts              | Observability    | P1       | Done   |
 
 Priority legend: **P0** = blocks trust in the product; **P1** = visible user pain; **P2** = compounds into pain over time; **P3** = future-looking.
 
@@ -34,7 +35,7 @@ Priority legend: **P0** = blocks trust in the product; **P1** = visible user pai
 
 ## EPIC-001 — Restore Test-Suite Repeatability
 
-**td:** *(unregistered)*  •  **Track:** Quality / TDD  •  **Priority:** P0
+**td:** *(unregistered)*  •  **Track:** Quality / TDD  •  **Priority:** P0  •  **Status:** Done (PR #127)
 
 ### Problem Statement
 
@@ -93,7 +94,7 @@ Feature: Test suite is repeatable across orderings
 
 ## EPIC-002 — Honour the Documented Automation Contract
 
-**td:** *(unregistered)*  •  **Track:** Agent Experience  •  **Priority:** P0
+**td:** *(unregistered)*  •  **Track:** Agent Experience  •  **Priority:** P0  •  **Status:** Done (PR #125, #132)
 
 ### Problem Statement
 
@@ -315,7 +316,7 @@ Feature: Terrapyne is friendly to non-interactive scripts
 
 ## EPIC-005 — Pagination Honesty in the SDK
 
-**td:** *(unregistered)*  •  **Track:** SDK Correctness  •  **Priority:** P1
+**td:** *(unregistered)*  •  **Track:** SDK Correctness  •  **Priority:** P1  •  **Status:** Done (PR #124, #126)
 
 ### Problem Statement
 
@@ -461,7 +462,7 @@ Feature: SDK exposes high-level run workflows
 
 ## EPIC-008 — OpenTofu Support in `terrapyne.local`
 
-**td:** *(unregistered)*  •  **Track:** Platform Reach  •  **Priority:** P1
+**td:** *(unregistered)*  •  **Track:** Platform Reach  •  **Priority:** P1  •  **Status:** Done (PR #128)
 
 ### Problem Statement
 
@@ -569,18 +570,46 @@ Once enterprises adopt Terrapyne, they will want to add internal commands (`tfc 
 
 ---
 
+## EPIC-011 — Plan Diagnostics & Module Health Alerts
+
+**td:** *(unregistered)*  •  **Track:** Observability / Agent Experience  •  **Priority:** P1  •  **Status:** Done (PR #135)
+
+### Problem Statement
+
+Terraform Cloud provides rich diagnostics and module health alerts (such as deprecated registry module versions) during plan execution, but Terrapyne either hid them in raw logs or did not surface them in a machine-parseable manner. Engineers and AI agents lacked a dedicated way to query plan diagnostics, filter by severity/category/stage, or distinguish module deprecation warnings from fatal plan errors.
+
+### User Value
+
+Engineers and automated workflows can quickly inspect module health alerts and plan errors without sifting through thousands of log lines or opening the TFC web UI. Automated upgrade tools and agents can directly query deprecated module versions to proactively plan migrations.
+
+### Success Metrics
+
+- `tfc run diagnostics <run-id>` surfaces structured diagnostics with `--stage`, `--category`, `--severity`, and `--format` options.
+- `tfc run parse-plan` categorises and separates Module Health Alerts, Errors, and Warnings.
+- SDK exposes `RunsAPI.get_diagnostics` returning typed `Diagnostic` models (`DiagnosticSeverity`, `DiagnosticCategory`).
+- Terminal rendering surfaces module deprecation warnings and registry links cleanly in Rich panels.
+
+### Acceptance Criteria
+
+- Unit and BDD tests verify extraction of module deprecation notices from plan JSON and log streams.
+- `tfc run parse-plan` reports module health alerts in dedicated sections.
+- JSON output adheres to automation contracts on stdout.
+
+---
+
 ## Sequencing Recommendation
 
 Marge's view, applied through the GECR loop:
 
-1. **EPIC-001 first.** Nothing else can be measured trustworthy until the suite is repeatable.
-2. **EPIC-002 and EPIC-003 in parallel** (different files, both governed by the same automation contract). Together they constitute "PR Batch 6" from `TODO.md`.
-3. **EPIC-004** as scripting-polish cleanup once 002/003 have stabilised the contract surface.
-4. **EPIC-005** alongside 004 — same SDK area, same kind of correctness work.
-5. **EPIC-006** before **EPIC-007** — split first, then push down. Easier reviews, fewer merge conflicts.
-6. **EPIC-008** independent track — can run in parallel with 006/007 once the architecture seam is established.
+1. **EPIC-001 (Done in PR #127)** — Test suite repeatability restored under randomised execution order.
+2. **EPIC-002 (Done in PR #125, #132)** — Stdout/stderr separation honoured for agent and scripting contracts.
+3. **EPIC-005 (Done in PR #124, #126)** — Pagination honesty restored in SDK `RunsAPI` and `RunTriggersAPI`.
+4. **EPIC-008 (Done in PR #128)** — OpenTofu support delivered in `terrapyne.local`.
+5. **EPIC-011 (Done in PR #135)** — Plan diagnostics and module health alerts surfaced in CLI and SDK.
+6. **EPIC-003 and EPIC-004 next in parallel** — Structured JSON output for mutating commands and remaining scripting polish.
+7. **EPIC-006 before EPIC-007** — CLI command module decomposition before pushing orchestration into SDK.
 
-P3 epics (009, 010) are parked until concrete demand surfaces.
+P3 epics (009, 010) remain parked until concrete demand surfaces.
 
 ---
 
@@ -588,8 +617,8 @@ P3 epics (009, 010) are parked until concrete demand surfaces.
 
 These are architectural decisions Marge is deferring to Lisa:
 
-- **D1 (EPIC-002):** Introduce a `ux.warn/error/progress` helper module, or migrate every `console.print` call site directly?
+- **D1 (EPIC-002):** Introduce a `ux.warn/error/progress` helper module, or migrate every `console.print` call site directly? *(Resolved in PR #125 & #132 via error_console and agent stdout/stderr routing).*
 - **D2 (EPIC-003):** Final shape of the mutation-result JSON envelope. Marge proposes `{id, type, name, url, next_actions[]}`.
-- **D3 (EPIC-005):** `RunsAPI.list` — paginate by default, or rename `limit` → `page_size` and document the cap?
+- **D3 (EPIC-005):** `RunsAPI.list` — paginate by default, or rename `limit` → `page_size` and document the cap? *(Resolved in PR #124: paginate by default up to requested limit).*
 - **D4 (EPIC-007):** SDK workflow naming. Verb-based (`trigger`) or noun-based (`trigger_with_queue_management`)?
-- **D5 (EPIC-008):** `LocalIACRunner` base + subclasses, or composition-based runner?
+- **D5 (EPIC-008):** `LocalIACRunner` base + subclasses, or composition-based runner? *(Resolved in PR #128: LocalIACRunner base with Terraform and OpenTofu subclasses).*

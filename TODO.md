@@ -26,21 +26,21 @@ For evaluating live TFC behaviour, use:
 
 Based on recent Agent-Native CLI design research, the backlog is currently structured into the following upcoming PR Batches:
 
-- **PR Batch 3: The Agent Experience (AX) Core** *(In Progress — feat/ax-core)*
+- **PR Batch 3: The Agent Experience (AX) Core** *(Completed)*
   Focus: Eliminating agent "glue logic" (bash pipes, jq, polling loops).
-  Includes: AX1 ✅, AX2 ✅, AX3 ✅, AX4 ✅, AX5 ✅, AX6 ✅, AX7 (Deep Error Context Surfacing).
+  Includes: AX1 ✅, AX2 ✅, AX3 ✅, AX4 ✅, AX5 ✅, AX6 ✅, AX7 ✅ ([#122](https://github.com/shalomb/terrapyne/pull/122)).
 
-- **PR Batch 4: Scripting & Automation Polish** *(In Progress — fix/scripting-polish)*
+- **PR Batch 4: Scripting & Automation Polish** *(Completed — [#118](https://github.com/shalomb/terrapyne/pull/118))*
   Focus: Fixing bugs that break non-interactive shell scripting and automation pipelines.
-  Includes: B13 (exit code), B14 (missing --yes), B12 (truncation), B9 (name lookup bug), B15 (flag position).
+  Includes: B13 ✅, B14 ✅, B12 ✅, B9 ✅, B15 ✅.
 
-- **PR Batch 5: CLI Surface Refactoring & Security**
+- **PR Batch 5: CLI Surface Refactoring & Security** *(Completed)*
   Focus: Paying down technical debt, improving consistency, and patching data leaks.
-  Includes: A18 (var command refactor), A16 (sensitive leak), D10 (docs).
+  Includes: A18 ✅, A16 ✅, D10 ✅.
 
-- **PR Batch 6: Automation & Agent Contract**
+- **PR Batch 6: Automation & Agent Contract** *(In Progress)*
   Focus: Closing the gap between documented CLI design principles and actual implementation.
-  Includes: AX-stdout (stderr separation), AX-json-mutations (structured output for mutations), AX-next-action (IDs + next-step hints), AX-no-interactive (flag bypasses), AX-tty-aware (pipe-safe output).
+  Includes: AX-stdout ✅ (stderr separation, [#125](https://github.com/shalomb/terrapyne/pull/125), [#132](https://github.com/shalomb/terrapyne/pull/132)), AX-json-mutations (structured output for mutations), AX-next-action (IDs + next-step hints), AX-no-interactive (flag bypasses), AX-tty-aware (pipe-safe output).
 
 ---
 
@@ -58,28 +58,30 @@ Based on recent Agent-Native CLI design research, the backlog is currently struc
 | B9 | `run list` fails by workspace name for some workspaces — requires workspace ID workaround | 🟡 | S | 2.0 | ✅ |
 | B10 | `workspace clone` 422 "Agent pool not found" — drops agent-pool relationship from create payload | 🔴 | S | 4.0 | ✅ |
 | B11 | `workspace create` missing `--project` flag — no way to assign workspace to a project at creation | 🔴 | S | 4.0 | ✅ |
-| B12 | `workspace list` name truncation — no `--no-truncate` or `--max-width` option | 🟡 | S | 2.0 | 🔄 fix/scripting-polish |
-| B13 | `run trigger` exits non-zero on success — breaks `&&` chains and scripting | 🟡 | S | 2.0 | 🔄 fix/scripting-polish |
-| B14 | `workspace var-rm` no `--yes`/`-y` flag — always prompts interactively, unusable in scripts | 🟡 | S | 2.0 | 🔄 fix/scripting-polish |
-| B15 | `--quiet` flag position-sensitive — `terrapyne workspace list --quiet` fails; must be `terrapyne --quiet workspace list` | 🟢 | S | 1.0 | 🔄 fix/scripting-polish (partial: `workspace --quiet list` now works) |
+| B12 | `workspace list` name truncation — no `--no-truncate` or `--max-width` option | 🟡 | S | 2.0 | ✅ [#118](https://github.com/shalomb/terrapyne/pull/118) |
+| B13 | `run trigger` exits non-zero on success — breaks `&&` chains and scripting | 🟡 | S | 2.0 | ✅ [#118](https://github.com/shalomb/terrapyne/pull/118) |
+| B14 | `workspace var-rm` no `--yes`/`-y` flag — always prompts interactively, unusable in scripts | 🟡 | S | 2.0 | ✅ [#118](https://github.com/shalomb/terrapyne/pull/118) |
+| B15 | `--quiet` flag position-sensitive — `terrapyne workspace list --quiet` fails; must be `terrapyne --quiet workspace list` | 🟢 | S | 1.0 | ✅ [#118](https://github.com/shalomb/terrapyne/pull/118) |
 | **BUGS (ASG BB v4.0 session, June 2026)** |
-| B16 | `run cancel` missing — pending runs cannot be cancelled; only discard exists (valid for cost_estimated/policy_checked only) | 🔴 | S | 4.0 | TODO |
-| B17 | `run discard` returns 409 on pending runs — should auto-route to cancel or surface actionable error | 🔴 | S | 4.0 | TODO |
-| B18 | `workspace unlock` missing — locked workspaces require raw API call to unblock | 🔴 | S | 4.0 | TODO |
-| B19 | `run trigger --wait` hangs on `pending` when predecessor run awaits apply — no timeout, no hint | 🔴 | M | 2.0 | TODO |
-| B20 | `run trigger` no `--workspace-id` override — context auto-detection breaks after workspace rename | 🟡 | S | 2.0 | TODO |
-| B21 | `run watch` / `run trigger` timeout hardcoded at 1800s — too short for agent-pool execution mode | 🟡 | S | 2.0 | TODO |
+| B16 | `run cancel` missing — pending runs cannot be cancelled; only discard exists (valid for cost_estimated/policy_checked only) | 🔴 | S | 4.0 | ✅ [#130](https://github.com/shalomb/terrapyne/pull/130) |
+| B17 | `run discard` returns 409 on pending runs — should auto-route to cancel or surface actionable error | 🔴 | S | 4.0 | ✅ [#130](https://github.com/shalomb/terrapyne/pull/130) |
+| B18 | `workspace unlock` missing — locked workspaces require raw API call to unblock | 🔴 | S | 4.0 | ✅ [#130](https://github.com/shalomb/terrapyne/pull/130) |
+| B19 | `run trigger --wait` hangs on `pending` when predecessor run awaits apply — no timeout, no hint | 🔴 | M | 2.0 | ✅ [#136](https://github.com/shalomb/terrapyne/pull/136) |
+| B20 | `run trigger` no `--workspace-id` override — context auto-detection breaks after workspace rename | 🟡 | S | 2.0 | 🔄 [#137](https://github.com/shalomb/terrapyne/pull/137) (open) |
+| B21 | `run watch` / `run trigger` timeout hardcoded at 1800s — too short for agent-pool execution mode | 🟡 | S | 2.0 | 🔄 [#137](https://github.com/shalomb/terrapyne/pull/137) (open) |
 | B22 | 10 UAT tests (e.g. `test_list_workspaces`) failing with 404s due to missing auth/environment setup in local test harness | 🔴 | S | 4.0 | TODO |
 | B23 | `set_vcs_branch` PATCHes a partial `vcs-repo` (branch only); TFC treats `vcs-repo` as one object, so token/submodule settings may be reset — unverified | 🟡 | S | 2.0 | ⬜ |
 | B24 | `tfc vcs set-repo` GETs the workspace in the CLI and again in `set_vcs_repo` (extra call, stale "old" value in the message) | 🟢 | S | 1.0 | ⬜ |
 | **AGENT EXPERIENCE (AX) GAPS** |
 | AX8 | `run trigger --wait` not default in agent context — agents must know to pass `--wait` or they fire-and-forget | 🔴 | M | 2.0 | TODO |
-| AX9 | `run trigger` silent on VCS-connected workspaces — agent pushes commit + triggers run, causing duplicate runs and wrong run being followed | ✅ | M | 2.0 | DONE |
+| AX9 | `run trigger` silent on VCS-connected workspaces — agent pushes commit + triggers run, causing duplicate runs and wrong run being followed | ✅ | M | 2.0 | ✅ [#131](https://github.com/shalomb/terrapyne/pull/131) |
 | AX10 | Non-zero exits lack structured `hints` array — agent context exits should include corrective command suggestions in JSON envelope | 🟡 | M | 1.0 | TODO |
 | **NEW FEATURES** |
 | F13 | `workspace set-branch <workspace> <branch>` — switch VCS branch from CLI | 🟡 | S | 2.0 | ✅ |
-| F14 | `workspace rename <old> <new>` — rename workspace from CLI | 🟡 | S | 2.0 | TODO |
+| F14 | `workspace rename <old> <new>` — rename workspace from CLI | 🟡 | S | 2.0 | 🔄 [#137](https://github.com/shalomb/terrapyne/pull/137) (open) |
 | F15 | `workspace set-working-dir <workspace> <dir>` — set working directory from CLI | 🟢 | S | 1.0 | TODO |
+| F17 | `tfc vcs set-repo <workspace>` — repoint workspace VCS repo | 🟡 | S | 2.0 | ✅ [#134](https://github.com/shalomb/terrapyne/pull/134) |
+| F18 | Plan diagnostics & module health alerts (`tfc run diagnostics`, `parse-plan`) | 🔴 | M | 2.0 | ✅ [#135](https://github.com/shalomb/terrapyne/pull/135) |
 | F4 | Workspace notifications (webhook/Slack config) | 🟡 | M | 1.0 | TODO |
 | F5 | Policy sets / Sentinel outcome reporting | 🟡 | M | 1.0 | TODO |
 | F6 | Private registry query (modules + providers) | 🟡 | M | 1.0 | TODO |
@@ -868,6 +870,8 @@ These features are specifically designed to reduce the "glue logic" (bash pipes,
 
 ### B16 — `run cancel` missing
 
+**Status**: ✅ Completed in [#130](https://github.com/shalomb/terrapyne/pull/130)
+
 **Intent**: Allow cancellation of pending or planning runs, which cannot be discarded.
 
 **Context**: TFC has two distinct stop operations — cancel (`/actions/cancel`, valid for pending/planning/applying) and discard (`/actions/discard`, valid for cost_estimated/policy_checked). Only `run discard` exists in terrapyne. Agents and scripts hitting pending runs are forced to use raw API calls.
@@ -881,6 +885,8 @@ These features are specifically designed to reduce the "glue logic" (bash pipes,
 
 ### B17 — `run discard` returns 409 on pending runs
 
+**Status**: ✅ Completed in [#130](https://github.com/shalomb/terrapyne/pull/130)
+
 **Intent**: Surface an actionable error (or auto-route) when discard is called on a run state that requires cancel instead.
 
 **Context**: `run discard` returns HTTP 409 on pending runs. The TFC API distinguishes discard (post-plan) from cancel (pre/during-plan). The CLI should either detect the run state and route to the correct endpoint, or surface: _"Run is pending — use `tfc run cancel <id>` instead."_
@@ -892,6 +898,8 @@ These features are specifically designed to reduce the "glue logic" (bash pipes,
 ---
 
 ### B18 — `workspace unlock` missing
+
+**Status**: ✅ Completed in [#130](https://github.com/shalomb/terrapyne/pull/130)
 
 **Intent**: Unlock a workspace locked by a cancelled or errored run.
 
@@ -905,6 +913,8 @@ These features are specifically designed to reduce the "glue logic" (bash pipes,
 ---
 
 ### B19 — `run trigger --wait` hangs on `pending` when predecessor awaits apply
+
+**Status**: ✅ Completed in [#136](https://github.com/shalomb/terrapyne/pull/136)
 
 **Intent**: When `--wait` sees a run stuck in `pending`, detect why and exit with an actionable structured hint rather than spinning indefinitely.
 
@@ -930,6 +940,8 @@ These features are specifically designed to reduce the "glue logic" (bash pipes,
 
 ### B20 — No `--workspace-id` override for workspace resolution
 
+**Status**: ✅ Completed in [#137](https://github.com/shalomb/terrapyne/pull/137)
+
 **Intent**: Allow commands that auto-detect workspace from `terraform.tf` to be overridden with an explicit workspace ID or name.
 
 **Context**: After a workspace rename, `terraform.tf` still references the old name. Any command using context auto-detection fails with 404. Users are forced to use raw API calls with the workspace ID directly.
@@ -944,6 +956,8 @@ These features are specifically designed to reduce the "glue logic" (bash pipes,
 ---
 
 ### B21 — `run watch` / `run trigger` timeout too short for agent pools
+
+**Status**: ✅ Completed in [#137](https://github.com/shalomb/terrapyne/pull/137)
 
 **Intent**: Allow configurable timeout for run polling to accommodate slow agent pool pickup.
 
@@ -970,6 +984,8 @@ These features are specifically designed to reduce the "glue logic" (bash pipes,
 ---
 
 ### AX9 — `run trigger` silent on VCS-connected workspaces
+
+**Status**: ✅ Completed in [#131](https://github.com/shalomb/terrapyne/pull/131)
 
 **Intent**: Warn agents before they create a duplicate run on a VCS-connected workspace where a git push already triggered a run.
 
@@ -1003,6 +1019,8 @@ Run is still created (soft warn, not hard stop) so agents can proceed if they kn
 ---
 
 ### F14 — `workspace rename`
+
+**Status**: ✅ Completed in [#137](https://github.com/shalomb/terrapyne/pull/137)
 
 **Intent**: Rename a workspace from the CLI without requiring raw API calls.
 
