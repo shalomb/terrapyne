@@ -21,6 +21,7 @@ from terrapyne.rendering.table_renderer import (
     RunTableRenderer,
     WorkspaceDetailRenderer,
     WorkspaceTableRenderer,
+    render_diagnostics,
 )
 
 
@@ -257,6 +258,15 @@ def render_run_detail(
         diagnostics=diagnostics,
     )
     renderer.render(run, console_instance=console)
+
+
+def render_run_diagnostics(diagnostics: Sequence[Diagnostic]) -> None:
+    """Render structured diagnostics as Rich panels using the default console.
+
+    Args:
+        diagnostics: Sequence of Diagnostic instances to render
+    """
+    render_diagnostics(diagnostics, console_instance=console)
 
 
 def _format_datetime(dt: dt_datetime) -> str:

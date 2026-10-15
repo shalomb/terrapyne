@@ -167,3 +167,11 @@ def _exit_code(result, code):
     assert result.exit_code == code, (
         f"Expected exit code {code}, got {result.exit_code}:\n{result.output}"
     )
+
+
+@then("the output should be a JSON array with diagnostics")
+def _output_json_array(result):
+    data = json.loads(result.output)
+    assert isinstance(data, list)
+    assert len(data) > 0
+    assert "severity" in data[0]

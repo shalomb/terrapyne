@@ -381,78 +381,92 @@ class RunDetailRenderer(DetailRenderer["Run"]):  # type: ignore
 
     def render(self, entity: Run, console_instance: Console | None = None) -> None:  # type: ignore[override]
         super().render(entity, console_instance=console_instance)
-        if not self.diagnostics:
-            return
+        if self.diagnostics:
+            render_diagnostics(self.diagnostics, console_instance=console_instance)
 
-        out_console = console_instance or console
-        from terrapyne.models.diagnostic import DiagnosticSeverity
 
-        module_health = [d for d in self.diagnostics if d.is_module_deprecation]
-        errors = [d for d in self.diagnostics if d.severity == DiagnosticSeverity.ERROR]
-        warnings = [
-            d
-            for d in self.diagnostics
-            if d.severity == DiagnosticSeverity.WARNING and not d.is_module_deprecation
-        ]
+def render_diagnostics(
+    diagnostics: Sequence[Diagnostic],
+    console_instance: Console | None = None,
+) -> None:
+    """Render structured diagnostics (module health alerts, errors, warnings) as Rich panels.
 
-        if module_health:
-            out_console.print()
-            alert_text = Text()
-            for i, diag in enumerate(module_health):
-                if i > 0:
-                    alert_text.append("\n\n")
-                module_label = diag.module_source or "Module"
-                version_label = f" (v{diag.module_version})" if diag.module_version else ""
-                alert_text.append(f"⚠️  {module_label}{version_label}\n", style="bold yellow")
-                detail_msg = diag.detail or diag.summary
-                alert_text.append(f"   {detail_msg}", style="dim")
+    Args:
+        diagnostics: Sequence of Diagnostic instances to render
+        console_instance: Rich Console to output to, defaults to global console
+    """
+    if not diagnostics:
+        return
 
-            panel = Panel(
-                alert_text,
-                title=f"[bold yellow]⚠️  Module Health Alerts ({len(module_health)})[/bold yellow]",
-                border_style="yellow",
-                expand=False,
-            )
-            out_console.print(panel)
+    out_console = console_instance or console
+    from terrapyne.models.diagnostic import DiagnosticSeverity
 
-        if errors:
-            out_console.print()
-            err_text = Text()
-            for i, diag in enumerate(errors):
-                if i > 0:
-                    err_text.append("\n\n")
-                err_text.append(f"❌ {diag.summary}\n", style="bold red")
-                if diag.detail:
-                    err_text.append(f"   {diag.detail}", style="dim")
-                if diag.filename:
-                    loc = f"on {diag.filename}" + (f" line {diag.line}" if diag.line else "")
-                    err_text.append(f"\n   {loc}", style="dim")
+    module_health = [d for d in diagnostics if d.is_module_deprecation]
+    errors = [d for d in diagnostics if d.severity == DiagnosticSeverity.ERROR]
+    warnings = [
+        d
+        for d in diagnostics
+        if d.severity == DiagnosticSeverity.WARNING and not d.is_module_deprecation
+    ]
 
-            panel = Panel(
-                err_text,
-                title=f"[bold red]❌ Error Diagnostic ({len(errors)})[/bold red]",
-                border_style="red",
-                expand=False,
-            )
-            out_console.print(panel)
+    if module_health:
+        out_console.print()
+        alert_text = Text()
+        for i, diag in enumerate(module_health):
+            if i > 0:
+                alert_text.append("\n\n")
+            module_label = diag.module_source or "Module"
+            version_label = f" (v{diag.module_version})" if diag.module_version else ""
+            alert_text.append(f"⚠️  {module_label}{version_label}\n", style="bold yellow")
+            detail_msg = diag.detail or diag.summary
+            alert_text.append(f"   {detail_msg}", style="dim")
 
-        if warnings:
-            out_console.print()
-            warn_text = Text()
-            for i, diag in enumerate(warnings):
-                if i > 0:
-                    warn_text.append("\n\n")
-                warn_text.append(f"⚠️  {diag.summary}\n", style="bold yellow")
-                if diag.detail:
-                    warn_text.append(f"   {diag.detail}", style="dim")
+        panel = Panel(
+            alert_text,
+            title=f"[bold yellow]⚠️  Module Health Alerts ({len(module_health)})[/bold yellow]",
+            border_style="yellow",
+            expand=False,
+        )
+        out_console.print(panel)
 
-            panel = Panel(
-                warn_text,
-                title=f"[bold yellow]⚠️  Warnings ({len(warnings)})[/bold yellow]",
-                border_style="yellow",
-                expand=False,
-            )
-            out_console.print(panel)
+    if errors:
+        out_console.print()
+        err_text = Text()
+        for i, diag in enumerate(errors):
+            if i > 0:
+                err_text.append("\n\n")
+            err_text.append(f"❌ {diag.summary}\n", style="bold red")
+            if diag.detail:
+                err_text.append(f"   {diag.detail}", style="dim")
+            if diag.filename:
+                loc = f"on {diag.filename}" + (f" line {diag.line}" if diag.line else "")
+                err_text.append(f"\n   {loc}", style="dim")
+
+        panel = Panel(
+            err_text,
+            title=f"[bold red]❌ Error Diagnostic ({len(errors)})[/bold red]",
+            border_style="red",
+            expand=False,
+        )
+        out_console.print(panel)
+
+    if warnings:
+        out_console.print()
+        warn_text = Text()
+        for i, diag in enumerate(warnings):
+            if i > 0:
+                warn_text.append("\n\n")
+            warn_text.append(f"⚠️  {diag.summary}\n", style="bold yellow")
+            if diag.detail:
+                warn_text.append(f"   {diag.detail}", style="dim")
+
+        panel = Panel(
+            warn_text,
+            title=f"[bold yellow]⚠️  Warnings ({len(warnings)})[/bold yellow]",
+            border_style="yellow",
+            expand=False,
+        )
+        out_console.print(panel)
 
 
 class ProjectTableRenderer(TableRenderer["Project"]):  # type: ignore

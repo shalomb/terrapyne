@@ -18,7 +18,11 @@ from terrapyne.core.exceptions import TFCConflictError
 from terrapyne.models.diagnostic import Diagnostic
 from terrapyne.models.run import Run
 from terrapyne.rendering.logging import console, error_console
-from terrapyne.rendering.rich_tables import render_run_detail, render_runs
+from terrapyne.rendering.rich_tables import (
+    render_run_detail,
+    render_run_diagnostics,
+    render_runs,
+)
 
 app = typer.Typer(help="Run management commands")
 
@@ -167,6 +171,78 @@ def run_show(
             return
 
         render_run_detail(run, plan=plan, diagnostics=diags)
+
+
+@app.command("diagnostics")
+@handle_cli_errors
+def run_diagnostics(
+    ctx: typer.Context,
+    run_id: Annotated[str, typer.Argument(help="Run ID (e.g., run-xxx)")],
+    organization: Annotated[
+        str | None,
+        typer.Option(
+            "--organization",
+            "-o",
+            help="TFC organization (auto-detected from context if available)",
+        ),
+    ] = None,
+    stage: Annotated[
+        str,
+        typer.Option("--stage", help="Execution stage to inspect (plan, apply)"),
+    ] = "plan",
+    category: Annotated[
+        str | None,
+        typer.Option(
+            "--category",
+            "-c",
+            help="Filter diagnostics by category (module_health, runtime, syntax, general)",
+        ),
+    ] = None,
+    severity: Annotated[
+        str | None,
+        typer.Option(
+            "--severity",
+            "-s",
+            help="Filter diagnostics by severity (error, warning, info)",
+        ),
+    ] = None,
+    output_format: Annotated[
+        str, typer.Option("--format", "-f", help="Output format (table, json)")
+    ] = "table",
+):
+    """Inspect execution diagnostics, warnings, and module health alerts for a run."""
+    org, _ = validate_context(organization, None)
+
+    with get_client(ctx, organization=org) as client:
+        run = client.runs.get(run_id)
+
+        try:
+            diags = client.runs.get_diagnostics(run, stage=stage)
+        except Exception as e:
+            console.print(f"[yellow]⚠️ Could not fetch diagnostics for run {run_id}: {e}[/yellow]")
+            diags = []
+
+        # Apply category filter
+        if category:
+            cat_lower = category.lower()
+            diags = [d for d in diags if d.category.value.lower() == cat_lower]
+
+        # Apply severity filter
+        if severity:
+            sev_lower = severity.lower()
+            diags = [d for d in diags if d.severity.value.lower() == sev_lower]
+
+        if effective_format(ctx, output_format) == "json":
+            emit_json([d.to_dict() for d in diags])
+            return
+
+        if not diags:
+            console.print(
+                f"[green]✓[/green] No diagnostics reported for run [bold]{run_id}[/bold] ({stage} stage)."
+            )
+            return
+
+        render_run_diagnostics(diags)
 
 
 @app.command("plan")
