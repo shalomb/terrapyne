@@ -76,6 +76,7 @@ Based on recent Agent-Native CLI design research, the backlog is currently struc
 | AX8 | `run trigger --wait` not default in agent context — agents must know to pass `--wait` or they fire-and-forget | 🔴 | M | 2.0 | TODO |
 | AX9 | `run trigger` silent on VCS-connected workspaces — agent pushes commit + triggers run, causing duplicate runs and wrong run being followed | ✅ | M | 2.0 | ✅ [#131](https://github.com/shalomb/terrapyne/pull/131) |
 | AX10 | Non-zero exits lack structured `hints` array — agent context exits should include corrective command suggestions in JSON envelope | 🟡 | M | 1.0 | TODO |
+| AX11 | Session-gated deletions for agents (`TERRAPYNE_ALLOW_DELETE`, `tfc harness exec`, refusal hints) | 🔴 | M | 2.0 | 🔄 In Progress |
 | **NEW FEATURES** |
 | F13 | `workspace set-branch <workspace> <branch>` — switch VCS branch from CLI | 🟡 | S | 2.0 | ✅ |
 | F14 | `workspace rename <old> <new>` — rename workspace from CLI | 🟡 | S | 2.0 | ✅ [#137](https://github.com/shalomb/terrapyne/pull/137) |
