@@ -69,6 +69,7 @@ This document defines the `FEEDBACK.md` format. The Retrospective Signal format 
 - [ ] Tried <specific edge case 1>
 - [ ] Tried <specific edge case 2>
 - [ ] Read the BDD scenarios for coupling to implementation
+- [ ] Verified CLI surface against `docs/standards/cli-command-hierarchy.md` (if CLI modified)
 
 ## Architectural notes (for Lisa)
 
@@ -79,7 +80,7 @@ This document defines the `FEEDBACK.md` format. The Retrospective Signal format 
 
 | Priority | When | Effect |
 | -------- | ---- | ------ |
-| `BLOCKER` | Security, data loss, correctness, contract violation | PR cannot merge |
+| `BLOCKER` | Security, data loss, correctness, contract violation, CLI hierarchy/scope violation | PR cannot merge |
 | `CRITICAL` | High-likelihood bug under realistic conditions | PR cannot merge |
 | `MINOR` | Code quality, future maintenance burden | PR can merge; park in `TODO.md` |
 | `NIT` | Style, naming preference | PR can merge; do not park; let it go |
@@ -122,14 +123,25 @@ Every finding must have all four fields. If Bart can't fill in a field, the find
 >
 > **Priority:** CRITICAL
 
+> **B2. Asymmetrical CLI command placement in `vcs_cmd.py:114`**
+>
+> **What:** Added `tfc vcs set-repo <workspace> <identifier>` under the org-scoped `vcs` group.
+>
+> **Why:** Violates `docs/standards/cli-command-hierarchy.md` (Scope Separation). Operations modifying a specific workspace belong under `tfc workspace`. Placing workspace mutations under `vcs` breaks agent discoverability via `tfc workspace --help`.
+>
+> **How:** Move this capability to `tfc workspace update --repo <id>` and `tfc workspace vcs set <ws> --repo <id>`. Retain `tfc vcs set-repo` as a hidden deprecated alias if backward compatibility is needed.
+>
+> **Priority:** BLOCKER
+
 The constructive version is the same length but it teaches.
 
 ## Self-check before delivering FEEDBACK.md
 
 ```
 [ ] Every finding has all four fields filled
-[ ] Blockers are genuinely blocking (security, correctness, contract)
+[ ] Blockers are genuinely blocking (security, correctness, contract, CLI standard)
 [ ] At least one of the "Tests Bart ran" boxes is ticked
+[ ] CLI changes verified against docs/standards/cli-command-hierarchy.md (if CLI modified)
 [ ] No style-only findings escalated above NIT
 [ ] Architectural notes are separated from tactical findings
 [ ] Tone is constructive throughout

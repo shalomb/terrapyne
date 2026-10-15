@@ -28,6 +28,7 @@ These are the canonical rule sets that the Marge / Lisa / Ralph / Bart personas 
 
 - **[Atomic Commit Protocol](file:///home/unop/shalomb/terrapyne/docs/standards/atomic-commit-protocol.md)** — One reason to change, verified before commit, Conventional Commits format.
 - **[Task Decomposition](file:///home/unop/shalomb/terrapyne/docs/standards/task-decomposition.md)** — INVEST plus the five decomposition strategies (Ralph applies these).
+- **[CLI Command Hierarchy & Surface Design](file:///home/unop/shalomb/terrapyne/docs/standards/cli-command-hierarchy.md)** — Resource vs. org scope, subgroup symmetry, atomic update parity, and agent discoverability.
 - **[Adversarial Review Feedback](file:///home/unop/shalomb/terrapyne/docs/standards/feedback.md)** — `FEEDBACK.md` template; What/Why/How/Priority pattern (Bart applies this).
 
 ## Quality indices (the rubrics)
