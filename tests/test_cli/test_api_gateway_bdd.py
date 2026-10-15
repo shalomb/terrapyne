@@ -136,7 +136,8 @@ def _command_succeeds(result):
     )
 )
 def _check_json_attribute(result, attr, expected_value):
-    data = json.loads(result.output)
+    raw_json = result.stdout if hasattr(result, "stdout") and result.stdout else result.output
+    data = json.loads(raw_json)
     assert data["data"]["attributes"][attr] == expected_value
 
 
@@ -183,3 +184,16 @@ def _check_stderr_404(result):
     # Output or error_console includes not found or 404
     output = result.output
     assert "404" in output or "Not Found" in output or "not found" in output.lower()
+
+
+@then(parsers.parse('stderr contains an advisory hint recommending "{expected_cmd}"'))
+def _check_stderr_advisory_hint(result, expected_cmd):
+    stderr_text = result.stderr if hasattr(result, "stderr") and result.stderr else result.output
+    assert "hint:" in stderr_text
+    assert expected_cmd in stderr_text
+
+
+@then("stderr does not contain an advisory hint")
+def _check_stderr_no_hint(result):
+    stderr_text = result.stderr if hasattr(result, "stderr") and result.stderr else ""
+    assert "hint:" not in stderr_text

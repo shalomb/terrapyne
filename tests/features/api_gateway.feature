@@ -47,3 +47,15 @@ Feature: Raw TFC API Gateway
     When I run "tfc api -X DELETE /workspaces/ws-old -o my-org"
     Then the command succeeds
 
+  Scenario: Emitting advisory hint to stderr when native subcommand exists
+    Given the TFC API returns a list of workspaces for "my-org"
+    When I run "tfc api /organizations/{organization}/workspaces -o my-org"
+    Then the command succeeds
+    And stderr contains an advisory hint recommending "tfc workspace list"
+
+  Scenario: Suppressing advisory hints with no-hints flag
+    Given the TFC API returns a list of workspaces for "my-org"
+    When I run "tfc api /organizations/{organization}/workspaces -o my-org --no-hints"
+    Then the command succeeds
+    And stderr does not contain an advisory hint
+

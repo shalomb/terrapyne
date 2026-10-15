@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import re
 import sys
 from pathlib import Path
 from typing import Annotated, Any
@@ -12,7 +14,160 @@ import typer
 from terrapyne.cli.context_helpers import get_client, validate_context
 from terrapyne.cli.error_handlers import handle_cli_errors
 from terrapyne.cli.safety import check_deletion_allowed
-from terrapyne.rendering.logging import console
+from terrapyne.rendering.logging import error_console
+
+HINT_PATTERNS: tuple[tuple[str, str, str], ...] = (
+    (
+        r"GET",
+        r"^/organizations/[^/]+/workspaces$",
+        "Consider using 'tfc workspace list' for typed validation, filtering, and table/JSON formatting.",
+    ),
+    (
+        r"POST",
+        r"^/organizations/[^/]+/workspaces$",
+        "Consider using 'tfc workspace create' with schema validation and project assignment.",
+    ),
+    (
+        r"POST",
+        r"^/workspaces/[^/]+/actions/lock$",
+        "Consider using 'tfc workspace lock' with reason and safety checks.",
+    ),
+    (
+        r"POST",
+        r"^/workspaces/[^/]+/actions/unlock$",
+        "Consider using 'tfc workspace unlock' with safety confirmation.",
+    ),
+    (
+        r"GET",
+        r"^/workspaces/[^/]+/runs$",
+        "Consider using 'tfc run list' for run history and status filtering.",
+    ),
+    (
+        r"GET",
+        r"^/workspaces/[^/]+/current-state-version$",
+        "Consider using 'tfc state current' to inspect active state.",
+    ),
+    (
+        r"GET",
+        r"^/workspaces/[^/]+/state-versions",
+        "Consider using 'tfc state list' or 'tfc state show' for structured state inspection.",
+    ),
+    (
+        r"DELETE",
+        r"^/workspaces/[^/]+$",
+        "Consider using 'tfc workspace delete' which includes confirmation prompts and session safeguards.",
+    ),
+    (
+        r"PATCH",
+        r"^/workspaces/[^/]+$",
+        "Consider using 'tfc workspace update' for atomic attribute updates with schema validation.",
+    ),
+    (
+        r"GET",
+        r"^(/organizations/[^/]+/workspaces/[^/]+|/workspaces/[^/]+)$",
+        "Consider using 'tfc workspace show' for workspace status, tags, and settings.",
+    ),
+    (
+        r"POST",
+        r"^/runs$",
+        "Consider using 'tfc run create' for automatic workspace detection and plan monitoring.",
+    ),
+    (
+        r"POST",
+        r"^/runs/[^/]+/actions/apply$",
+        "Consider using 'tfc run apply' for run monitoring and confirmation safety.",
+    ),
+    (
+        r"POST",
+        r"^/runs/[^/]+/actions/discard$",
+        "Consider using 'tfc run cancel' to safely discard runs.",
+    ),
+    (
+        r"GET",
+        r"^/runs/[^/]+$",
+        "Consider using 'tfc run show' for run progress and structured plan metrics.",
+    ),
+    (
+        r"GET",
+        r"^/organizations/[^/]+/projects$",
+        "Consider using 'tfc project list' to list organization projects.",
+    ),
+    (
+        r"POST",
+        r"^/organizations/[^/]+/projects$",
+        "Consider using 'tfc project create' to create projects.",
+    ),
+    (
+        r"GET",
+        r"^(/organizations/[^/]+/projects/[^/]+|/projects/[^/]+)$",
+        "Consider using 'tfc project show' to inspect project details.",
+    ),
+    (
+        r"DELETE",
+        r"^(/organizations/[^/]+/projects/[^/]+|/projects/[^/]+)$",
+        "Consider using 'tfc project delete' for safe project deletion.",
+    ),
+    (
+        r"GET",
+        r"^/organizations/[^/]+/teams$",
+        "Consider using 'tfc team list' to list organization teams.",
+    ),
+    (
+        r"POST",
+        r"^/organizations/[^/]+/teams$",
+        "Consider using 'tfc team create' to create teams.",
+    ),
+    (
+        r"GET",
+        r"^/teams/[^/]+$",
+        "Consider using 'tfc team show' to inspect team details.",
+    ),
+    (
+        r"GET",
+        r"^/organizations/[^/]+/varsets$",
+        "Consider using 'tfc varset list' to list variable sets.",
+    ),
+    (
+        r"POST",
+        r"^/organizations/[^/]+/varsets$",
+        "Consider using 'tfc varset create' to create variable sets.",
+    ),
+    (
+        r"GET",
+        r"^/varsets/[^/]+$",
+        "Consider using 'tfc varset show' to inspect variable set details.",
+    ),
+    (
+        r"DELETE",
+        r"^/varsets/[^/]+$",
+        "Consider using 'tfc varset delete' for safe variable set deletion.",
+    ),
+    (
+        r"GET",
+        r"^/organizations/[^/]+/oauth-clients",
+        "Consider using 'tfc vcs list' to inspect VCS providers.",
+    ),
+)
+
+
+def get_subcommand_hint(method: str, path: str) -> str | None:
+    """Return an advisory hint if a native, validated CLI subcommand exists for the endpoint.
+
+    Args:
+        method: HTTP method (e.g. GET, POST, DELETE).
+        path: Interpolated API path (e.g. /organizations/my-org/workspaces).
+
+    Returns:
+        Recommendation string pointing to the high-level subcommand, or None.
+    """
+    normalized_path = path.rstrip("/")
+    if not normalized_path.startswith("/"):
+        normalized_path = f"/{normalized_path}"
+
+    for m_re, p_re, hint in HINT_PATTERNS:
+        if re.match(m_re, method, re.IGNORECASE) and re.match(p_re, normalized_path):
+            return hint
+    return None
 
 
 def interpolate_endpoint(
@@ -189,8 +344,22 @@ def api_command(
             help="Output raw response text without JSON formatting",
         ),
     ] = False,
+    hints: Annotated[
+        bool,
+        typer.Option(
+            "--hints/--no-hints",
+            help="Show advisory hints to stderr when a native subcommand exists",
+        ),
+    ] = True,
 ) -> None:
-    """Execute authenticated HTTP requests against the Terraform Cloud API."""
+    """Execute an authenticated HTTP request against a raw Terraform Cloud or Enterprise REST API endpoint.
+
+    IMPORTANT: This command is a low-level escape hatch intended for endpoints not
+    yet covered by validated native subcommands. Whenever possible, prefer high-level
+    subcommands ('tfc workspace', 'tfc run', 'tfc project', 'tfc team', 'tfc state')
+    which provide schema validation, safety confirmations, session-gated protections,
+    and structured output.
+    """
     # Resolve organization / workspace if needed
     org, ws = validate_context(organization, workspace)
     interpolated_path = interpolate_endpoint(endpoint, organization=org, workspace=ws)
@@ -200,6 +369,13 @@ def api_command(
         interpolated_path = f"/{interpolated_path}"
 
     upper_method = method.upper()
+
+    # Emit advisory hint to stderr if a higher-level validated subcommand exists
+    if hints and not os.environ.get("TERRAPYNE_NO_HINTS"):
+        subcommand_hint = get_subcommand_hint(upper_method, interpolated_path)
+        if subcommand_hint:
+            error_console.print(f"[dim yellow]hint: {subcommand_hint}[/dim yellow]")
+
     if upper_method == "DELETE":
         check_deletion_allowed("api", ctx=ctx, output_format="raw" if raw else "json")
 
@@ -227,9 +403,9 @@ def api_command(
                 items.append(item)
             output_obj = {"data": items}
             if raw:
-                console.print(json.dumps(output_obj))
+                sys.stdout.write(json.dumps(output_obj) + "\n")
             else:
-                console.print_json(data=output_obj)
+                sys.stdout.write(json.dumps(output_obj, indent=2) + "\n")
             return
 
         # Single request
@@ -245,7 +421,7 @@ def api_command(
             if raw:
                 sys.stdout.write(resp.text + "\n")
             else:
-                console.print_json(data=body_json)
+                sys.stdout.write(json.dumps(body_json, indent=2) + "\n")
         except Exception:
             # Non-JSON or empty response
             if resp.text:
