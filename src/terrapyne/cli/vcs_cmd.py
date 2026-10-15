@@ -107,3 +107,52 @@ def vcs_show(
         from terrapyne.rendering.rich_tables import render_workspace_vcs
 
         render_workspace_vcs(ws)
+
+
+@app.command("set-repo")
+@handle_cli_errors
+def vcs_set_repo(
+    ctx: typer.Context,
+    workspace: str = typer.Argument(..., help="Workspace name"),
+    identifier: str = typer.Argument(..., help="New repository identifier (owner/repo)"),
+    organization: str | None = typer.Option(
+        None,
+        "--organization",
+        "-o",
+        help="TFC organization (auto-detected from context if available)",
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Show the change without sending it to Terraform Cloud"
+    ),
+):
+    """Repoint a workspace's VCS repository, keeping its OAuth token and branch.
+
+    Examples:
+        # Preview, then apply, after a GitHub repository rename
+        tfc vcs set-repo my-ws myorg/new-name --dry-run -o my-org
+        tfc vcs set-repo my-ws myorg/new-name -o my-org
+    """
+    from terrapyne.api.workspaces import validate_repo_identifier
+
+    validate_repo_identifier(identifier)
+    org, _ = validate_context(organization)
+
+    with get_client(ctx, organization=org) as client:
+        current = client.workspaces.get(workspace, org)
+        if not current.vcs_repo:
+            raise ValueError(f"Workspace '{workspace}' has no VCS connection.")
+
+        if current.vcs_identifier == identifier:
+            console.print(f"{workspace}: already uses {identifier}, nothing to do")
+            return
+
+        if dry_run:
+            console.print(
+                f"[yellow]Dry run:[/yellow] {workspace}: "
+                f"{current.vcs_identifier} -> {identifier} (no change sent)"
+            )
+            return
+
+        client.workspaces.set_vcs_repo(workspace, identifier, org)
+
+    console.print(f"[green]✓[/green] {workspace}: {current.vcs_identifier} -> {identifier}")
