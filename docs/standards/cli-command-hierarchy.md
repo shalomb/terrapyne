@@ -121,6 +121,8 @@ AI agents and automated tooling navigate CLI tools by requesting `--help` at eac
    * `--organization` / `-o`: TFC organization override (auto-detected if omitted).
    * `--quiet` / `-q`: Suppress human UI decoration, printing only machine data.
 3. **No Hidden Surprises**: Deprecated legacy aliases must be marked `hidden=True` in Typer so they do not clutter `--help` listings seen by agents, but still function when called by older scripts.
+4. **Subcommand Surface Priority vs API Gateway Escape Hatch**:
+   Autonomous agents must treat high-level subcommands (`tfc workspace`, `tfc run`, `tfc project`, `tfc team`, `tfc varset`, `tfc state`) as the primary, validated interface. The `tfc api` command is strictly a low-level escape hatch for REST API endpoints not yet implemented by native CLI subcommands. Agents must NOT default to `tfc api` for operations supported by native commands (such as creating workspaces, triggering runs, or updating workspace attributes).
 
 ---
 
@@ -149,3 +151,4 @@ When a pull request introduces or modifies a CLI command, Bart evaluates the dif
 | **C5** | **Non-Interactive Bypass** | Does any interactive confirmation prompt provide a `--yes`/`-y` or `--force` bypass flag? | `BLOCKER` |
 | **C6** | **Actionable Errors** | Do error messages specify What failed, Why, and What command to try next? | `CRITICAL` |
 | **C7** | **Legacy Aliases** | Are deprecated commands marked `hidden=True` with deprecation notices to stderr? | `MINOR` |
+| **C8** | **Subcommand Surface Priority** | Does the change or workflow bypass established native subcommands in favor of raw `tfc api` calls without justification? | `CRITICAL` |
