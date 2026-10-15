@@ -8,6 +8,7 @@ from pathlib import Path
 import typer
 
 from terrapyne.cli import (
+    api_cmd,
     debug_cmd,
     local_cmd,
     project_cmd,
@@ -27,6 +28,12 @@ app = typer.Typer(
     name=_prog,
     help="Terraform Cloud CLI orchestrator for DevOps engineers",
 )
+
+# Add raw API gateway command
+app.command(
+    name="api",
+    help="Make an authenticated HTTP request to the Terraform Cloud API",
+)(api_cmd.api_command)
 
 # Add workspace commands
 app.add_typer(workspace_cmd.app, name="workspace")

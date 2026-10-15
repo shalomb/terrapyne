@@ -11,13 +11,17 @@ if TYPE_CHECKING:
 from terrapyne.core.context import resolve_organization, resolve_workspace
 
 
-def get_client(ctx: typer.Context | None, organization: str | None = None) -> "TFCClient":
+def get_client(
+    ctx: typer.Context | None,
+    organization: str | None = None,
+    host: str = "app.terraform.io",
+) -> "TFCClient":
     from terrapyne.api.client import TFCClient
 
     cache_ttl = 0
     if ctx and hasattr(ctx, "obj") and isinstance(ctx.obj, dict):
         cache_ttl = ctx.obj.get("cache_ttl", 0)
-    return TFCClient(organization=organization, cache_ttl=cache_ttl)
+    return TFCClient(host=host, organization=organization, cache_ttl=cache_ttl)
 
 
 def validate_context(

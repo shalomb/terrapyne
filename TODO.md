@@ -78,10 +78,11 @@ Based on recent Agent-Native CLI design research, the backlog is currently struc
 | AX10 | Non-zero exits lack structured `hints` array — agent context exits should include corrective command suggestions in JSON envelope | 🟡 | M | 1.0 | TODO |
 | **NEW FEATURES** |
 | F13 | `workspace set-branch <workspace> <branch>` — switch VCS branch from CLI | 🟡 | S | 2.0 | ✅ |
-| F14 | `workspace rename <old> <new>` — rename workspace from CLI | 🟡 | S | 2.0 | 🔄 [#137](https://github.com/shalomb/terrapyne/pull/137) (open) |
+| F14 | `workspace rename <old> <new>` — rename workspace from CLI | 🟡 | S | 2.0 | ✅ [#137](https://github.com/shalomb/terrapyne/pull/137) |
 | F15 | `workspace set-working-dir <workspace> <dir>` — set working directory from CLI | 🟢 | S | 1.0 | TODO |
 | F17 | `tfc vcs set-repo <workspace>` — repoint workspace VCS repo | 🟡 | S | 2.0 | ✅ [#134](https://github.com/shalomb/terrapyne/pull/134) |
 | F18 | Plan diagnostics & module health alerts (`tfc run diagnostics`, `parse-plan`) | 🔴 | M | 2.0 | ✅ [#135](https://github.com/shalomb/terrapyne/pull/135) |
+| F19 | `tfc api <endpoint>` — raw authenticated TFC API gateway with context interpolation | 🔴 | M | 2.0 | 🔄 feat/api-gateway |
 | F4 | Workspace notifications (webhook/Slack config) | 🟡 | M | 1.0 | TODO |
 | F5 | Policy sets / Sentinel outcome reporting | 🟡 | M | 1.0 | TODO |
 | F6 | Private registry query (modules + providers) | 🟡 | M | 1.0 | TODO |
@@ -1063,4 +1064,21 @@ Run is still created (soft warn, not hard stop) so agents can proceed if they kn
 **Success Criteria**:
 - One GET per workspace for both `--dry-run` and apply
 - The success message shows the identifier that was actually replaced
+
+---
+
+### F19 — `tfc api <endpoint>`
+
+**Intent**: Low-level authenticated API gateway providing zero-credential, context-interpolated access to any TFC endpoint.
+
+**Context**: Automation and agents frequently need to query or mutate TFC endpoints that are not yet wrapped in high-level CLI commands (e.g. workspace exports, policy checks, OAuth tokens). Falling back to `curl` exposes bearer tokens and requires complex shell scripting.
+
+**Success Criteria**:
+- `tfc api <endpoint>` performs an authenticated HTTP request using the resolved client
+- Automatically interpolates `{organization}` / `:org` and `{workspace}` / `:workspace` from the active context or flags
+- Supports HTTP methods `-X, --method` (GET, POST, PATCH, DELETE, PUT)
+- Supports sending payloads via `--input <file|->` and query/body fields via `-F, --field <key=value>`
+- Supports pagination via `--paginate`
+- Emits raw JSON response to stdout (pipeable to `jq`), and diagnostic/error logs to stderr
+- Supports `--host` override for regional or private Terraform Enterprise endpoints
 

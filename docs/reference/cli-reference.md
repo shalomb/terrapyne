@@ -11,6 +11,21 @@ Terrapyne provides the `tfc` command-line tool. Every command supports the `--fo
 
 ---
 
+## `tfc api`
+Low-level authenticated HTTP gateway to the Terraform Cloud REST API.
+
+- `tfc api <endpoint>`: Execute an authenticated request against any TFC endpoint with automatic `{organization}` and `{workspace}` placeholder resolution.
+  - `-X, --method`: HTTP method (`GET`, `POST`, `PATCH`, `DELETE`, `PUT`).
+  - `-F, --field`: Set query parameter (GET) or JSON body field (POST/PATCH/PUT) via `key=value`.
+  - `-i, --input`: Provide JSON body payload from file, string, or `-` (stdin).
+  - `-o, --organization`: Organization override for `{organization}` placeholder.
+  - `-w, --workspace`: Workspace override for `{workspace}` placeholder.
+  - `-H, --host`: Hostname override (e.g. `app.eu.terraform.io` or private TFE host).
+  - `--paginate`: Automatically follow pagination links and aggregate items.
+  - `--raw`: Emit unformatted raw response text.
+
+---
+
 ## `tfc workspace`
 Workspace management and inspection.
 
