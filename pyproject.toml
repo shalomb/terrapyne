@@ -105,4 +105,5 @@ dev = [
     "import-linter>=2.11",
     "pytest>=9.0.3",
     "pytest-bdd>=7.1.0",
+    "pytest-randomly==3.16.0",
 ]

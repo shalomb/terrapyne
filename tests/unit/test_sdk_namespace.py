@@ -1,18 +1,22 @@
 """Test SDK namespace deprecation warning."""
 
+import importlib
+import sys
 import warnings
 
 
 def test_sdk_namespace_deprecated():
     """Test that importing from terrapyne.sdk issues a deprecation warning."""
+    # Evict cached module so the module-level warnings.warn() fires again.
+    sys.modules.pop("terrapyne.sdk", None)
+
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
-        # This should trigger the deprecation warning
-        import terrapyne.sdk  # noqa: F401
+        import terrapyne.sdk
+
+        importlib.reload(terrapyne.sdk)
 
         # Check that a warning was issued
-        assert len(w) >= 1
-        # Find the deprecation warning
         deprecation_warnings = [
             warning for warning in w if issubclass(warning.category, DeprecationWarning)
         ]
