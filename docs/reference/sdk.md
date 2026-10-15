@@ -88,6 +88,9 @@ Each model has a `from_api_response(data)` class method for parsing raw API resp
 | `RunTrigger` | Source workspace trigger that initiates runs on target workspaces. | `id`, `workspace_id`, `source_workspace_id` |
 | `Plan` | Details of a run's planning phase. | `id`, `status`, `resource_additions`, `resource_destructions` |
 | `Apply` | Details of a run's apply phase. | `id`, `status`, `resource_additions`, `resource_destructions` |
+| `Diagnostic` | Structured plan/apply diagnostic (warnings, module health, errors). | `severity`, `summary`, `detail`, `category`, `module_source`, `module_version` |
+| `DiagnosticCategory` | Categorization for diagnostics (`MODULE_HEALTH`, `DEPRECATION`, `RUNTIME`). | Enum values representing the diagnostic type. |
+| `DiagnosticSeverity` | Severity level of a diagnostic (`ERROR`, `WARNING`, `INFO`). | Enum values for diagnostic severity. |
 | `StateVersion` | Represents a specific state file version. | `id`, `serial`, `created_at`, `resource_count`, `run_id` |
 | `StateVersionOutput` | Represents a single output from a state version. | `name`, `value`, `type`, `sensitive` |
 | `Team` | Represents an organization team. | `id`, `name`, `member_count` |

@@ -1,6 +1,7 @@
 """Pydantic models for TFC API responses."""
 
 from .apply import Apply
+from .diagnostic import Diagnostic, DiagnosticCategory, DiagnosticSeverity
 from .plan import Plan
 from .project import Project
 from .run import Run, RunStatus
@@ -13,6 +14,9 @@ from .workspace import Workspace, WorkspaceVCS
 
 __all__ = [
     "Apply",
+    "Diagnostic",
+    "DiagnosticCategory",
+    "DiagnosticSeverity",
     "Plan",
     "Project",
     "Run",

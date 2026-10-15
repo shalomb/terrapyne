@@ -801,6 +801,9 @@ class TerraformPlainTextPlanParser:
         # section so resource-level parsing is not possible.
         if self._is_structured_json_log(cleaned_text):
             plan_summary = self._parse_plan_summary_from_json_log(cleaned_text)
+            from terrapyne.core.diagnostic_parser import DiagnosticParser
+
+            extracted_diags = DiagnosticParser.parse(cleaned_text)
             diagnostic = {
                 "severity": "warning",
                 "summary": "Structured JSON log format detected",
@@ -811,11 +814,12 @@ class TerraformPlainTextPlanParser:
                     "Use terraform plan -json (outside TFC) for full resource details."
                 ),
             }
+            diagnostics = [diagnostic] + [d.to_dict() for d in extracted_diags]
             return PlanIR(
                 resource_changes=[],
                 format_version="1.0",
                 plan_summary=plan_summary,
-                diagnostics=[diagnostic],
+                diagnostics=diagnostics,
                 plan_status="structured_log",
             )
 
@@ -1198,25 +1202,10 @@ class TerraformPlainTextPlanParser:
         Returns:
             List of diagnostic dictionaries with severity, summary, detail, etc.
         """
-        diagnostics = []
-        lines = text.splitlines()
-        i = 0
+        from terrapyne.core.diagnostic_parser import DiagnosticParser
 
-        while i < len(lines):
-            line = lines[i]
-
-            # Check for error box start
-            if self.ERROR_BOX_START.match(line):
-                error_diag, end_idx = self._parse_error_box(lines, i)
-                if error_diag:
-                    diagnostics.append(error_diag)
-                    # Skip to end of error box
-                    i = end_idx
-                    continue
-
-            i += 1
-
-        return diagnostics
+        diags = DiagnosticParser.parse(text)
+        return [d.to_dict() for d in diags]
 
     def _parse_error_box(
         self, lines: list[str], start_idx: int

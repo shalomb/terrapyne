@@ -293,6 +293,92 @@ Plan: 1 to add, 0 to change, 0 to destroy.
         assert len(result["resource_changes"]) == 1
 
 
+class TestPlanParserDiagnostics:
+    """Tests for diagnostic extraction and separation in TerraformPlainTextPlanParser."""
+
+    SAMPLE_WARNING_PLAN = """\
+╷
+│ Warning: Argument is deprecated
+│ 
+│   with aws_instance.web,
+│   on main.tf line 25:
+│   25:   monitoring = true
+│ 
+│ Use standard_monitoring instead.
+╵
+Terraform will perform the following actions:
+
+  # aws_instance.web will be created
+  + resource "aws_instance" "web" {
+      + ami = "ami-12345678"
+    }
+
+Plan: 1 to add, 0 to change, 0 to destroy.
+"""
+
+    SAMPLE_MODULE_DEPRECATION_STRUCTURED_LOG = """\
+{"@level":"info","@message":"Terraform 1.12.2","type":"version"}
+{"@level":"warn","@message":"Module version 1.4.0 of app.terraform.io/Takeda/EC2/aws is deprecated","type":"diagnostic","diagnostic":{"severity":"warning","summary":"Module version 1.4.0 of app.terraform.io/Takeda/EC2/aws is deprecated","detail":"Please upgrade.","extra":{"type":"module_version_deprecation","version":"1.4.0","source_name":"app.terraform.io/Takeda/EC2/aws"}}}
+{"@level":"info","@message":"Plan: 2 to add, 0 to change, 0 to destroy.","type":"change_summary","changes":{"add":2,"change":0,"remove":0}}
+"""
+
+    def test_parse_plan_with_warning_does_not_fail(self):
+        """Warning diagnostics do not cause plan_status to fail."""
+        from terrapyne.core.plan_parser import TerraformPlainTextPlanParser
+
+        result = TerraformPlainTextPlanParser(self.SAMPLE_WARNING_PLAN).parse()
+        assert result["plan_status"] == "success"
+        assert len(result["diagnostics"]) == 1
+        assert result["diagnostics"][0]["severity"] == "warning"
+        assert result["diagnostics"][0]["summary"] == "Argument is deprecated"
+
+    def test_structured_log_extracts_module_deprecation(self):
+        """Structured logs extract module deprecations in addition to format warning."""
+        from terrapyne.core.plan_parser import TerraformPlainTextPlanParser
+
+        result = TerraformPlainTextPlanParser(self.SAMPLE_MODULE_DEPRECATION_STRUCTURED_LOG).parse()
+        diagnostics = result["diagnostics"]
+        assert len(diagnostics) == 2
+        module_diag = next(d for d in diagnostics if d.get("category") == "module_health")
+        assert module_diag["module_source"] == "app.terraform.io/Takeda/EC2/aws"
+        assert module_diag["module_version"] == "1.4.0"
+
+    def test_format_plan_output_human_separates_warnings_and_errors(self):
+        """Human output distinguishes between module alerts, warnings, and errors."""
+        from terrapyne.cli.run_cmd import _format_plan_output_human
+
+        result = {
+            "resource_changes": [],
+            "plan_summary": {"add": 1, "change": 0, "destroy": 0},
+            "plan_status": "planned",
+            "diagnostics": [
+                {
+                    "severity": "warning",
+                    "category": "module_health",
+                    "summary": "Module v1.0 deprecated",
+                    "module_source": "org/mod/aws",
+                    "module_version": "1.0.0",
+                },
+                {
+                    "severity": "warning",
+                    "category": "general",
+                    "summary": "Deprecated argument",
+                },
+                {
+                    "severity": "error",
+                    "category": "runtime",
+                    "summary": "Provider error",
+                },
+            ],
+        }
+
+        output = _format_plan_output_human(result)
+        assert "Module Health Alerts" in output
+        assert "org/mod/aws" in output
+        assert "Warnings:" in output
+        assert "Errors found:" in output
+
+
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures" / "plan_outputs"
 FIXTURE_FILES = sorted(FIXTURE_DIR.glob("*.txt")) if FIXTURE_DIR.exists() else []
 FIXTURE_STEMS = [f.stem for f in FIXTURE_FILES]

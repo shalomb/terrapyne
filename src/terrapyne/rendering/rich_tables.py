@@ -5,6 +5,7 @@ from datetime import datetime as dt_datetime
 
 from rich.table import Table
 
+from terrapyne.models.diagnostic import Diagnostic
 from terrapyne.models.plan import Plan
 from terrapyne.models.project import Project
 from terrapyne.models.run import Run
@@ -20,6 +21,7 @@ from terrapyne.rendering.table_renderer import (
     RunTableRenderer,
     WorkspaceDetailRenderer,
     WorkspaceTableRenderer,
+    render_diagnostics,
 )
 
 
@@ -238,6 +240,7 @@ def render_run_detail(
     workspace_name: str | None = None,
     organization: str | None = None,
     plan: "Plan | None" = None,  # type: ignore
+    diagnostics: Sequence[Diagnostic] | None = None,
 ) -> None:
     """Render detailed run information.
 
@@ -246,11 +249,24 @@ def render_run_detail(
         workspace_name: Optional workspace name for display
         organization: Optional organization name for URL construction
         plan: Optional plan with resource counts
+        diagnostics: Optional list of diagnostics (warnings, health alerts, errors)
     """
     renderer = RunDetailRenderer(
-        workspace_name=workspace_name, organization=organization, plan=plan
+        workspace_name=workspace_name,
+        organization=organization,
+        plan=plan,
+        diagnostics=diagnostics,
     )
     renderer.render(run, console_instance=console)
+
+
+def render_run_diagnostics(diagnostics: Sequence[Diagnostic]) -> None:
+    """Render structured diagnostics as Rich panels using the default console.
+
+    Args:
+        diagnostics: Sequence of Diagnostic instances to render
+    """
+    render_diagnostics(diagnostics, console_instance=console)
 
 
 def _format_datetime(dt: dt_datetime) -> str:

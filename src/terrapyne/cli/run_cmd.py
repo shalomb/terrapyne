@@ -15,9 +15,14 @@ from terrapyne.cli.context_helpers import get_client, resolve_project_context, v
 from terrapyne.cli.error_handlers import handle_cli_errors
 from terrapyne.cli.output_helpers import effective_format, emit_json
 from terrapyne.core.exceptions import TFCConflictError
+from terrapyne.models.diagnostic import Diagnostic
 from terrapyne.models.run import Run
 from terrapyne.rendering.logging import console, error_console
-from terrapyne.rendering.rich_tables import render_run_detail, render_runs
+from terrapyne.rendering.rich_tables import (
+    render_run_detail,
+    render_run_diagnostics,
+    render_runs,
+)
 
 app = typer.Typer(help="Run management commands")
 
@@ -114,6 +119,13 @@ def run_show(
     output_format: Annotated[
         str, typer.Option("--format", "-f", help="Output format (table, json)")
     ] = "table",
+    diagnostics: Annotated[
+        bool,
+        typer.Option(
+            "--diagnostics/--no-diagnostics",
+            help="Fetch and display plan diagnostics and module health alerts",
+        ),
+    ] = True,
 ):
     """Show details for a specific run."""
     org, ws_name = validate_context(organization, workspace)
@@ -143,14 +155,94 @@ def run_show(
             with suppress(Exception):
                 plan = client.runs.get_plan(run.plan_id)
 
+        # Fetch diagnostics if enabled
+        diags: list[Diagnostic] = []
+        if diagnostics and run.plan_id:
+            with suppress(Exception):
+                diags = client.runs.get_diagnostics(run)
+
         if effective_format(ctx, output_format) == "json":
             data = run.model_dump()
             if plan:
                 data["plan"] = plan.model_dump()
+            if diagnostics:
+                data["diagnostics"] = [d.to_dict() for d in diags]
             emit_json(data)
             return
 
-        render_run_detail(run, plan=plan)
+        render_run_detail(run, plan=plan, diagnostics=diags)
+
+
+@app.command("diagnostics")
+@handle_cli_errors
+def run_diagnostics(
+    ctx: typer.Context,
+    run_id: Annotated[str, typer.Argument(help="Run ID (e.g., run-xxx)")],
+    organization: Annotated[
+        str | None,
+        typer.Option(
+            "--organization",
+            "-o",
+            help="TFC organization (auto-detected from context if available)",
+        ),
+    ] = None,
+    stage: Annotated[
+        str,
+        typer.Option("--stage", help="Execution stage to inspect (plan, apply)"),
+    ] = "plan",
+    category: Annotated[
+        str | None,
+        typer.Option(
+            "--category",
+            "-c",
+            help="Filter diagnostics by category (module_health, runtime, syntax, general)",
+        ),
+    ] = None,
+    severity: Annotated[
+        str | None,
+        typer.Option(
+            "--severity",
+            "-s",
+            help="Filter diagnostics by severity (error, warning, info)",
+        ),
+    ] = None,
+    output_format: Annotated[
+        str, typer.Option("--format", "-f", help="Output format (table, json)")
+    ] = "table",
+):
+    """Inspect execution diagnostics, warnings, and module health alerts for a run."""
+    org, _ = validate_context(organization, None)
+
+    with get_client(ctx, organization=org) as client:
+        run = client.runs.get(run_id)
+
+        try:
+            diags = client.runs.get_diagnostics(run, stage=stage)
+        except Exception as e:
+            console.print(f"[yellow]⚠️ Could not fetch diagnostics for run {run_id}: {e}[/yellow]")
+            diags = []
+
+        # Apply category filter
+        if category:
+            cat_lower = category.lower()
+            diags = [d for d in diags if d.category.value.lower() == cat_lower]
+
+        # Apply severity filter
+        if severity:
+            sev_lower = severity.lower()
+            diags = [d for d in diags if d.severity.value.lower() == sev_lower]
+
+        if effective_format(ctx, output_format) == "json":
+            emit_json([d.to_dict() for d in diags])
+            return
+
+        if not diags:
+            console.print(
+                f"[green]✓[/green] No diagnostics reported for run [bold]{run_id}[/bold] ({stage} stage)."
+            )
+            return
+
+        render_run_diagnostics(diags)
 
 
 @app.command("plan")
@@ -268,6 +360,14 @@ def run_logs(
         str | None,
         typer.Option("--out", help="Save logs to file instead of printing to stdout"),
     ] = None,
+    diagnostics_only: Annotated[
+        bool,
+        typer.Option(
+            "--diagnostics-only",
+            "-d",
+            help="Show only diagnostics, warnings, and errors",
+        ),
+    ] = False,
 ):
     """Show logs for a specific run stage."""
     org, ws_name = validate_context(organization, workspace)
@@ -340,6 +440,42 @@ def run_logs(
                 )
                 return
             output = logs
+
+        if diagnostics_only:
+            from terrapyne.core.diagnostic_parser import DiagnosticParser
+
+            diags = DiagnosticParser.parse(output)
+            if not diags:
+                console.print(f"[yellow]No diagnostics found in {stage} logs.[/yellow]")
+                return
+
+            diag_lines: list[str] = []
+            for d in diags:
+                if d.severity.value == "error":
+                    diag_lines.append(f"❌ Error: {d.summary}")
+                else:
+                    diag_lines.append(f"⚠️  Warning: {d.summary}")
+                if d.detail:
+                    diag_lines.append(f"   {d.detail}")
+                if d.filename:
+                    loc = f"on {d.filename}" + (f" line {d.line}" if d.line else "")
+                    diag_lines.append(f"   {loc}")
+                diag_lines.append("")
+
+            formatted_diags = "\n".join(diag_lines)
+            if out:
+                with open(out, "w") as f:
+                    f.write(formatted_diags)
+                console.print(f"[green]✓ Logs saved to {out}[/green]")
+            else:
+                for line in diag_lines:
+                    if line.startswith("❌"):
+                        console.print(f"[red]{line}[/red]")
+                    elif line.startswith("⚠️"):
+                        console.print(f"[yellow]{line}[/yellow]")
+                    else:
+                        console.print(line)
+            return
 
         if out:
             with open(out, "w") as f:
@@ -1211,12 +1347,43 @@ def _format_plan_output_human(result: dict[str, Any], verbose: bool = False) -> 
         )
         lines.append(f"{status_icon} Status: {result['plan_status']}")
 
-    # Errors
-    if result.get("diagnostics"):
-        lines.append(f"\n⚠️  Errors found: {len(result['diagnostics'])}")
-        for diag in result["diagnostics"]:
-            lines.append(f"  • {diag.get('summary', 'Unknown error')}")
-            if verbose and diag.get("detail"):
-                lines.append(f"    {diag['detail']}")
+    # Diagnostics (Module health, errors, warnings)
+    diags = result.get("diagnostics", [])
+    if diags:
+        module_health = [
+            d
+            for d in diags
+            if d.get("category") == "module_health"
+            or (d.get("extra") or {}).get("type") == "module_version_deprecation"
+        ]
+        errors = [d for d in diags if d.get("severity") == "error"]
+        warnings = [d for d in diags if d.get("severity") == "warning" and d not in module_health]
+
+        if module_health:
+            lines.append(f"\n⚠️  Module Health Alerts: {len(module_health)}")
+            for diag in module_health:
+                src = diag.get("module_source") or "Module"
+                ver = f" (v{diag.get('module_version')})" if diag.get("module_version") else ""
+                lines.append(f"  • {src}{ver}: {diag.get('summary', '')}")
+                if verbose and diag.get("detail"):
+                    lines.append(f"    {diag['detail']}")
+
+        if errors:
+            lines.append(f"\n❌ Errors found: {len(errors)}")
+            for diag in errors:
+                lines.append(f"  • {diag.get('summary', 'Unknown error')}")
+                if diag.get("address"):
+                    lines.append(f"    with {diag['address']}")
+                if verbose and diag.get("detail"):
+                    lines.append(f"    {diag['detail']}")
+
+        if warnings:
+            lines.append(f"\n⚠️  Warnings: {len(warnings)}")
+            for diag in warnings:
+                lines.append(f"  • {diag.get('summary', 'Warning')}")
+                if diag.get("address"):
+                    lines.append(f"    with {diag['address']}")
+                if verbose and diag.get("detail"):
+                    lines.append(f"    {diag['detail']}")
 
     return "\n".join(lines)
