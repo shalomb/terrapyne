@@ -502,6 +502,8 @@ class RunsAPI:
         run_id: str,
         callback: Callable[[Run], None] | None = None,
         max_wait: float = 1800.0,  # 30 minutes
+        pending_hint_after: float = 60.0,
+        on_stall: Callable[[Run, float], None] | None = None,
     ) -> Run:
         """Poll run status until it reaches a terminal state.
 
@@ -509,6 +511,9 @@ class RunsAPI:
             run_id: Run ID to poll
             callback: Optional callback function called on each poll (receives Run)
             max_wait: Maximum time to wait in seconds
+            pending_hint_after: Seconds in pending status before firing on_stall
+            on_stall: Optional callback fired once when a run stays pending longer
+                      than pending_hint_after. Receives (run, pending_elapsed_seconds).
 
         Returns:
             Final Run instance in terminal state
@@ -517,11 +522,15 @@ class RunsAPI:
             TimeoutError: If max_wait exceeded
             TFCAPIError: If API errors occur
         """
+        from terrapyne.models.run import RunStatus
+
         # Exponential backoff intervals (seconds)
         intervals = [2, 2, 3, 5, 5, 10, 10, 15, 30]
         interval_index = 0
 
         start_time = time.time()
+        pending_since: float | None = None
+        stall_fired = False
 
         while True:
             run = self.get(run_id)
@@ -532,7 +541,21 @@ class RunsAPI:
             if run.status.is_terminal:
                 return run
 
-            elapsed = time.time() - start_time
+            now = time.time()
+
+            if run.status == RunStatus.PENDING:
+                if pending_since is None:
+                    pending_since = now
+                elif on_stall and not stall_fired:
+                    pending_elapsed = now - pending_since
+                    if pending_elapsed >= pending_hint_after:
+                        on_stall(run, pending_elapsed)
+                        stall_fired = True
+            else:
+                pending_since = None
+                stall_fired = False
+
+            elapsed = now - start_time
             if elapsed >= max_wait:
                 raise TimeoutError(
                     f"Run {run_id} did not complete within {max_wait}s "

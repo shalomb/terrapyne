@@ -659,6 +659,32 @@ def run_errors(
                 console.print(f"  • [cyan]{run.id}[/cyan] ({date_str}): {error_text}")
 
 
+_STALL_MSG = (
+    "Run has been pending for >60s — a predecessor run may be blocking it. "
+    "Run 'tfc run list' to check."
+)
+_STALL_JSON = (
+    '{"type": "hint", "code": "predecessor_run_suspected", '
+    '"message": "Run has been pending for >60s — a predecessor run may be blocking it."}'
+)
+
+
+def _make_stall_callback(output_format: str):
+    """Return an on_stall callback appropriate for the output format."""
+    fired = [False]
+
+    def _on_stall(run: Run, elapsed: float) -> None:
+        if fired[0]:
+            return
+        fired[0] = True
+        if output_format == "json":
+            print(_STALL_JSON, file=sys.stderr)
+        else:
+            print(_STALL_MSG, file=sys.stderr)
+
+    return _on_stall
+
+
 @app.command("trigger")
 @handle_cli_errors
 def run_trigger(
@@ -873,7 +899,10 @@ def run_trigger(
         try:
             callback = _create_stream_callback(client) if follow else None
             final_run = client.runs.poll_until_complete(
-                run.id, callback=callback, max_wait=float(max_wait)
+                run.id,
+                callback=callback,
+                max_wait=float(max_wait),
+                on_stall=_make_stall_callback(output_format),
             )
             print()
 
