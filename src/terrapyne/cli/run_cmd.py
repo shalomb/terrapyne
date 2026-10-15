@@ -15,6 +15,7 @@ from terrapyne.cli.context_helpers import get_client, resolve_project_context, v
 from terrapyne.cli.error_handlers import handle_cli_errors
 from terrapyne.cli.output_helpers import effective_format, emit_json
 from terrapyne.core.exceptions import TFCConflictError
+from terrapyne.models.diagnostic import Diagnostic
 from terrapyne.models.run import Run
 from terrapyne.rendering.logging import console, error_console
 from terrapyne.rendering.rich_tables import render_run_detail, render_runs
@@ -114,6 +115,13 @@ def run_show(
     output_format: Annotated[
         str, typer.Option("--format", "-f", help="Output format (table, json)")
     ] = "table",
+    diagnostics: Annotated[
+        bool,
+        typer.Option(
+            "--diagnostics/--no-diagnostics",
+            help="Fetch and display plan diagnostics and module health alerts",
+        ),
+    ] = True,
 ):
     """Show details for a specific run."""
     org, ws_name = validate_context(organization, workspace)
@@ -143,14 +151,22 @@ def run_show(
             with suppress(Exception):
                 plan = client.runs.get_plan(run.plan_id)
 
+        # Fetch diagnostics if enabled
+        diags: list[Diagnostic] = []
+        if diagnostics and run.plan_id:
+            with suppress(Exception):
+                diags = client.runs.get_diagnostics(run)
+
         if effective_format(ctx, output_format) == "json":
             data = run.model_dump()
             if plan:
                 data["plan"] = plan.model_dump()
+            if diagnostics:
+                data["diagnostics"] = [d.to_dict() for d in diags]
             emit_json(data)
             return
 
-        render_run_detail(run, plan=plan)
+        render_run_detail(run, plan=plan, diagnostics=diags)
 
 
 @app.command("plan")
@@ -268,6 +284,14 @@ def run_logs(
         str | None,
         typer.Option("--out", help="Save logs to file instead of printing to stdout"),
     ] = None,
+    diagnostics_only: Annotated[
+        bool,
+        typer.Option(
+            "--diagnostics-only",
+            "-d",
+            help="Show only diagnostics, warnings, and errors",
+        ),
+    ] = False,
 ):
     """Show logs for a specific run stage."""
     org, ws_name = validate_context(organization, workspace)
@@ -340,6 +364,42 @@ def run_logs(
                 )
                 return
             output = logs
+
+        if diagnostics_only:
+            from terrapyne.core.diagnostic_parser import DiagnosticParser
+
+            diags = DiagnosticParser.parse(output)
+            if not diags:
+                console.print(f"[yellow]No diagnostics found in {stage} logs.[/yellow]")
+                return
+
+            diag_lines: list[str] = []
+            for d in diags:
+                if d.severity.value == "error":
+                    diag_lines.append(f"❌ Error: {d.summary}")
+                else:
+                    diag_lines.append(f"⚠️  Warning: {d.summary}")
+                if d.detail:
+                    diag_lines.append(f"   {d.detail}")
+                if d.filename:
+                    loc = f"on {d.filename}" + (f" line {d.line}" if d.line else "")
+                    diag_lines.append(f"   {loc}")
+                diag_lines.append("")
+
+            formatted_diags = "\n".join(diag_lines)
+            if out:
+                with open(out, "w") as f:
+                    f.write(formatted_diags)
+                console.print(f"[green]✓ Logs saved to {out}[/green]")
+            else:
+                for line in diag_lines:
+                    if line.startswith("❌"):
+                        console.print(f"[red]{line}[/red]")
+                    elif line.startswith("⚠️"):
+                        console.print(f"[yellow]{line}[/yellow]")
+                    else:
+                        console.print(line)
+            return
 
         if out:
             with open(out, "w") as f:
