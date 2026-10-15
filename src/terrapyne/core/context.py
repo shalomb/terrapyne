@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 from terrapyne.core.backend import detect_backend
+from terrapyne.core.config import TerrapyneConfig, load_config
 
 
 def get_context_from_tfstate(
@@ -85,31 +86,51 @@ def get_workspace_context() -> tuple[str | None, str | None, str | None]:
     return (workspace_name, backend.organization, backend.hostname)
 
 
-def resolve_workspace(workspace_arg: str | None) -> str | None:
-    """Resolve workspace name from argument or context.
+def resolve_workspace(
+    workspace_arg: str | None = None,
+    config: TerrapyneConfig | None = None,
+    profile_name: str | None = None,
+) -> str | None:
+    """Resolve workspace name from argument, environment, local state, or profile.
 
-    Args:
-        workspace_arg: Workspace name from CLI argument (or None)
-
-    Returns:
-        Resolved workspace name or None
+    Priority:
+    1. Explicit workspace_arg
+    2. TFC_WORKSPACE environment variable
+    3. Local .terraform/terraform.tfstate or terraform.tf
+    4. Active profile default_workspace
     """
     if workspace_arg:
         return workspace_arg
 
-    # Try to detect from terraform.tf
+    env_ws = os.getenv("TFC_WORKSPACE")
+    if env_ws:
+        return env_ws
+
+    # Try to detect from terraform.tf / tfstate
     workspace_name, _, _ = get_workspace_context()
-    return workspace_name
+    if workspace_name:
+        return workspace_name
+
+    cfg = config if config is not None else load_config()
+    profile = cfg.get_profile(profile_name)
+    if profile and profile.default_workspace:
+        return profile.default_workspace
+
+    return None
 
 
-def resolve_organization(org_arg: str | None) -> str | None:
-    """Resolve organization from argument or context.
+def resolve_organization(
+    org_arg: str | None = None,
+    config: TerrapyneConfig | None = None,
+    profile_name: str | None = None,
+) -> str | None:
+    """Resolve organization from argument, environment, local state, or profile.
 
-    Args:
-        org_arg: Organization from CLI argument (or None)
-
-    Returns:
-        Resolved organization or None
+    Priority:
+    1. Explicit org_arg
+    2. TFC_ORG environment variable
+    3. Local .terraform/terraform.tfstate or terraform.tf
+    4. Active profile organization
     """
     if org_arg:
         return org_arg
@@ -121,4 +142,46 @@ def resolve_organization(org_arg: str | None) -> str | None:
 
     # Priority 2: Detect from terraform.tf / tfstate
     _, organization, _ = get_workspace_context()
-    return organization
+    if organization:
+        return organization
+
+    # Priority 3: Detect from active profile
+    cfg = config if config is not None else load_config()
+    profile = cfg.get_profile(profile_name)
+    if profile and profile.organization:
+        return profile.organization
+
+    return None
+
+
+def resolve_host(
+    host_arg: str | None = None,
+    config: TerrapyneConfig | None = None,
+    profile_name: str | None = None,
+) -> str:
+    """Resolve Terraform Cloud/Enterprise hostname.
+
+    Priority:
+    1. Explicit host_arg (if specified and not default)
+    2. TFC_HOST or TFE_HOST environment variable
+    3. Local .terraform/terraform.tfstate or terraform.tf hostname (if not default)
+    4. Active profile hostname
+    5. Default "app.terraform.io"
+    """
+    if host_arg and host_arg != "app.terraform.io":
+        return host_arg
+
+    env_host = os.getenv("TFC_HOST") or os.getenv("TFE_HOST")
+    if env_host:
+        return env_host
+
+    _, _, hostname = get_workspace_context()
+    if hostname and hostname != "app.terraform.io":
+        return hostname
+
+    cfg = config if config is not None else load_config()
+    profile = cfg.get_profile(profile_name)
+    if profile and profile.hostname:
+        return profile.hostname
+
+    return host_arg or "app.terraform.io"
