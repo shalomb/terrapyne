@@ -169,6 +169,14 @@ def test_cli_parse_plan_human():
     pass
 
 
+@scenario(
+    "../features/plan_parser_integration.feature",
+    "Parse plan with module health alerts and warnings",
+)
+def test_cli_parse_plan_module_health():
+    pass
+
+
 @scenario("../features/plan_parser_integration.feature", "Use parse_plain_text_plan() method")
 def test_api_parse_method():
     pass
@@ -698,3 +706,31 @@ def check_dict_key_summary(parsed_result):
 @then('the dictionary should contain "plan_status" key')
 def check_dict_key_status(parsed_result):
     assert "plan_status" in parsed_result
+
+
+@given(
+    "I have a terraform plan output file with module health deprecations",
+    target_fixture="plan_file",
+)
+def plan_file_with_module_deprecations(tmp_path):
+    f = tmp_path / "plan_dep.txt"
+    f.write_text(
+        '{"@level":"warn","@message":"Module version 1.4.0 of app.terraform.io/Takeda/EC2/aws is deprecated","type":"diagnostic","diagnostic":{"severity":"warning","summary":"Module version 1.4.0 of app.terraform.io/Takeda/EC2/aws is deprecated","detail":"Please upgrade.","extra":{"type":"module_version_deprecation","version":"1.4.0","source_name":"app.terraform.io/Takeda/EC2/aws"}}}\n'
+        '{"@level":"info","@message":"Plan: 0 to add, 0 to change, 0 to destroy.","type":"change_summary","changes":{"add":0,"change":0,"remove":0}}\n'
+    )
+    return f
+
+
+@when("I trigger the parse-plan command", target_fixture="cli_result")
+def run_cli_parse_plan_default(plan_file):
+    return runner.invoke(app, ["run", "parse-plan", str(plan_file)])
+
+
+@then("the output should show module health alerts")
+def check_cli_output_module_health(cli_result):
+    assert "Module Health Alerts" in cli_result.output
+
+
+@then(parsers.parse('the output should list the deprecated module "{module}"'))
+def check_cli_output_deprecated_module(cli_result, module):
+    assert module in cli_result.output

@@ -78,4 +78,9 @@ class Diagnostic(BaseModel):
             "module_source": self.module_source,
             "module_version": self.module_version,
             "extra": self.extra,
+            "range": {
+                "filename": self.filename,
+                "start": {"line": self.line, "column": None},
+                "end": {"line": self.line, "column": None},
+            },
         }

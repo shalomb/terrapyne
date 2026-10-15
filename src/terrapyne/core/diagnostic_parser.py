@@ -13,8 +13,8 @@ from terrapyne.models.diagnostic import (
 _ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 # Plain text patterns
-_BOX_START = re.compile(r"^\s*╷\s*$")
-_BOX_END = re.compile(r"^\s*╵\s*$")
+_BOX_START = re.compile(r"^\s*[╷┌]\s*$")
+_BOX_END = re.compile(r"^\s*[╵└]\s*$")
 _MSG_LINE = re.compile(r"^\s*│\s*(Error|Warning):\s*(.+)$")
 _WITH_LINE = re.compile(r"^\s*│\s*with\s+([^,\n]+)")
 _LOCATION_LINE = re.compile(r"^\s*│\s*on\s+(\S+)\s+line\s+(\d+)(?:,\s*in\s+(.+))?:")

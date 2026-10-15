@@ -1347,12 +1347,43 @@ def _format_plan_output_human(result: dict[str, Any], verbose: bool = False) -> 
         )
         lines.append(f"{status_icon} Status: {result['plan_status']}")
 
-    # Errors
-    if result.get("diagnostics"):
-        lines.append(f"\n⚠️  Errors found: {len(result['diagnostics'])}")
-        for diag in result["diagnostics"]:
-            lines.append(f"  • {diag.get('summary', 'Unknown error')}")
-            if verbose and diag.get("detail"):
-                lines.append(f"    {diag['detail']}")
+    # Diagnostics (Module health, errors, warnings)
+    diags = result.get("diagnostics", [])
+    if diags:
+        module_health = [
+            d
+            for d in diags
+            if d.get("category") == "module_health"
+            or (d.get("extra") or {}).get("type") == "module_version_deprecation"
+        ]
+        errors = [d for d in diags if d.get("severity") == "error"]
+        warnings = [d for d in diags if d.get("severity") == "warning" and d not in module_health]
+
+        if module_health:
+            lines.append(f"\n⚠️  Module Health Alerts: {len(module_health)}")
+            for diag in module_health:
+                src = diag.get("module_source") or "Module"
+                ver = f" (v{diag.get('module_version')})" if diag.get("module_version") else ""
+                lines.append(f"  • {src}{ver}: {diag.get('summary', '')}")
+                if verbose and diag.get("detail"):
+                    lines.append(f"    {diag['detail']}")
+
+        if errors:
+            lines.append(f"\n❌ Errors found: {len(errors)}")
+            for diag in errors:
+                lines.append(f"  • {diag.get('summary', 'Unknown error')}")
+                if diag.get("address"):
+                    lines.append(f"    with {diag['address']}")
+                if verbose and diag.get("detail"):
+                    lines.append(f"    {diag['detail']}")
+
+        if warnings:
+            lines.append(f"\n⚠️  Warnings: {len(warnings)}")
+            for diag in warnings:
+                lines.append(f"  • {diag.get('summary', 'Warning')}")
+                if diag.get("address"):
+                    lines.append(f"    with {diag['address']}")
+                if verbose and diag.get("detail"):
+                    lines.append(f"    {diag['detail']}")
 
     return "\n".join(lines)

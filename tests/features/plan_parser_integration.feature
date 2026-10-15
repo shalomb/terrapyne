@@ -26,6 +26,12 @@ Feature: Terraform Plan Parser Integration
     Then the output should be formatted for human readability
     And resources should be listed with addresses and actions
 
+  Scenario: Parse plan with module health alerts and warnings
+    Given I have a terraform plan output file with module health deprecations
+    When I trigger the parse-plan command
+    Then the output should show module health alerts
+    And the output should list the deprecated module "app.terraform.io/Takeda/EC2/aws"
+
   # ============================================================================
   # PYTHON API INTEGRATION
   # ============================================================================
