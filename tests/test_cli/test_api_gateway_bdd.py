@@ -1,0 +1,154 @@
+"""BDD step definitions for tfc api gateway."""
+
+import json
+from unittest.mock import MagicMock, patch
+
+import pytest
+from pytest_bdd import given, parsers, scenarios, then, when
+from typer.testing import CliRunner
+
+from terrapyne.cli.main import app
+
+scenarios("../features/api_gateway.feature")
+
+runner = CliRunner()
+
+
+@pytest.fixture
+def mock_client():
+    client = MagicMock()
+    # Default mock response object
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.text = "{}"
+    mock_resp.json.return_value = {}
+    client._request.return_value = mock_resp
+    return client
+
+
+@pytest.fixture
+def context_state():
+    return {"org": None, "captured_request": {}}
+
+
+@given(parsers.parse('the TFC API returns a workspace configuration for "{workspace}" in "{org}"'))
+def _mock_workspace_config(mock_client, workspace, org):
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    payload = {
+        "data": {
+            "id": f"ws-{workspace}",
+            "type": "workspaces",
+            "attributes": {"name": workspace, "organization": org},
+        }
+    }
+    mock_resp.text = json.dumps(payload)
+    mock_resp.json.return_value = payload
+    mock_client._request.return_value = mock_resp
+
+
+@given(parsers.parse('the local workspace context resolves organization "{org}"'))
+def _mock_detected_org(context_state, org):
+    context_state["org"] = org
+
+
+@given(parsers.parse('the TFC API returns a list of workspaces for "{org}"'))
+def _mock_workspaces_list(mock_client, org):
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    payload = {"data": [{"id": "ws-1", "type": "workspaces", "attributes": {"name": "app-1"}}]}
+    mock_resp.text = json.dumps(payload)
+    mock_resp.json.return_value = payload
+    mock_client._request.return_value = mock_resp
+
+
+@given(parsers.parse('the TFC API accepts an action for workspace "{ws_id}"'))
+def _mock_action_accepted(mock_client, ws_id):
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    payload = {"data": {"id": ws_id, "type": "workspaces", "attributes": {"locked": True}}}
+    mock_resp.text = json.dumps(payload)
+    mock_resp.json.return_value = payload
+    mock_client._request.return_value = mock_resp
+
+
+@given(parsers.parse('the TFC API returns a 404 error for "{endpoint}"'))
+def _mock_404_error(mock_client, endpoint):
+    from terrapyne.core.exceptions import TFCNotFoundError
+
+    mock_client._request.side_effect = TFCNotFoundError(
+        "TFC API Error: 404 - Not Found", status_code=404
+    )
+
+
+@when(parsers.parse('I run "{command}"'), target_fixture="result")
+def _run_command(mock_client, context_state, command):
+    argv = command.split()[1:]  # strip 'tfc'
+    detected_org = context_state.get("org")
+
+    def _capture_request(method, path, params=None, json_data=None):
+        context_state["captured_request"] = {
+            "method": method,
+            "path": path,
+            "params": params,
+            "json_data": json_data,
+        }
+        return mock_client._request.return_value
+
+    if not mock_client._request.side_effect:
+        mock_client._request.side_effect = _capture_request
+
+    with (
+        patch("terrapyne.cli.api_cmd.get_client") as get_client_mock,
+        patch(
+            "terrapyne.cli.api_cmd.validate_context",
+            return_value=(detected_org or "default-org", None),
+        ),
+    ):
+        get_client_mock.return_value.__enter__.return_value = mock_client
+        return runner.invoke(app, argv)
+
+
+@then("the command succeeds")
+def _command_succeeds(result):
+    assert result.exit_code == 0, (
+        f"Command failed: {result.output}\nStderr: {result.stderr if hasattr(result, 'stderr') else ''}"
+    )
+
+
+@then(
+    parsers.parse(
+        'the JSON output contains workspace attribute "{attr}" with value "{expected_value}"'
+    )
+)
+def _check_json_attribute(result, attr, expected_value):
+    data = json.loads(result.output)
+    assert data["data"]["attributes"][attr] == expected_value
+
+
+@then(parsers.parse('the request was sent to "{expected_path}"'))
+def _check_request_path(context_state, expected_path):
+    assert context_state["captured_request"]["path"] == expected_path
+
+
+@then(parsers.parse('the request method was "{expected_method}"'))
+def _check_request_method(context_state, expected_method):
+    assert context_state["captured_request"]["method"] == expected_method
+
+
+@then(parsers.parse('the request payload contained "{key}" with "{val}"'))
+def _check_request_payload(context_state, key, val):
+    payload = context_state["captured_request"]["json_data"]
+    assert payload.get(key) == val
+
+
+@then("the command exits with code 1")
+def _command_fails(result):
+    assert result.exit_code != 0
+
+
+@then("stderr indicates the resource was not found")
+def _check_stderr_404(result):
+    # Output or error_console includes not found or 404
+    output = result.output
+    assert "404" in output or "Not Found" in output or "not found" in output.lower()
