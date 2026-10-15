@@ -24,7 +24,12 @@ NullableList = list | None
 NullableStr = str | None
 
 
-class Terraform:
+class LocalIACRunner:
+    """Base class for local IaC binary wrappers (terraform/tofu)."""
+
+    _binary_name: str = "terraform"
+    _version_json_key: str = "terraform_version"
+
     def __init__(
         self,
         workspace_directory: str,
@@ -32,10 +37,12 @@ class Terraform:
         tfvars: NullableDict = None,
         envvars: NullableDict = None,
     ):
-        local_bin = next(Path("~/.local/bin").expanduser().glob("terraform"), None)
-        self.executable = which("terraform") or (str(local_bin) if local_bin else None)
+        local_bin = next(Path("~/.local/bin").expanduser().glob(self._binary_name), None)
+        self.executable = which(self._binary_name) or (str(local_bin) if local_bin else None)
         if not self.executable:
-            raise FileNotFoundError("terraform executable not found in PATH or ~/.local/bin")
+            raise FileNotFoundError(
+                f"{self._binary_name} executable not found in PATH or ~/.local/bin"
+            )
         self.workspace_directory = workspace_directory
         self.tfvars = self.benedict(tfvars or {})
 
@@ -51,15 +58,13 @@ class Terraform:
             "TF_CLI_ARGS_destroy": "-input=false -no-color -auto-approve",
         } | self.generate_envvars(envvars or {})
 
-        # "TF_LOG": "trace",
-        # "TF_LOG_PATH": "./terraform.log",
-        # "TF_PLUGIN_CACHE_DIR": "./tf-cache",
-        self.tfplan_name = "current.tfplan"  # Name by project
+        self.tfplan_name = "current.tfplan"
 
         assert self.version
         if required_version is not None and self.version != required_version:
             raise TerraformVersionError(
-                f"required version of terraform check failed: {self.version} != {required_version}"
+                f"required version of {self._binary_name} check failed: "
+                f"{self.version} != {required_version}"
             )
 
     @property
@@ -68,7 +73,7 @@ class Terraform:
             cmd=["version", "-json"],
         )
         self._version_info = self.benedict(json.loads(stdout))
-        return self._version_info.terraform_version
+        return self._version_info[self._version_json_key]
 
     @property
     def platform(self) -> str:
@@ -85,7 +90,7 @@ class Terraform:
             ignore_exit_code=True,
         )
         if c != 0:
-            raise TerraformError(f"terraform validate failed: {c} {e}")
+            raise TerraformError(f"{self._binary_name} validate failed: {c} {e}")
         return self.objectify(o)
 
     def plan(
@@ -246,7 +251,7 @@ class Terraform:
     ) -> tuple[str, str, int]:
         with change_directory(self.workspace_directory):
             cmd.insert(0, self.executable)
-            log.debug(f"terraform.exec({cmd}) with {self.executable}")
+            log.debug(f"{self._binary_name}.exec({cmd}) with {self.executable}")
 
             tfvars = self.benedict(self.tfvars | (tfvars or {}))
             with open("terrapyne.auto.tfvars.json", "w") as f:
@@ -273,7 +278,7 @@ class Terraform:
                 final_env.update(envvars)
 
             p = Popen(
-                cmd or ["terraform", "version"],
+                cmd or [self._binary_name, "version"],
                 cwd=self.workspace_directory,
                 stdout=PIPE,
                 stdin=PIPE,
@@ -287,7 +292,7 @@ class Terraform:
             exit_code = p.returncode
             logmsg = " ".join(
                 [
-                    "terraform.exec:",
+                    f"{self._binary_name}.exec:",
                     f"exit_code:[{exit_code}]",
                     f"stdout:[{stdout}]",
                     f"stderr:[{stderr}]",
@@ -298,7 +303,7 @@ class Terraform:
 
             if ignore_exit_code is not True and exit_code != expect_exit_code:
                 raise TerraformApplyError(
-                    message="Failure in running 'terraform apply'",
+                    message=f"Failure in running '{self._binary_name} apply'",
                     exit_code=exit_code,
                     expect_exit_code=expect_exit_code,
                     stdout=stdout,
@@ -307,3 +312,17 @@ class Terraform:
                 )
 
             return stdout, stderr, exit_code
+
+
+class Terraform(LocalIACRunner):
+    """Local Terraform binary wrapper."""
+
+    _binary_name = "terraform"
+    _version_json_key = "terraform_version"
+
+
+class OpenTofu(LocalIACRunner):
+    """Local OpenTofu binary wrapper."""
+
+    _binary_name = "tofu"
+    _version_json_key = "terraform_version"  # tofu uses same key in version -json
