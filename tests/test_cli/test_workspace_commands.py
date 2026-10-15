@@ -7,7 +7,7 @@ including error handling, context detection, and pagination.
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pytest_bdd import given, scenario, then, when
+from pytest_bdd import given, parsers, scenario, then, when
 from typer.testing import CliRunner
 
 from terrapyne.cli.main import app
@@ -1889,3 +1889,55 @@ def lock_workspace_confirm_no():
 def check_lock_aborted(lock_workspace_confirm_no):
     result = lock_workspace_confirm_no["result"]
     assert "Aborted" in result.output or "aborted" in result.output.lower()
+
+
+# F14 — workspace rename command
+
+
+@scenario("../features/workspace.feature", "Rename a workspace")
+def test_workspace_rename():
+    pass
+
+
+@given(
+    parsers.parse('workspace "{name}" exists in org "{org}"'), target_fixture="mock_ws_for_rename"
+)
+def workspace_exists_in_org(name, org, workspace_detail_response):
+    ws = Workspace.from_api_response(workspace_detail_response["data"])
+    return {"name": name, "org": org, "ws": ws}
+
+
+@pytest.fixture
+@when(
+    parsers.parse('I rename workspace "{current_name}" to "{new_name}"'),
+    target_fixture="rename_result",
+)
+def rename_workspace_step(current_name, new_name, mock_ws_for_rename):
+    org = mock_ws_for_rename["org"]
+    ws = mock_ws_for_rename["ws"]
+    renamed_ws = Workspace.model_construct(id=ws.id, name=new_name)
+    with patch("terrapyne.cli.workspace_cmd.resolve_organization") as mock_org:
+        mock_org.return_value = org
+        with patch("terrapyne.api.client.TFCClient") as mock_client:
+            mock_instance = MagicMock()
+            mock_client.return_value.__enter__.return_value = mock_instance
+            mock_instance.workspaces.update.return_value = renamed_ws
+            result = runner.invoke(
+                app,
+                ["workspace", "rename", current_name, new_name, "--organization", org],
+            )
+    return {"result": result, "new_name": new_name}
+
+
+@then(parsers.parse('the workspace is renamed to "{new_name}"'))
+def check_workspace_renamed(rename_result, new_name):
+    result = rename_result["result"]
+    assert result.exit_code == 0, f"Exit {result.exit_code}: {result.stdout}"
+    assert new_name in (result.output + (result.stderr or ""))
+
+
+@then("the output warns about terraform config needing manual update")
+def check_terraform_warning(rename_result):
+    result = rename_result["result"]
+    combined = (result.stdout or "") + (result.output or "")
+    assert "terraform" in combined.lower() or "manually" in combined.lower()

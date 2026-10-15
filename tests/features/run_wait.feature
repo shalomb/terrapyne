@@ -39,3 +39,9 @@ Feature: Run Queue and Wait Management
     When I run "run trigger --wait" for "my-app-dev"
     Then a hint is surfaced that a predecessor run may be blocking progress
     And in human mode the hint is a stderr message
+
+  Scenario: run watch respects explicit timeout flag
+    Given a run "run-pending-01" is currently "pending"
+    When I watch "run-pending-01" with timeout "5"
+    Then the command exits with a timeout error
+    And the exit code is non-zero

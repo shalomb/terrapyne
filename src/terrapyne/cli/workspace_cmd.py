@@ -14,7 +14,7 @@ from terrapyne.core.context import resolve_organization
 from terrapyne.core.exceptions import TFCAPIError, WorkspaceNotFoundError
 from terrapyne.models.run import RunStatus
 from terrapyne.models.variable import WorkspaceVariable
-from terrapyne.rendering.logging import console
+from terrapyne.rendering.logging import console, error_console
 from terrapyne.rendering.rich_tables import (
     render_workspace_dashboard,
     render_workspace_variables,
@@ -717,6 +717,38 @@ def workspace_update(
 
     url = get_workspace_url(org, ws.name)
     console.print(f"  View: {url}")
+
+
+@app.command("rename")
+@handle_cli_errors
+def workspace_rename(
+    ctx: typer.Context,
+    current_name: str = typer.Argument(..., help="Current workspace name"),
+    new_name: str = typer.Argument(..., help="New workspace name"),
+    organization: str | None = typer.Option(None, "--organization", "-o", help="TFC organization"),
+):
+    """Rename a workspace.
+
+    Examples:
+        tfc workspace rename old-name new-name --organization my-org
+    """
+    org = resolve_organization(organization)
+    if not org:
+        console.print("[red]Error: Organization not specified and not found in context.[/red]")
+        raise typer.Exit(1)
+
+    with get_client(ctx, organization=org) as client:
+        client.workspaces.update(
+            workspace_name=current_name,
+            organization=org,
+            name=new_name,
+        )
+
+    console.print(f"[green]✓[/green] Renamed workspace '{current_name}' to '{new_name}'")
+    error_console.print(
+        "Note: any terraform.tf or backend config referencing the old name"
+        " will need to be updated manually."
+    )
 
 
 @app.command("set-branch")

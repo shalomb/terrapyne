@@ -44,3 +44,8 @@ Feature: Run Listing and Monitoring
     Given the workspace "tec-dce-inn-dev-93400-shalombhooshi" has recent runs
     When I run "run list tec-dce-inn-dev-93400-shalombhooshi"
     Then the runs should be listed without error
+
+  Scenario: run list with explicit workspace ID bypasses context detection
+    Given the environment has no terraform context
+    When I list runs using workspace id "ws-abc123"
+    Then runs for workspace "ws-abc123" are returned without context resolution
