@@ -25,6 +25,7 @@ Once the implementation is complete and committed:
 2. Use the `bart` skill to review the code, diff, test output, or PR.
 3. **Fixing Issues**: The main agent must fix all *related* issues found by Bart. 
 4. **Parking Issues**: Any *unrelated* bugs, smells, or edge cases found by Bart during the review must not be bundled into the current commit/PR. Instead, they must be parked back onto the `TODO.md` backlog for a future iteration.
+5. **CLI Surface & Hierarchy**: For any changes affecting CLI commands or subcommands, Bart verifies compliance with [`docs/standards/cli-command-hierarchy.md`](../standards/cli-command-hierarchy.md) (scope separation, atomic update parity, subgroup symmetry). Hierarchy violations are blocking.
 
 ## Commit Protocol (ACP)
 

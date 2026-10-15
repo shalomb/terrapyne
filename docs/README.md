@@ -48,6 +48,14 @@
 - **[CLI Command Reference](reference/cli-reference.md)** — All commands, flags, and examples.
 - **[Platform Dependency Mapping](reference/platform-dependency-mapping.md)** — External systems, integration points, and risks.
 
+### 📐 [Standards](standards/) (Normative)
+**Rules and contracts** — standards for commits, task decomposition, CLI hierarchy, and review.
+
+- **[Atomic Commit Protocol](standards/atomic-commit-protocol.md)** — Commit format and verification gates.
+- **[Task Decomposition](standards/task-decomposition.md)** — INVEST principles and decomposition strategies.
+- **[CLI Command Hierarchy & Surface Design](standards/cli-command-hierarchy.md)** — Resource vs. org scope, subgroup symmetry, and API parity.
+- **[Adversarial Review Feedback](standards/feedback.md)** — FEEDBACK.md template and review rubric.
+
 ---
 
 ## 🗂️ Project Documentation Map
@@ -58,6 +66,7 @@ docs/
 │   └── architecture/  (ADRs, C4 Diagrams)
 ├── how-to/            (Dev workflows, operational recipes)
 ├── reference/         (Specs, API docs, dependency maps)
+├── standards/         (Normative rules, ACP, CLI hierarchy, review rubric)
 ├── tutorials/         (Step-by-step walkthroughs)
 └── README.md          (Navigation hub)
 ```

@@ -26,6 +26,13 @@ The SDK is built on Pydantic models. This ensures that every piece of data comin
 ## 5. Built for Automation
 Terrapyne is not just a CLI; it's a foundation for building your own internal developer portals (IDPs) and custom GitOps bots. The SDK is designed to be embedded in larger systems, handling the "plumbing" of TFC so you can focus on your business logic.
 
+## 6. Symmetrical Command Taxonomy & API Fidelity
+CLI commands are strictly organized by operational scope (Organization-level assets like `tfc vcs` and `tfc team` vs. Resource-level operations like `tfc workspace`). 
+To keep commands intuitive for both humans and AI agents:
+- **API Parity**: If the backend entity is mutated through an atomic endpoint (`PATCH /workspaces/:id`), the CLI's `workspace update` command supports updating those attributes together via flags, rather than scattering one-off `set-*` commands.
+- **Subgroup Symmetry**: Complex child resources are grouped symmetrically under the parent (`workspace var`, `workspace triggers`, `workspace vcs`).
+See the canonical [CLI Command Hierarchy & Surface Design standard](../standards/cli-command-hierarchy.md) for full taxonomy rules and review checklists.
+
 ---
 
 ## Automation & Agent Contract
