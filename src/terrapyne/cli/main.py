@@ -30,10 +30,13 @@ app = typer.Typer(
     help="Terraform Cloud CLI orchestrator for DevOps engineers",
 )
 
-# Add raw API gateway command
+# Add raw API gateway command (escape hatch)
 app.command(
     name="api",
-    help="Make an authenticated HTTP request to the Terraform Cloud API",
+    help=(
+        "Low-level escape hatch for raw TFC/TFE REST API endpoints. "
+        "Prefer high-level subcommands ('tfc workspace', 'tfc run', etc.)"
+    ),
 )(api_cmd.api_command)
 
 # Add workspace commands

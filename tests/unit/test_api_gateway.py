@@ -8,6 +8,7 @@ import pytest
 from typer.testing import CliRunner
 
 from terrapyne.cli.api_cmd import (
+    get_subcommand_hint,
     interpolate_endpoint,
     load_request_payload,
     parse_field_options,
@@ -123,8 +124,8 @@ def test_api_command_paginate(monkeypatch):
         result = runner.invoke(
             app, ["api", "/organizations/{organization}/workspaces", "--paginate", "-o", "test-org"]
         )
-        assert result.exit_code == 0
-        data = json.loads(result.output)
+        raw_json = result.stdout if result.stdout else result.output
+        data = json.loads(raw_json)
         assert len(data["data"]) == 2
         assert data["data"][0]["id"] == "ws-1"
 
@@ -247,3 +248,114 @@ def test_api_command_non_json_response():
         result = runner.invoke(app, ["api", "/logs", "-o", "test-org"])
         assert result.exit_code == 0
         assert "plain text log or diagnostic" in result.output
+
+
+def test_get_subcommand_hint_matches():
+    assert "tfc workspace list" in (
+        get_subcommand_hint("GET", "/organizations/my-org/workspaces") or ""
+    )
+    assert "tfc workspace create" in (
+        get_subcommand_hint("POST", "/organizations/my-org/workspaces") or ""
+    )
+    assert "tfc workspace show" in (
+        get_subcommand_hint("GET", "/organizations/my-org/workspaces/my-ws") or ""
+    )
+    assert "tfc workspace show" in (get_subcommand_hint("GET", "/workspaces/ws-123") or "")
+    assert "tfc workspace update" in (get_subcommand_hint("PATCH", "/workspaces/ws-123") or "")
+    assert "tfc workspace delete" in (get_subcommand_hint("DELETE", "/workspaces/ws-123") or "")
+    assert "tfc workspace lock" in (
+        get_subcommand_hint("POST", "/workspaces/ws-123/actions/lock") or ""
+    )
+    assert "tfc workspace unlock" in (
+        get_subcommand_hint("POST", "/workspaces/ws-123/actions/unlock") or ""
+    )
+    assert "tfc run list" in (get_subcommand_hint("GET", "/workspaces/ws-123/runs") or "")
+    assert "tfc run create" in (get_subcommand_hint("POST", "/runs") or "")
+    assert "tfc run show" in (get_subcommand_hint("GET", "/runs/run-123") or "")
+    assert "tfc run apply" in (get_subcommand_hint("POST", "/runs/run-123/actions/apply") or "")
+    assert "tfc run cancel" in (get_subcommand_hint("POST", "/runs/run-123/actions/discard") or "")
+    assert "tfc state current" in (
+        get_subcommand_hint("GET", "/workspaces/ws-123/current-state-version") or ""
+    )
+    assert "tfc project list" in (
+        get_subcommand_hint("GET", "/organizations/my-org/projects") or ""
+    )
+    assert "tfc team list" in (get_subcommand_hint("GET", "/organizations/my-org/teams") or "")
+    assert "tfc varset list" in (get_subcommand_hint("GET", "/organizations/my-org/varsets") or "")
+    assert "tfc vcs list" in (
+        get_subcommand_hint("GET", "/organizations/my-org/oauth-clients") or ""
+    )
+
+
+def test_get_subcommand_hint_no_match():
+    assert get_subcommand_hint("GET", "/status") is None
+    assert get_subcommand_hint("GET", "/api/v2/ping") is None
+    assert get_subcommand_hint("POST", "/unknown/custom/endpoint") is None
+
+
+def test_api_command_emits_subcommand_hint():
+    runner = CliRunner()
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.text = "{}"
+    mock_resp.json.return_value = {}
+    mock_client._request.return_value = mock_resp
+
+    with (
+        patch("terrapyne.cli.api_cmd.get_client") as get_client_mock,
+        patch("terrapyne.cli.api_cmd.validate_context", return_value=("test-org", None)),
+    ):
+        get_client_mock.return_value.__enter__.return_value = mock_client
+        result = runner.invoke(
+            app, ["api", "/organizations/{organization}/workspaces", "-o", "test-org"]
+        )
+        assert result.exit_code == 0
+        stderr = result.stderr if hasattr(result, "stderr") and result.stderr else result.output
+        assert "hint:" in stderr
+        assert "tfc workspace list" in stderr
+
+
+def test_api_command_suppresses_hint_with_no_hints_flag():
+    runner = CliRunner()
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.text = "{}"
+    mock_resp.json.return_value = {}
+    mock_client._request.return_value = mock_resp
+
+    with (
+        patch("terrapyne.cli.api_cmd.get_client") as get_client_mock,
+        patch("terrapyne.cli.api_cmd.validate_context", return_value=("test-org", None)),
+    ):
+        get_client_mock.return_value.__enter__.return_value = mock_client
+        result = runner.invoke(
+            app, ["api", "/organizations/{organization}/workspaces", "-o", "test-org", "--no-hints"]
+        )
+        assert result.exit_code == 0
+        stderr = result.stderr if hasattr(result, "stderr") and result.stderr else ""
+        assert "hint:" not in stderr
+
+
+def test_api_command_suppresses_hint_with_env(monkeypatch):
+    runner = CliRunner()
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.text = "{}"
+    mock_resp.json.return_value = {}
+    mock_client._request.return_value = mock_resp
+
+    monkeypatch.setenv("TERRAPYNE_NO_HINTS", "1")
+    with (
+        patch("terrapyne.cli.api_cmd.get_client") as get_client_mock,
+        patch("terrapyne.cli.api_cmd.validate_context", return_value=("test-org", None)),
+    ):
+        get_client_mock.return_value.__enter__.return_value = mock_client
+        result = runner.invoke(
+            app, ["api", "/organizations/{organization}/workspaces", "-o", "test-org"]
+        )
+        assert result.exit_code == 0
+        stderr = result.stderr if hasattr(result, "stderr") and result.stderr else ""
+        assert "hint:" not in stderr

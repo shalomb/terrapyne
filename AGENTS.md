@@ -22,6 +22,9 @@ This file uses progressive disclosure. For detailed instructions on how agents s
 - **[Commits & Review](file:///home/unop/shalomb/terrapyne/docs/how-to/commits-and-review.md)** — Atomic commits, conventional format, PR process.
 - **[Architecture](file:///home/unop/shalomb/terrapyne/docs/explanation/architecture/)** — ADRs, design decisions, model patterns.
 
+> [!IMPORTANT]
+> **Subcommand Surface Priority**: When interacting with Terraform Cloud through the CLI, autonomous agents MUST prefer high-level, validated subcommands (`tfc workspace`, `tfc run`, `tfc project`, `tfc team`, `tfc state`) over `tfc api`. The `api` command is strictly a fallback escape hatch for uncovered REST endpoints.
+
 ## Standards (cited from the agent personas)
 
 These are the canonical rule sets that the Marge / Lisa / Ralph / Bart personas reference. Read them before doing your role.
