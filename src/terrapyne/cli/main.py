@@ -12,6 +12,7 @@ from terrapyne.cli import (
     debug_cmd,
     harness_cmd,
     local_cmd,
+    profile_cmd,
     project_cmd,
     run_cmd,
     state_cmd,
@@ -29,8 +30,11 @@ app = typer.Typer(
     name=_prog,
     help="Terraform Cloud CLI orchestrator for DevOps engineers",
 )
+# Add profile commands
+app.add_typer(profile_cmd.app, name="profile")
 
 # Add raw API gateway command (escape hatch)
+
 app.command(
     name="api",
     help=(
@@ -103,6 +107,12 @@ def main(
         "--cache-ttl",
         help="Cache API responses for N seconds (0 to disable)",
     ),
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="Use a specific configuration profile",
+    ),
 ) -> None:
     """Terraform Cloud CLI orchestrator for DevOps engineers."""
     from terrapyne.cli.output_helpers import setup_logging
@@ -120,6 +130,7 @@ def main(
 
     ctx.obj["cache_ttl"] = cache_ttl
     ctx.obj["agent_context"] = agent_ctx
+    ctx.obj["profile"] = profile
 
     if debug and agent_ctx.is_agent:
         console.print(f"[dim]Agent context detected: {agent_ctx.reason}[/dim]")
