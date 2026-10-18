@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterator
+from fnmatch import fnmatchcase
 from typing import Any
 
 from terrapyne.api.client import TFCClient
@@ -79,7 +80,9 @@ class WorkspaceAPI:
 
         if search:
             if "*" in search:
-                params["search[wildcard-name]"] = search
+                # Server wildcard can't handle a middle '*': search the longest
+                # literal chunk, then fnmatch the full pattern client-side.
+                params["search[name]"] = max(search.split("*"), key=len)
             else:
                 params["search[name]"] = search
         if project_id:
@@ -87,13 +90,17 @@ class WorkspaceAPI:
         if current_run_status:
             params["filter[current-run][status]"] = current_run_status
 
+        glob = bool(search and "*" in search)
         items_iterator, total_count = self.client.paginate(path, params=params)
 
         def workspace_iterator() -> Iterator[Workspace]:
             for item in items_iterator:
-                yield Workspace.from_api_response(item, included=items_iterator.included)
+                ws = Workspace.from_api_response(item, included=items_iterator.included)
+                if glob and not fnmatchcase(ws.name, search or ""):
+                    continue
+                yield ws
 
-        return workspace_iterator(), total_count
+        return workspace_iterator(), None if glob else total_count
 
     def get(
         self,
