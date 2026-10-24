@@ -161,3 +161,40 @@ def check_parent_project(cli_result, project):
     result = cli_result["result"]
     # Our mock setup uses prj-123 for the ID
     assert "prj-123" in result.output or project in result.output
+
+
+@scenario("../features/project_context.feature", "Show project details by project ID")
+def test_project_show_by_id():
+    """Scenario: Show project details by project ID."""
+
+
+@given(
+    parsers.parse('project "{name}" has ID "{project_id}"'),
+    target_fixture="project_by_id_setup",
+)
+def setup_project_by_id(name, project_id):
+    return {"project": Project.model_construct(id=project_id, name=name)}
+
+
+@pytest.fixture
+@when(
+    parsers.parse('I run "tfc project show {project_id}"'),
+    target_fixture="cli_result",
+)
+def request_project_details_by_id(project_by_id_setup, project_id):
+    project = project_by_id_setup["project"]
+    with (
+        patch("terrapyne.cli.project_cmd.validate_context", return_value=("takeda", None)),
+        patch("terrapyne.cli.context_helpers.validate_context", return_value=("takeda", None)),
+        patch("terrapyne.api.client.TFCClient") as mock_client,
+    ):
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+        mock_instance.projects.get_by_id.return_value = project
+        mock_instance.projects.get_by_name.side_effect = ValueError(
+            f"Project '{project_id}' not found in organization 'takeda'"
+        )
+        mock_instance.workspaces.list.return_value = (iter([]), 0)
+
+        result = runner.invoke(app, ["project", "show", project_id, "-o", "takeda"])
+        return {"result": result, "project": project}

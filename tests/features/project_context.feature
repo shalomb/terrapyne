@@ -23,3 +23,9 @@ Feature: Project Context Resolution
     When I run "tfc workspace show"
     Then the command should succeed
     And the output should show project "Project-X" in workspace details
+
+  Scenario: Show project details by project ID
+    Given project "10345-MAN" has ID "prj-zGTZpcMXv4e3ZQb4"
+    When I run "tfc project show prj-zGTZpcMXv4e3ZQb4"
+    Then the command should succeed
+    And the output should show details for project "10345-MAN"

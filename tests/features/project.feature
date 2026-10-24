@@ -104,6 +104,22 @@ Feature: Project Operations
     Then I should see message "No projects found"
     And exit code should be 0
 
+  Scenario: Find projects displays workspace count from project attributes
+    Given a project "10345-MAN" with workspace-count 17 in the API response
+    When I find projects matching "10345-MAN"
+    Then the project table should show "17" workspaces for "10345-MAN"
+
+  Scenario: Find projects outputs JSON when format is json
+    Given a project "10345-MAN" with workspace-count 17 in the API response
+    When I find projects matching "10345-MAN" with format "json"
+    Then the output should be valid JSON containing project "10345-MAN" with count 17
+
+  Scenario: List projects filters by search pattern
+    Given a project "10345-MAN" with workspace-count 17 in the API response
+    When I list projects with search "10345-MAN"
+    Then the project API should be queried with search "10345-MAN"
+    And the project table should show "17" workspaces for "10345-MAN"
+
   Scenario: List projects with pagination
     Given I have organization with 100 projects
     When I list projects

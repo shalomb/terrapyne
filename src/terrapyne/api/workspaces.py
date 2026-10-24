@@ -49,7 +49,7 @@ class WorkspaceAPI:
         organization: str | None = None,
         search: str | None = None,
         project_id: str | None = None,
-        include: str | None = None,
+        include: str | None = "project",
         current_run_status: str | None = None,
     ) -> tuple[Iterator[Workspace], int | None]:
         """List workspaces in an organization.

@@ -538,3 +538,42 @@ class TestWorkspaceUpdate:
         mock_client.patch.assert_called_once()
         call_args = mock_client.patch.call_args
         assert call_args[0][0] == "/organizations/default-org/workspaces/my-app-dev"
+
+
+class TestWorkspaceListProjectInclude:
+    """WorkspaceAPI.list() sideloads project by default so project_name is populated."""
+
+    def test_list_includes_project_by_default(self):
+        client = MagicMock()
+        client.get_organization.return_value = "takeda"
+        paginator = MagicMock()
+        paginator.__iter__.return_value = iter(
+            [
+                {
+                    "id": "ws-CtCWqybB2qdoyt7y",
+                    "type": "workspaces",
+                    "attributes": {"name": "tec-man-dad-dev-10345-tag-automation"},
+                    "relationships": {
+                        "project": {"data": {"type": "projects", "id": "prj-zGTZpcMXv4e3ZQb4"}}
+                    },
+                }
+            ]
+        )
+        paginator.included = [
+            {
+                "id": "prj-zGTZpcMXv4e3ZQb4",
+                "type": "projects",
+                "attributes": {"name": "10345-MAN"},
+            }
+        ]
+        client.paginate.return_value = (paginator, 1)
+
+        api = WorkspaceAPI(client)
+        workspaces, _ = api.list("takeda", search="10345")
+        ws_list = list(workspaces)
+
+        call_params = client.paginate.call_args.kwargs["params"]
+        assert "project" in call_params.get("include", "").split(",")
+        assert len(ws_list) == 1
+        assert ws_list[0].project_id == "prj-zGTZpcMXv4e3ZQb4"
+        assert ws_list[0].project_name == "10345-MAN"
