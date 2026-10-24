@@ -145,6 +145,23 @@ class TestProjectModelParsing:
         assert project.description == "Main infrastructure project"
         assert isinstance(project.created_at, datetime)
 
+    def test_project_from_api_response_parses_workspace_count(self):
+        """Test Project.from_api_response extracts workspace-count from TFC API attributes."""
+        api_response = {
+            "id": "prj-zGTZpcMXv4e3ZQb4",
+            "type": "projects",
+            "attributes": {
+                "name": "10345-MAN",
+                "description": None,
+                "created-at": "2025-03-13T07:50:11.157Z",
+                "workspace-count": 17,
+            },
+        }
+
+        project = Project.from_api_response(api_response)
+
+        assert project.resource_count == 17
+
 
 class TestTeamAccessModelParsing:
     """Test TeamProjectAccess model creation from API responses."""

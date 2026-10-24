@@ -32,11 +32,14 @@ class Project(BaseModel):
             Project instance
         """
         attrs = data.get("attributes", {})
+        workspace_count = attrs.get("workspace-count")
+        if workspace_count is None:
+            workspace_count = attrs.get("resource-count", 0)
 
         return cls.model_construct(
             id=data["id"],
             name=attrs.get("name", ""),
             description=attrs.get("description"),
             created_at=parse_iso_datetime(attrs.get("created-at")),
-            resource_count=attrs.get("resource-count", 0),
+            resource_count=workspace_count,
         )

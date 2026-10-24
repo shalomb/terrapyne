@@ -559,3 +559,127 @@ def check_ws_creation_perms(list_team_access):
     """Verify workspace creation permissions are shown."""
     result = list_team_access["result"]
     assert result.exit_code == 0
+
+
+# ============================================================================
+# Project Find Command Tests
+# ============================================================================
+
+
+@scenario(
+    "../features/project.feature",
+    "Find projects displays workspace count from project attributes",
+)
+def test_find_projects_workspace_count():
+    """Scenario: Find projects displays workspace count from project attributes."""
+
+
+@given(
+    parsers.parse('a project "{name}" with workspace-count {count:d} in the API response'),
+    target_fixture="find_project_setup",
+)
+def setup_project_with_workspace_count(name, count):
+    api_payload = {
+        "id": "prj-zGTZpcMXv4e3ZQb4",
+        "type": "projects",
+        "attributes": {
+            "name": name,
+            "description": None,
+            "created-at": "2025-03-13T07:50:11.157Z",
+            "workspace-count": count,
+        },
+    }
+    return {"project": Project.from_api_response(api_payload)}
+
+
+@pytest.fixture
+@when(parsers.parse('I find projects matching "{pattern}"'), target_fixture="find_project_result")
+def run_find_projects(find_project_setup, pattern):
+    project = find_project_setup["project"]
+    with patch("terrapyne.api.client.TFCClient") as mock_client_class:
+        mock_client = MagicMock()
+        mock_client_class.return_value.__enter__.return_value = mock_client
+        mock_client.projects.list.return_value = (iter([project]), 1)
+
+        return runner.invoke(app, ["project", "find", pattern, "--organization", "test-org"])
+
+
+@then(parsers.parse('the project table should show "{count}" workspaces for "{name}"'))
+def check_find_project_workspace_count(find_project_result, count, name):
+    assert find_project_result.exit_code == 0
+    assert name in find_project_result.output
+    assert f"│ {count} " in find_project_result.output
+
+
+@scenario(
+    "../features/project.feature",
+    "Find projects outputs JSON when format is json",
+)
+def test_find_projects_json_output():
+    """Scenario: Find projects outputs JSON when format is json."""
+
+
+@pytest.fixture
+@when(
+    parsers.parse('I find projects matching "{pattern}" with format "{fmt}"'),
+    target_fixture="find_project_json_result",
+)
+def run_find_projects_json(find_project_setup, pattern, fmt):
+    project = find_project_setup["project"]
+    with patch("terrapyne.api.client.TFCClient") as mock_client_class:
+        mock_client = MagicMock()
+        mock_client_class.return_value.__enter__.return_value = mock_client
+        mock_client.projects.list.return_value = (iter([project]), 1)
+
+        return runner.invoke(
+            app, ["project", "find", pattern, "--organization", "test-org", "--format", fmt]
+        )
+
+
+@then(
+    parsers.parse(
+        'the output should be valid JSON containing project "{name}" with count {count:d}'
+    )
+)
+def check_find_project_json(find_project_json_result, name, count):
+    import json
+
+    assert find_project_json_result.exit_code == 0
+    payload = json.loads(find_project_json_result.stdout)
+    assert len(payload) == 1
+    assert payload[0]["name"] == name
+    assert payload[0]["resource_count"] == count
+
+
+@scenario(
+    "../features/project.feature",
+    "List projects filters by search pattern",
+)
+def test_list_projects_search():
+    """Scenario: List projects filters by search pattern."""
+
+
+@pytest.fixture
+@when(
+    parsers.parse('I list projects with search "{pattern}"'),
+    target_fixture="find_project_result",
+)
+def run_list_projects_search(find_project_setup, pattern):
+    project = find_project_setup["project"]
+    with patch("terrapyne.api.client.TFCClient") as mock_client_class:
+        mock_client = MagicMock()
+        mock_client_class.return_value.__enter__.return_value = mock_client
+        mock_client.projects.list.return_value = (iter([project]), 1)
+
+        result = runner.invoke(
+            app, ["project", "list", "--organization", "test-org", "--search", pattern]
+        )
+        result._mock_client = mock_client  # type: ignore[attr-defined]
+        return result
+
+
+@then(parsers.parse('the project API should be queried with search "{pattern}"'))
+def check_list_projects_search_call(find_project_result, pattern):
+    mock_client = find_project_result._mock_client
+    mock_client.projects.list.assert_called_once_with("test-org", search=pattern)
+    mock_client.workspaces.list.assert_not_called()

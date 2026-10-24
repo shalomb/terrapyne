@@ -52,6 +52,12 @@ def project_list(
         "-o",
         help="TFC organization (auto-detected from context if available)",
     ),
+    search: str | None = typer.Option(
+        None,
+        "--search",
+        "-s",
+        help="Search pattern for project names (supports wildcards: *-MAN, 10234-*)",
+    ),
     limit: int = typer.Option(100, "--limit", "-n", help="Maximum number of projects to show"),
     output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ) -> None:
@@ -59,7 +65,9 @@ def project_list(
     org, _ = validate_context(organization)
 
     with get_client(ctx, organization=org) as client:
-        projects_iter, total_count = client.projects.list(org)
+        projects_iter, total_count = (
+            client.projects.list(org, search=search) if search else client.projects.list(org)
+        )
         projects = list(projects_iter)[:limit]
         fmt = effective_format(ctx, output_format)
 
@@ -78,18 +86,10 @@ def project_list(
             emit_json([p.model_dump() for p in projects])
             return
 
-        # Fetch workspace counts for each project
-        # In a real scenario with many projects, we might want to optimize this
-        workspace_counts: dict[str, int] = {}
-        for project in projects:
-            _, count = client.workspaces.list(org, project_id=project.id)
-            workspace_counts[project.id] = count or 0
-
         render_projects(
             projects,
             f"Projects in {org}",
             total_count=total_count,
-            workspace_counts=workspace_counts,
         )
 
 
@@ -102,6 +102,7 @@ def find_projects(
     ),
     organization: str | None = typer.Option(None, "-o", "--organization", help="TFC organization"),
     limit: int = typer.Option(100, "--limit", "-n", help="Maximum number of projects to display"),
+    output_format: str = typer.Option("table", "--format", "-f", help="Output format: table, json"),
 ) -> None:
     """Find projects matching a pattern."""
     org, _ = validate_context(organization)
@@ -109,19 +110,27 @@ def find_projects(
     with get_client(ctx, organization=org) as client:
         projects_iter, total_count = client.projects.list(org, search=pattern)
         projects = list(projects_iter)[:limit]
+        fmt = effective_format(ctx, output_format)
 
         if not projects:
+            if fmt == "json":
+                from terrapyne.cli.output_helpers import emit_json
+
+                emit_json([])
+                sys.exit(0)
             console.print(f"[yellow]No projects found matching '{pattern}'[/yellow]")
             sys.exit(0)
 
-        # Get actual workspace counts
-        workspace_counts: dict[str, int] = {}  # skip expensive count for find results
+        if fmt == "json":
+            from terrapyne.cli.output_helpers import emit_json
+
+            emit_json([p.model_dump() for p in projects])
+            return
 
         render_projects(
             projects,
             f"Projects matching '{pattern}' in {org}",
             total_count=total_count,
-            workspace_counts=workspace_counts,
         )
 
 

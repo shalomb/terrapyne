@@ -82,9 +82,9 @@ Run management and monitoring.
 ## `tfc project`
 Project discovery and cost aggregation.
 
-- `list`: List all projects in organization.
-- `find`: Find projects matching a pattern.
-- `show`: Show project details and workspaces.
+- `list`: List all projects in organization (`--search` / `-s` to filter by name or wildcard).
+- `find`: Find projects matching a pattern (`--format json` for structured output).
+- `show`: Show project details and workspaces (accepts project name or `prj-*` ID).
 - `teams`: List team access for a project.
 - `costs`: Aggregate cost estimates across all workspaces in a project.
 
