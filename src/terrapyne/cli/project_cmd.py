@@ -226,7 +226,7 @@ def list_project_teams(
 @handle_cli_errors
 def project_costs(
     ctx: typer.Context,
-    project_name: str = typer.Argument(..., help="Project name"),
+    project_name: str = typer.Argument(..., help="Project name or ID (prj-*)"),
     organization: str | None = typer.Option(
         None,
         "--organization",
@@ -238,7 +238,7 @@ def project_costs(
     org, _ = validate_context(organization)
 
     with get_client(ctx, organization=org) as client:
-        project = client.projects.get_by_name(project_name, org)
+        _, project = resolve_project_context(client, org, project_name)
         workspaces_iter, _ = client.workspaces.list(org, project_id=project.id)
         workspaces = list(workspaces_iter)
 

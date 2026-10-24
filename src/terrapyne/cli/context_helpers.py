@@ -73,6 +73,8 @@ def resolve_project_context(
 ) -> tuple[str, Any]:
     org, _ = validate_context(organization)
     if project_name:
+        if project_name.startswith("prj-"):
+            return org, client.projects.get_by_id(project_name)
         return org, client.projects.get_by_name(project_name, org)
     try:
         org, ws_name = validate_context(organization, require_workspace=True)
