@@ -310,3 +310,8 @@ Feature: Workspace Operations
     When I rename workspace "old-name" to "new-name"
     Then the workspace is renamed to "new-name"
     And the output warns about terraform config needing manual update
+
+  Scenario: Workspace list includes parent project name
+    Given workspace "tec-man-dad-dev-10345-tag-automation" belongs to project "10345-MAN"
+    When I list workspaces matching "10345"
+    Then the workspace list output should show project "10345-MAN"

@@ -1941,3 +1941,63 @@ def check_terraform_warning(rename_result):
     result = rename_result["result"]
     combined = (result.stdout or "") + (result.output or "")
     assert "terraform" in combined.lower() or "manually" in combined.lower()
+
+
+@scenario("../features/workspace.feature", "Workspace list includes parent project name")
+def test_workspace_list_shows_project_name():
+    """Scenario: Workspace list includes parent project name."""
+
+
+@given(
+    parsers.parse('workspace "{ws_name}" belongs to project "{project_name}"'),
+    target_fixture="ws_with_project_setup",
+)
+def setup_ws_with_project(ws_name, project_name):
+    ws = Workspace.from_api_response(
+        {
+            "id": "ws-CtCWqybB2qdoyt7y",
+            "type": "workspaces",
+            "attributes": {
+                "name": ws_name,
+                "terraform-version": "1.16.0",
+                "locked": False,
+            },
+            "relationships": {
+                "project": {"data": {"type": "projects", "id": "prj-zGTZpcMXv4e3ZQb4"}}
+            },
+        },
+        included=[
+            {
+                "id": "prj-zGTZpcMXv4e3ZQb4",
+                "type": "projects",
+                "attributes": {"name": project_name},
+            }
+        ],
+    )
+    return {"workspace": ws, "project_name": project_name}
+
+
+@pytest.fixture
+@when(
+    parsers.parse('I list workspaces matching "{pattern}"'),
+    target_fixture="ws_list_project_result",
+)
+def run_list_workspaces_with_project(ws_with_project_setup, pattern):
+    ws = ws_with_project_setup["workspace"]
+    with (
+        patch("terrapyne.cli.workspace_cmd.resolve_organization", return_value="takeda"),
+        patch("terrapyne.api.client.TFCClient") as mock_client,
+    ):
+        mock_instance = MagicMock()
+        mock_client.return_value.__enter__.return_value = mock_instance
+        mock_instance.workspaces.list.return_value = (iter([ws]), 1)
+        return runner.invoke(
+            app,
+            ["workspace", "list", "-o", "takeda", "-s", pattern, "--no-truncate"],
+        )
+
+
+@then(parsers.parse('the workspace list output should show project "{project_name}"'))
+def check_ws_list_shows_project_name(ws_list_project_result, project_name):
+    assert ws_list_project_result.exit_code == 0
+    assert project_name in ws_list_project_result.output

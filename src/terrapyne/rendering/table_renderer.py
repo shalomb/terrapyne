@@ -141,10 +141,11 @@ class WorkspaceTableRenderer(TableRenderer["Workspace"]):  # type: ignore
         return "Workspaces"
 
     def get_columns(self) -> list[str]:
-        return ["Workspace", "Environment", "TF Version", "VCS Branch", "Locked"]
+        return ["Workspace", "Project", "Environment", "TF Version", "VCS Branch", "Locked"]
 
     def add_columns(self, table: Table) -> None:  # type: ignore[override]
         table.add_column("Workspace", style="cyan", no_wrap=self.no_truncate)
+        table.add_column("Project", style="cyan", no_wrap=False)
         table.add_column("Environment", style="cyan", no_wrap=False)
         table.add_column("TF Version", style="cyan", no_wrap=False)
         table.add_column("VCS Branch", style="cyan", no_wrap=False)
@@ -157,8 +158,10 @@ class WorkspaceTableRenderer(TableRenderer["Workspace"]):  # type: ignore
             return []
 
         vcs_branch = (entity.vcs_repo.branch or "N/A") if entity.vcs_repo else "N/A"
+        project_display = entity.project_name or entity.project_id or "-"
         return [
             entity.name,
+            project_display,
             entity.environment or "-",
             entity.terraform_version or "-",
             vcs_branch,
